@@ -74,6 +74,8 @@ html.native .desk-edge { display: none; }   /* 아이폰 앱: 화면 전체를 �
   background: var(--bg); border-radius: 16px 16px 0 0;
   box-shadow: 0 -3px 18px var(--lift), 0 0 0 1px var(--line);
 }
+/* 아이폰 앱: 펼친 책은 사방이 화면에서 떨어진 카드(네 모서리 둥글게, 그림자는 사방으로) */
+html.native #stage:not(.scroll) { border-radius: 16px; box-shadow: 0 0 18px var(--lift), 0 0 0 1px var(--line); }
 
 /* ---------- 책 ---------- */
 #stage {

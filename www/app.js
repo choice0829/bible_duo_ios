@@ -19,13 +19,19 @@
   const SHIFT_DEFAULT = 52;        // 아이폰 듀오 펼침 기준 (아래 geometry의 duo)
   const SPREAD_MIN_SHIFT = 28;     // 그 밖의 기기: 책 왼쪽에 최소로 남기는 폭 (노트 탭이 붙는 자리)
   const BOTTOM_SPREAD_DEFAULT = 20;
+  // 아이폰 앱(껍데기) 전용 — 펼친 화면의 책을 '카드'로 둔다: 좌우 여백을 같게, 아래도 화면 끝에서 띄운다.
+  const NATIVE_BOTTOM_GAP = 20;         // 카드 아래 끝과 화면 맨 아래 사이(px). 낮은 화면(가로로 돌린 아이폰)은 10
+  const NATIVE_BOTTOM_GAP_COMPACT = 10;
+  const NATIVE_PAD_BOTTOM = 14;         // 카드 안에서 본문 아래 여백(px). 카드 밖에 따로 띄우므로 기본값(20)보다 줄인다
+  const NATIVE_PILL_BOTTOM = 118;       // 듀오 오른쪽 열의 상태 알약(시계·배터리)이 끝나는 높이(실기기 화면에서 잰 약 114px + 4px). 카드가 알약 쪽까지 올 때 카드 윗면은 이 아래에서 시작한다
+  const NATIVE_PILL_LEFT = 10;          // 알약이 오른쪽 열(안전영역) 왼쪽 끝에서 안쪽으로 들어온 만큼(px)
   // 여백 기본값을 바꿀 때 이 번호를 올리면, 기기에 저장돼 있던 펼침 여백 값이 새 기본값으로 한 번 바뀐다.
   const MARGIN_REV = 19;
   const TOP_MIN_SPREAD = 48, TOP_MIN_SINGLE = 96, TOP_MAX = 280;
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v38';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v39';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const DESKS = { plain: '단색', linen: '린넨', wood: '나무결', leather: '가죽' };   // 책상(상단 배경) 질감
   const DESK_DEFAULT = 'linen';
@@ -143,13 +149,15 @@
       topSpread: compact ? TOP_COMPACT.topSpread : TOP_DEFAULT.topSpread,
       topSingle: compact ? TOP_COMPACT.topSingle : TOP_DEFAULT.topSingle,
       shiftX: duo ? SHIFT_DEFAULT : Math.max(Math.round(si.left), SPREAD_MIN_SHIFT),
-      bottomSpread: duo ? BOTTOM_SPREAD_DEFAULT : Math.max(Math.round(si.bottom), compact ? 10 : BOTTOM_SPREAD_DEFAULT),
+      bottomSpread: NATIVE && spread ? NATIVE_PAD_BOTTOM : duo ? BOTTOM_SPREAD_DEFAULT : Math.max(Math.round(si.bottom), compact ? 10 : BOTTOM_SPREAD_DEFAULT),
     };
     const eff = {};
     Object.keys(auto).forEach((k) => { eff[k] = typeof settings[k] === 'number' ? settings[k] : auto[k]; });
     // 펼친 화면: 오른쪽으로 옮긴 만큼 쪽 폭을 줄여, 오른쪽 끝이 화면 밖으로 잘리지 않게 한다
     const shiftX = spread ? eff.shiftX : 0;
-    const rightReserve = spread && sym ? Math.round(si.right) : 0;
+    // 아이폰 앱: 오른쪽 안전영역이 왼쪽과 다르게(듀오 약 84px) 알려 와도, 오른쪽 여백을 왼쪽(shiftX)과 똑같이 둔다.
+    // (웹앱은 오른쪽 열에 글자를 못 쓰게 막히므로 그대로 둔다)
+    const rightReserve = spread && sym ? Math.round(si.right) : (NATIVE && spread ? shiftX : 0);
     const pageW = spread ? Math.floor((W - shiftX - rightReserve) / 2) : W;
     // 좌우 안전영역: 듀오는 오른쪽 상태 아이콘 때문에 오른쪽만 84px로 알리는데 아이콘은 맨 위에만 있고 윗부분은 따로 비워 두므로
     // 본문 좌우는 끝까지 쓴다. 노치 아이폰 가로 화면(좌우가 같음)은 한 쪽 보기일 때 그만큼 비운다. (펼침은 책 자체를 안쪽으로 둔다)
@@ -159,23 +167,29 @@
     // (상태 표시줄 자리가 큰 기기의 세로 화면에서 메뉴 단추가 본문 첫 줄을 덮던 문제)
     const hb = headBox(spread, compact);
     const topSetting = spread ? eff.topSpread : eff.topSingle;
+    // 아이폰 앱(듀오): 카드가 오른쪽 열 쪽까지 들어와 상태 알약(약 x 877~930, y 22~114)과 겹치면, 카드 윗면을 알약 아래로 내린다.
+    const cardRight = shiftX + pageW * 2;
+    const intoPill = NATIVE && spread && !sym && si.right >= 60 && cardRight > W - si.right + NATIVE_PILL_LEFT;
     const padTop = Math.max(
       si.top + 56,
       Math.ceil(si.top + HEAD_TOP_GAP + hb.rowH + HEAD_BODY_GAP),
-      Math.min(TOP_MAX, Math.round(topSetting) || (spread ? TOP_DEFAULT.topSpread : TOP_DEFAULT.topSingle))
+      Math.min(TOP_MAX, Math.round(topSetting) || (spread ? TOP_DEFAULT.topSpread : TOP_DEFAULT.topSingle)),
+      intoPill ? NATIVE_PILL_BOTTOM + TXT_GAP : 0
     );
     const padBottom = spread ? eff.bottomSpread : si.bottom + 10;
     // 펼친 화면: 책 자체를 머리줄 아래(본문 첫 줄 위 TXT_GAP)에서 시작시킨다. 본문 글자가 놓이는 화면 위치와 쪽 나누기(textH)는 그대로다.
     // 한 쪽(접힘) 화면은 본문 스크롤 영역이 이미 머리줄 아래(--padtop)에서 시작한다.
     const stageTop = spread ? Math.max(0, padTop - TXT_GAP) : 0;
-    const pageH = H - stageTop;
+    // 아이폰 앱(펼침): 카드 아래를 화면 끝에서 띄운다. 안전영역(아래)이 더 크면 그만큼.
+    const bottomGap = NATIVE && spread ? Math.max(compact ? NATIVE_BOTTOM_GAP_COMPACT : NATIVE_BOTTOM_GAP, Math.round(si.bottom)) : 0;
+    const pageH = H - stageTop - bottomGap;
     const txtTop = padTop - stageTop;
     // 머리줄(책 이름·메뉴)의 오른쪽 끝: 책의 오른쪽 본문 끝에 맞추되, 오른쪽 안전영역(상태 아이콘 자리)은 피한다
     const bookRight = spread ? shiftX + pageW * 2 : W;
     const headR = Math.max(Math.round(W - bookRight + padX), Math.round(si.right) + (spread ? 8 : 14), 14);
     return {
       W, H, spread, compact, duo, sym, pageW, pageH, bookW: spread ? pageW * 2 : pageW,
-      padX, padTop, padBottom, si, shiftX, eff, stageTop, txtTop, headR,
+      padX, padTop, padBottom, si, shiftX, eff, stageTop, txtTop, headR, bottomGap, intoPill,
       textW: pageW - padX * 2, textH: pageH - txtTop - padBottom,
     };
   }
@@ -2032,7 +2046,7 @@
     // 되돌리기 = 저장한 값을 지워 기기에 맞는 자동값으로 돌아간다. (듀오는 예전 기본값 그대로)
     $('#adv-reset').addEventListener('click', () => changeSettings(
       geometry().duo
-        ? { topSpread: TOP_DEFAULT.topSpread, topSingle: TOP_DEFAULT.topSingle, shiftX: SHIFT_DEFAULT, bottomSpread: BOTTOM_SPREAD_DEFAULT }
+        && !NATIVE ? { topSpread: TOP_DEFAULT.topSpread, topSingle: TOP_DEFAULT.topSingle, shiftX: SHIFT_DEFAULT, bottomSpread: BOTTOM_SPREAD_DEFAULT }
         : { topSpread: undefined, topSingle: undefined, shiftX: undefined, bottomSpread: undefined }, showAdvanced));
   }
 
