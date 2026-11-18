@@ -1,0 +1,7 @@
+*.xcodeproj
+BibleFlip/Info.plist
+build/
+build.log
+Payload/
+*.ipa
+.DS_Store

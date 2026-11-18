@@ -1,0 +1,83 @@
+name: Build iOS (서명 전 IPA)
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['NOTES.md', 'README.md']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: xcode-27
+    timeout-minutes: 40
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 도구 정보
+        run: |
+          sw_vers
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          ls /Applications | grep -i xcode || true
+
+      - name: XcodeGen 설치
+        run: brew install xcodegen
+
+      - name: Xcode 프로젝트 만들기
+        run: xcodegen generate
+
+      - name: 빌드 (서명 없이)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project BibleFlip.xcodeproj \
+            -scheme BibleFlip \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            build 2>&1 | tee build.log
+
+      - name: IPA 만들기
+        run: |
+          APP=$(find build/Build/Products -maxdepth 2 -name 'BibleFlip.app' | head -1)
+          echo "앱 위치: $APP"
+          rm -rf Payload BibleFlip.ipa
+          mkdir Payload
+          cp -R "$APP" Payload/
+          /usr/bin/zip -qry BibleFlip.ipa Payload
+          ls -la BibleFlip.ipa
+          plutil -p "$APP/Info.plist" | head -40
+
+      - name: 보관 (Artifacts)
+        uses: actions/upload-artifact@v4
+        with:
+          name: BibleFlip-ipa
+          path: BibleFlip.ipa
+
+      - name: 내려받기용 Release 만들기
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest BibleFlip.ipa \
+            --prerelease \
+            --title "최신 빌드 (서명 전) #${{ github.run_number }}" \
+            --notes "Windows PC의 Sideloadly로 서명해 설치하는 서명 전 IPA입니다. 커밋 ${GITHUB_SHA::7}"
+
+      - name: 빌드 기록을 build-logs 브랜치에 남기기
+        if: always()
+        run: |
+          mkdir -p /tmp/logs
+          { echo "run: $GITHUB_RUN_ID #${{ github.run_number }}  sha: $GITHUB_SHA"; xcodebuild -version; xcrun --sdk iphoneos --show-sdk-version; } > /tmp/logs/info.txt 2>&1 || true
+          [ -f build.log ] && tail -n 4000 build.log > /tmp/logs/build.log || echo "build.log 없음" > /tmp/logs/build.log
+          cd /tmp/logs
+          git init -q
+          git checkout -q -b build-logs
+          git add -A
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "build log #${{ github.run_number }}"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" build-logs
