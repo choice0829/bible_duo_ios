@@ -13,6 +13,17 @@ private final class WeakMessageHandler: NSObject, WKScriptMessageHandler {
 final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
     private var webView: WKWebView!
     private var theme: String = UserDefaults.standard.string(forKey: "bf.theme") ?? "paper"
+    private var errorShown = false
+
+    // Mac 없이도 문제를 알 수 있도록: 웹에서 난 오류를 앱이 한 번 화면에 띄운다 (진단용)
+    private static let diagScript = """
+    (function () {
+      var sent = 0;
+      function report(m) { if (sent++ > 2) return; try { window.webkit.messageHandlers.bf.postMessage({ error: String(m).slice(0, 400) }); } catch (e) {} }
+      window.addEventListener('error', function (e) { report((e.message || 'error') + ' @' + (e.filename || '') + ':' + (e.lineno || '')); });
+      window.addEventListener('unhandledrejection', function (e) { report('promise: ' + ((e.reason && e.reason.message) || e.reason)); });
+    })();
+    """
 
     // 책상 색 (웹앱 style.css의 --desk 와 같은 값)
     private static let deskColors: [String: UIColor] = [
@@ -27,6 +38,7 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         config.allowsInlineMediaPlayback = true
         let controller = WKUserContentController()
         controller.add(WeakMessageHandler(self), name: "bf")
+        controller.addUserScript(WKUserScript(source: ViewController.diagScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         config.userContentController = controller
 
         let container = UIView()
@@ -75,11 +87,27 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
     }
 
     func userContentController(_ ucc: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.name == "bf",
-              let body = message.body as? [String: Any],
-              let t = body["theme"] as? String else { return }
+        guard message.name == "bf", let body = message.body as? [String: Any] else { return }
+        if let err = body["error"] as? String { reportError(err); return }
+        guard let t = body["theme"] as? String else { return }
         UserDefaults.standard.set(t, forKey: "bf.theme")
         applyTheme(t)
+    }
+
+    private func reportError(_ text: String) {
+        if errorShown || text.contains("ResizeObserver") { return }
+        errorShown = true
+        let a = UIAlertController(title: "오류 알림 (진단용)", message: text, preferredStyle: .alert)
+        a.addAction(UIAlertAction(title: "확인", style: .default))
+        present(a, animated: true)
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        reportError("화면 불러오기 실패: \(error.localizedDescription)")
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        reportError("화면 오류: \(error.localizedDescription)")
     }
 
     // MARK: 이동 제한: 앱 안 주소만 열고, 바깥 링크는 사파리로
