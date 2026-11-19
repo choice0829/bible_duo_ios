@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v47';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v48';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const DESKS = { plain: '단색', linen: '린넨', wood: '나무결', leather: '가죽' };   // 책상(상단 배경) 질감
   const DESK_DEFAULT = 'linen';
@@ -1436,6 +1436,7 @@
   stage.addEventListener('pointercancel', (e) => endPointer(e, true));
   window.addEventListener('keydown', (e) => {
     if (pcIsOpen()) { if (e.key === 'Escape') closePc(); return; }   // 바이블 포토 카드 화면이 열려 있으면 책장은 넘기지 않는다
+    if (mpIsOpen()) { if (e.key === 'Escape') mpTryClose(); return; }   // 모임 장소 화면도 마찬가지
     if (e.key === 'Escape' && spot.id) { closeSpot(); return; }
     if (!flip && !scroller) return;
     // 창이 열려 있거나 글을 입력하는 중(검색·노트)에는 띄어쓰기·방향키로 책장이 넘어가지 않게 한다
@@ -1858,6 +1859,7 @@
     document.documentElement.classList.toggle('kb', kbH > 0);
     fitSheet();
     if (pcIsOpen()) { layoutPc(); pcRender(); }
+    if (mpIsOpen()) layoutMp();
     if (kbH > 0) revealFocused();
   };
   document.addEventListener('focusin', () => { setTimeout(fitSheet, 50); if (kbH > 0) revealFocused(); });
@@ -1969,9 +1971,6 @@
     { key: 'hdr', name: '현대인의성경', ready: false },
     { key: 'easy', name: '쉬운성경', ready: false },
   ];
-  const trBtn = $('#btn-easy');
-  const syncTrBtn = () => { trBtn.classList.toggle('on', !!settings.std); trBtn.setAttribute('aria-pressed', settings.std ? 'true' : 'false'); };
-  syncTrBtn();
   // 'AI 표준어 번역'을 골랐을 때 그 아래에 나오는 보기와 안내문
   const STD_INFO =
     '<div class="easy-eg typo"><div class="eg-h">보기 (창세기 1장 1절)</div>' +
@@ -1981,8 +1980,8 @@
   function showTranslations() {
     sheetTitle.textContent = '번역 선택';
     setSheetAct(null);
-    backBtn.hidden = true;
-    sheetBack = null;
+    backBtn.hidden = false;   // v48: 번역 선택은 설정 안으로 옮겨져, 뒤로 가면 설정으로 돌아간다
+    sheetBack = () => { showSettings(); sheetBody.scrollTop = 0; };
     const pending = TRANSLATIONS.filter((t) => !t.ready).map((t) => esc(t.name));
     sheetBody.innerHTML =
       TRANSLATIONS.map((t) => {
@@ -1997,7 +1996,6 @@
     $('#tr-std').addEventListener('change', (e) => {
       settings = Object.assign({}, settings, { std: !!e.target.checked });
       store.set('bf.settings', settings);
-      syncTrBtn();
       $('#tr-info-std').hidden = !settings.std;   // 고르면 안내문이 나오고, 끄면 사라진다
       clearTimeout(settingsTimer);
       settingsTimer = setTimeout(() => rebuild(pos), 250);   // 창은 그대로 두고 뒤의 본문만 다시 만든다 (읽던 위치 유지)
@@ -2005,7 +2003,7 @@
   }
 
   function showSettings() {
-    sheetTitle.textContent = '읽기 설정';
+    sheetTitle.textContent = '설정';
     setSheetAct(null);
     backBtn.hidden = true;
     sheetBack = null;
@@ -2022,8 +2020,10 @@
         '" style="font-family:' + FONTS[k].stack.replace(/"/g, "'") + '">' + FONTS[k].label + '<small>가나다 창조 Aa</small></button>').join('') +
       '</div></div>' +
       '<div class="row"><span>화면 구성</span>' + seg(LAYOUTS, settings.layout, 'layout') + '</div>' +
+      '<button class="row rowlink" id="go-tr" type="button"><span>번역 선택 <small class="sub">' + (settings.std ? 'AI 표준어 번역 켜짐' : '개역한글만 보기') + '</small></span><span class="chev">›</span></button>' +
       '<button class="row rowlink" id="go-adv" type="button"><span>고급설정 <small class="sub">여백 · 위치 · 화면 정보</small></span><span class="chev">›</span></button>' +
       '<p class="note">자동: 화면이 넓으면(펼친 상태) 두 쪽, 좁으면(접힌 상태) 한 쪽으로 보여 줍니다.<br>본문: 개역한글 (퍼블릭 도메인)</p>';
+    $('#go-tr').addEventListener('click', () => { showTranslations(); sheetBody.scrollTop = 0; });
     $('#go-adv').addEventListener('click', () => { showAdvanced(); sheetBody.scrollTop = 0; });
     sheetBody.querySelectorAll('[data-f]').forEach((b) => b.addEventListener('click', () => {
       const next = Math.min(FONT_MAX, Math.max(FONT_MIN, settings.fontSize + (+b.dataset.f)));
@@ -2070,7 +2070,7 @@
       item('윗 여백', '(한 쪽)', 'topSingle', 4, topSi, '줄이기', '늘리기',
         '접은 상태에서 본문이 시작되는 높이입니다. 접은 화면은 책 이름 아래에 메뉴 아이콘이 한 줄 더 있어서, 너무 줄이면 본문과 겹칩니다.') +
       '<div class="row"><span>여백 기본값으로 되돌리기</span><button class="seg-btn" id="adv-reset" type="button">되돌리기</button></div>' +
-      '<button class="row rowlink" id="go-bk" type="button"><span>데이터 백업 <small class="sub">하이라이트 · 읽던 위치 내보내기/불러오기</small></span><span class="chev">›</span></button>' +
+      '<button class="row rowlink" id="go-bk" type="button"><span>데이터 백업 <small class="sub">하이라이트 · 설교노트 · 모임 장소 내보내기/불러오기</small></span><span class="chev">›</span></button>' +
       '<p class="note">기본값은 기기와 화면에 맞춰 자동으로 정해집니다(듀오 펼침: 윗 ' + TOP_DEFAULT.topSpread + ' · 가로 위치 ' + SHIFT_DEFAULT + ' · 아래 ' + BOTTOM_SPREAD_DEFAULT + ', 한 쪽 윗 ' + TOP_DEFAULT.topSingle + '). 가로로 돌린 아이폰은 머리줄이 작아지고 노치 쪽이 비워집니다.' +
       '<br>값을 바꾸면 본문이 잠시 뒤에 새로 정렬됩니다. 읽던 위치는 그대로 유지됩니다.</p>' +
       '<div class="adv-head">화면 정보</div>' +
@@ -2101,7 +2101,7 @@
   function backupText() {
     return JSON.stringify({
       app: 'bibleflip', ver: 1, savedAt: new Date().toISOString(),
-      pos, tool, anns, notes: notesDB.items,
+      pos, tool, anns, notes: notesDB.items, places: mpDB.items,
       settings: { fontSize: settings.fontSize, theme: settings.theme, desk: deskOf(), font: settings.font, layout: settings.layout, std: !!settings.std },
     });
   }
@@ -2134,6 +2134,13 @@
       saveNotes();
       noteIdx = null;
     }
+    let places = null;
+    if (Array.isArray(d.places)) {   // 모임 장소(카페)가 들어 있는 백업이면 장소도 바꾼다 (예전 백업에는 없으므로 그때는 그대로 둔다)
+      places = mpClean(d.places);
+      mpDB.items = places;
+      mpSave();
+      mpSel = null;
+    }
     const p = d.pos;
     if (p && Number.isInteger(p.book) && p.book >= 0 && p.book < bible.books.length &&
         Number.isInteger(p.chapter) && p.chapter >= 0 && p.chapter < bible.books[p.book].chapters.length) {
@@ -2153,8 +2160,7 @@
     if (typeof s.std === 'boolean') patch.std = s.std;
     settings = Object.assign({}, settings, patch);
     store.set('bf.settings', settings);
-    syncTrBtn();
-    return { verses, marks, notes: notes ? notes.length : null };
+    return { verses, marks, notes: notes ? notes.length : null, places: places ? places.length : null };
   }
   // 백업에서 읽은 노트를 검사해 쓸 수 있는 것만 남긴다
   function cleanNotes(list) {
@@ -2188,14 +2194,14 @@
     sheetBack = () => { showAdvanced(); sheetBody.scrollTop = 0; };
     const n = Object.keys(anns).length;
     sheetBody.innerHTML =
-      '<p class="note tight">하이라이트·설교노트·읽던 위치·글꼴 설정은 <b>이 기기의 이 앱 안</b>에만 저장됩니다. ' +
+      '<p class="note tight">하이라이트·설교노트·모임 장소·읽던 위치·글꼴 설정은 <b>이 기기의 이 앱 안</b>에만 저장됩니다. ' +
       '앱 주소를 옮기거나 앱을 지우면 사라지므로, 그 전에 아래에서 백업해 두세요.</p>' +
-      '<div class="adv-head">내보내기 <small class="sub">(표시한 구절 ' + n + '개 · 설교노트 ' + notesDB.items.length + '개)</small></div>' +
+      '<div class="adv-head">내보내기 <small class="sub">(표시한 구절 ' + n + '개 · 설교노트 ' + notesDB.items.length + '개 · 모임 장소 ' + mpDB.items.length + '곳)</small></div>' +
       '<p class="adv-desc">버튼을 눌러 복사한 뒤 메모 앱이나 카카오톡 「나에게」 같은 곳에 붙여 두세요.</p>' +
       '<textarea id="bk-out" class="bk-text" rows="4" readonly aria-label="백업 내용"></textarea>' +
       '<div class="row"><span id="bk-out-msg" class="sub">&nbsp;</span><button class="seg-btn" id="bk-copy" type="button">백업 내용 복사</button></div>' +
       '<div class="adv-head">불러오기</div>' +
-      '<p class="adv-desc">복사해 둔 백업 내용을 아래 상자에 붙여 넣으세요. <b>지금 있는 표시와 설교노트는 모두 백업 내용으로 바뀝니다.</b></p>' +
+      '<p class="adv-desc">복사해 둔 백업 내용을 아래 상자에 붙여 넣으세요. <b>지금 있는 표시·설교노트·모임 장소는 모두 백업 내용으로 바뀝니다.</b></p>' +
       '<textarea id="bk-in" class="bk-text" rows="4" placeholder="여기에 붙여 넣기" aria-label="불러올 백업 내용"></textarea>' +
       '<div class="row"><span id="bk-in-msg" class="sub">&nbsp;</span><button class="seg-btn" id="bk-apply" type="button">불러오기</button></div>';
     const out = $('#bk-out'), inp = $('#bk-in'), outMsg = $('#bk-out-msg'), inMsg = $('#bk-in-msg');
@@ -2222,7 +2228,7 @@
         const r = applyBackup(inp.value);
         closeSheet();
         rebuild(pos);
-        showToastLine('불러왔습니다 · ' + r.verses + '구절, 표시 ' + r.marks + '개' + (r.notes === null ? '' : ', 설교노트 ' + r.notes + '개'));
+        showToastLine('불러왔습니다 · ' + r.verses + '구절, 표시 ' + r.marks + '개' + (r.notes === null ? '' : ', 설교노트 ' + r.notes + '개') + (r.places === null ? '' : ', 모임 장소 ' + r.places + '곳'));
       } catch (err) {
         inMsg.textContent = err.message || '불러오지 못했습니다.';
       }
@@ -2919,16 +2925,17 @@
     t.textContent = '오류: ' + (err && err.message ? err.message : err) + ' (눌러서 닫기)';
   }
   // 잠깐 떴다 사라지는 안내 (눌러서 바로 닫을 수 있다)
-  function showToastLine(msg) {
+  // top: true → 화면 위쪽에 띄운다 (모임 장소 화면처럼 아래쪽에 단추가 있는 화면에서 알림이 단추를 가리지 않게)
+  function showToastLine(msg, top) {
     let t = document.getElementById('infotoast');
     if (!t) {
       t = document.createElement('div');
       t.id = 'infotoast';
-      t.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:60px;z-index:99;max-width:90%;background:#222;color:#fff;' +
-        'padding:11px 16px;border-radius:12px;font-size:14px;line-height:1.4;text-align:center';
       t.addEventListener('click', () => t.remove());
       document.body.appendChild(t);
     }
+    t.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);' + (top ? 'top:calc(env(safe-area-inset-top) + 60px);' : 'bottom:60px;') +
+      'z-index:99;width:max-content;max-width:90%;background:#222;color:#fff;padding:11px 16px;border-radius:12px;font-size:14px;line-height:1.4;text-align:center';
     t.textContent = msg;
     clearTimeout(showToastLine.timer);
     showToastLine.timer = setTimeout(() => t.remove(), 3500);
@@ -3769,12 +3776,637 @@
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   }
 
+  // ---------- 모임 장소(카페) 지도 ----------
+  // 운영자(본인)가 아는 카페·모임 장소를 직접 등록하고, 내 위치 기준 가까운 순으로 보고, 지도에서 위치를 확인하고, 네이버·애플·구글 지도로 길을 찾는다.
+  // 장소는 이 기기(bf.places)에만 저장하며 데이터 백업에 함께 들어간다. 지도 바탕은 OpenStreetMap(Leaflet을 lib/에 포함)이라 인터넷이 있어야 보이고,
+  // 인터넷이 없어도 목록·등록·거리 계산은 된다. 내 위치·주소 찾기·다른 지도 앱 열기는 아이폰 앱(껍데기)이 맡는다(window.bfLocation / bfGeo).
+  const MP_AMEN = [['out', '콘센트'], ['wifi', '와이파이'], ['group', '단체석'], ['quiet', '조용함'], ['park', '주차'], ['room', '별실']];
+  const MP_AMEN_NAME = {}; MP_AMEN.forEach((a) => { MP_AMEN_NAME[a[0]] = a[1]; });
+  const MP_MAX = 500;
+  const MP_VIEW0 = { lat: 37.5665, lng: 126.978, z: 12 };   // 장소도 내 위치도 아직 없을 때의 첫 화면: 서울 중심
+  const MP_TILE = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const MP_ATTR = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+  const MP_PIN = '<svg viewBox="0 0 36 44" aria-hidden="true"><path class="pn" d="M18 43C18 43 3 27.6 3 17.4 3 8.9 9.7 2.5 18 2.5s15 6.4 15 14.9C33 27.6 18 43 18 43z"/>' +
+    '<g class="cup"><path d="M11 13.2h12v5.4a4.8 4.8 0 0 1-4.8 4.8h-2.4a4.8 4.8 0 0 1-4.8-4.8z"/><path d="M23 14.6h1a2.3 2.3 0 0 1 0 4.6h-1.2"/><path d="M14 9.6v1.6M17 9.6v1.6M20 9.6v1.6"/></g></svg>';
+
+  // 저장된 장소를 검사해 쓸 수 있는 것만 남긴다 (저장소·백업 어디서 읽어도 같은 검사)
+  function mpClean(list) {
+    const out = [], seen = new Set();
+    const str = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
+    (Array.isArray(list) ? list : []).slice(0, MP_MAX).forEach((p) => {
+      if (!p || typeof p !== 'object') return;
+      const lat = typeof p.lat === 'number' ? p.lat : NaN, lng = typeof p.lng === 'number' ? p.lng : NaN;
+      const name = str(p.name, 60);
+      if (!name || !(lat >= -90 && lat <= 90) || !(lng >= -180 && lng <= 180)) return;
+      let id = typeof p.id === 'string' && /^[\w-]{1,24}$/.test(p.id) ? p.id : newId();
+      while (seen.has(id)) id = newId();
+      seen.add(id);
+      const cap = Math.round(+p.cap);
+      out.push({
+        id, name, lat, lng, addr: str(p.addr, 120), tel: str(p.tel, 30), hours: str(p.hours, 80),
+        cap: cap > 0 && cap <= 999 ? cap : 0,
+        amen: Array.isArray(p.amen) ? MP_AMEN.map((a) => a[0]).filter((k) => p.amen.indexOf(k) >= 0) : [],
+        memo: str(p.memo, 1000),
+        ts: Number.isFinite(+p.ts) && +p.ts > 0 ? +p.ts : Date.now(),
+      });
+    });
+    return out;
+  }
+  const mpDB = { items: (() => { try { return mpClean(JSON.parse(localStorage.getItem('bf.places'))); } catch (e) { return []; } })() };
+  const mpSave = () => store.set('bf.places', mpDB.items);
+  const mpFind = (id) => mpDB.items.find((p) => p.id === id) || null;
+
+  // 두 지점 사이 거리(m)
+  function mpDist(a, b) {
+    const rad = Math.PI / 180, dLat = (b.lat - a.lat) * rad, dLng = (b.lng - a.lng) * rad;
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
+    return 2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+  const mpFmtDist = (m) => (m < 1000 ? Math.max(10, Math.round(m / 10) * 10) + 'm' : (m < 10000 ? (m / 1000).toFixed(1) : String(Math.round(m / 1000))) + 'km');
+  const mpInKorea = (p) => p.lat >= 31.43 && p.lat <= 44.35 && p.lng >= 122.37 && p.lng <= 132;   // 네이버 지도 앱 주소가 받는 좌표 범위
+
+  // ----- 아이폰 앱(껍데기)과 주고받기 -----
+  const mpBridge = () => (NATIVE && window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.bf) || null;
+  let mpReqId = 0, mpLocWait = null, mpLocP = null;
+  const mpPending = {};   // 주소 찾기 요청 번호 → 결과를 받을 함수
+  window.bfGeo = (r) => { const f = r && mpPending[r.id]; if (f) { delete mpPending[r.id]; f(r); } };
+  window.bfLocation = (r) => { const f = mpLocWait; mpLocWait = null; if (f) f(r || { error: 'fail' }); };
+  // 현재 위치를 한 번 읽는다 → { lat, lng, acc } 또는 { error: 'denied' | 'fail' | 'timeout' }
+  function mpLocate() {
+    if (mpLocP) return mpLocP;
+    mpLocP = new Promise((resolve) => {
+      let done = false, timer = 0;
+      const fin = (r) => { if (done) return; done = true; clearTimeout(timer); mpLocWait = null; resolve(r); };
+      timer = setTimeout(() => fin({ error: 'timeout' }), 60000);   // 처음에는 위치 허용 창에서 답하는 시간도 필요하다
+      const br = mpBridge();
+      if (br) { mpLocWait = fin; try { br.postMessage({ loc: 1 }); } catch (e) { fin({ error: 'fail' }); } return; }
+      if (!navigator.geolocation) { fin({ error: 'fail' }); return; }
+      navigator.geolocation.getCurrentPosition(
+        (p) => fin({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }),
+        (e) => fin({ error: e && e.code === 1 ? 'denied' : 'fail' }),
+        { enableHighAccuracy: false, timeout: 20000, maximumAge: 20000 });
+    }).then((r) => { mpLocP = null; return r; });
+    return mpLocP;
+  }
+  // 주소·이름 → 좌표(kind 'q') / 좌표 → 주소(kind 'r') → { results: [{ name, addr, lat, lng }] } 또는 { error }
+  function mpGeo(kind, arg) {
+    return new Promise((resolve) => {
+      const br = mpBridge();
+      if (br) {
+        const id = ++mpReqId;
+        const timer = setTimeout(() => { delete mpPending[id]; resolve({ error: 'timeout' }); }, 25000);
+        mpPending[id] = (r) => { clearTimeout(timer); resolve(r); };
+        try { br.postMessage(kind === 'q' ? { geocode: arg, id } : { rgeo: arg, id }); }
+        catch (e) { clearTimeout(timer); delete mpPending[id]; resolve({ error: 'fail' }); }
+        return;
+      }
+      // 웹(브라우저)에서는 OpenStreetMap의 주소 검색(Nominatim)을 쓴다. 버튼을 누를 때만 한 번씩 부른다.
+      const url = kind === 'q'
+        ? 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=ko&q=' + encodeURIComponent(arg)
+        : 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=ko&lat=' + arg.lat + '&lon=' + arg.lng;
+      fetch(url).then((r) => r.json()).then((j) => {
+        const list = Array.isArray(j) ? j : [j];
+        resolve({ results: list.filter((x) => x && x.lat && x.lon).slice(0, 5).map((x) => ({ name: x.name || '', addr: x.display_name || '', lat: +x.lat, lng: +x.lon })) });
+      }).catch(() => resolve({ error: 'network' }));
+    });
+  }
+  // 다른 지도 앱·전화 열기. 앱이 없어 안 열리면 fallback(웹 주소)로 연다.
+  function mpOpen(url, fallback) {
+    const br = mpBridge();
+    if (br) { try { br.postMessage({ open: url, fallback: fallback || '' }); return; } catch (e) { /* 아래로 */ } }
+    if (/^tel:/.test(url)) { location.href = url; return; }
+    window.open(fallback || url, '_blank', 'noopener');
+  }
+  function mpLinks(p) {
+    const n = encodeURIComponent(p.name), la = p.lat.toFixed(6), lo = p.lng.toFixed(6);
+    return {
+      naver: ['nmap://place?lat=' + la + '&lng=' + lo + '&name=' + n + '&appname=com.choice0829.bibleflip', 'https://map.naver.com/p/search/' + n],
+      apple: ['https://maps.apple.com/?daddr=' + la + ',' + lo + '&q=' + n, ''],
+      google: ['https://www.google.com/maps/dir/?api=1&destination=' + la + ',' + lo, ''],
+    };
+  }
+  const mpLocErr = (e) => (e === 'denied'
+    ? (NATIVE ? '위치 사용이 꺼져 있습니다. 아이폰 설정 → 책장성경 → 위치에서 "앱을 사용하는 동안"을 선택해 주세요.' : '위치 사용이 허용되지 않았습니다. 브라우저 설정에서 이 사이트의 위치를 허용해 주세요.')
+    : '현재 위치를 가져오지 못했습니다. 잠시 뒤 다시 눌러 보세요. (실내·지하에서는 늦을 수 있습니다)');
+
+  // ----- 화면 상태 -----
+  let mpEl = null, mpMap = null, mpTile = null, mpPinLayer = null, mpMeLayer = null, mpDraftMk = null, mpLeafP = null;
+  const mpMk = {};                        // 장소 id → 지도 핀
+  let mpMe = null;                        // 내 위치 { lat, lng, acc }
+  let mpLocState = 'idle';                // idle | busy | ok | denied | fail
+  let mpSel = null;                       // 고른 장소 id
+  let mpSearch = '';                      // 목록 검색어
+  const mpFilt = new Set();               // 켜 둔 편의 항목 필터
+  let mpView = 'list';                    // 'list' | 'form'
+  let mpEditId = null;                    // 수정 중인 장소 id (null이면 새로 추가)
+  const mpDraft = { lat: NaN, lng: NaN }; // 입력 중인 장소의 위치
+  let mpFormAmen = new Set();
+  let mpFormInit = '';
+  let mpPicking = false;
+  let mpUserMoved = false, mpTileErr = 0, mpDelArm = 0, mpDelTimer = 0;
+  const mpIsOpen = () => !!mpEl && !mpEl.hidden;
+  const mpS = (s) => mpEl.querySelector(s);
+  const mpNarrow = () => !!mpEl && mpEl.classList.contains('narrow');
+
+  function mpLoadLeaflet() {
+    if (window.L && window.L.map) return Promise.resolve();
+    if (mpLeafP) return mpLeafP;
+    const load = (el, tag) => new Promise((resolve, reject) => { el.onload = () => resolve(); el.onerror = () => reject(new Error(tag)); document.head.appendChild(el); });
+    const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'lib/leaflet.css';
+    const js = document.createElement('script'); js.src = 'lib/leaflet.js';
+    mpLeafP = Promise.all([load(css, 'leaflet.css'), load(js, 'leaflet.js')]).then(() => {}, (e) => { mpLeafP = null; throw e; });
+    return mpLeafP;
+  }
+  const mpIcon = (kind) => L.divIcon({ className: 'mp-pin' + (kind ? ' ' + kind : ''), html: MP_PIN, iconSize: [36, 44], iconAnchor: [18, 42] });
+
+  function mpEnsureMap() {
+    if (!mpEl || !window.L) return;
+    if (mpMap) { mpMap.invalidateSize(); return; }
+    mpMap = L.map(mpS('#mp-map'), { zoomControl: false, zoomSnap: 1, minZoom: 3, maxZoom: 19 });
+    L.control.zoom({ position: 'topleft', zoomInTitle: '확대', zoomOutTitle: '축소' }).addTo(mpMap);
+    mpTile = L.tileLayer(MP_TILE, { maxZoom: 19, attribution: MP_ATTR });
+    mpTile.on('tileerror', () => { if (++mpTileErr >= 2) mpS('#mp-note').hidden = false; });
+    mpTile.on('tileload', () => { mpTileErr = 0; mpS('#mp-note').hidden = true; });
+    mpTile.addTo(mpMap);
+    mpPinLayer = L.layerGroup().addTo(mpMap);
+    mpMeLayer = L.layerGroup().addTo(mpMap);
+    mpMap.on('dragstart', () => { mpUserMoved = true; });
+    mpMap.on('click', () => { if (!mpPicking) mpSelect(null); });
+    mpMap.setView([MP_VIEW0.lat, MP_VIEW0.lng], MP_VIEW0.z);
+    mpRenderMarkers();
+    mpDrawMe();
+    mpDraftMarker();
+    mpFitInitial();
+  }
+  // 첫 화면: 내 위치가 있으면 그 주변, 없으면 등록한 장소가 모두 보이게, 둘 다 없으면 서울
+  function mpFitInitial() {
+    if (!mpMap || mpUserMoved) return;
+    if (mpMe) mpMap.setView([mpMe.lat, mpMe.lng], 15, { animate: false });
+    else if (mpDB.items.length) mpMap.fitBounds(L.latLngBounds(mpDB.items.map((p) => [p.lat, p.lng])), { padding: [48, 48], maxZoom: 16, animate: false });
+    else mpMap.setView([MP_VIEW0.lat, MP_VIEW0.lng], MP_VIEW0.z, { animate: false });
+  }
+  function mpDrawMe() {
+    if (!mpMap || !mpMeLayer) return;
+    mpMeLayer.clearLayers();
+    if (!mpMe) return;
+    if (mpMe.acc > 25) L.circle([mpMe.lat, mpMe.lng], { radius: Math.min(mpMe.acc, 1500), stroke: false, fillColor: '#2f7de1', fillOpacity: 0.14, interactive: false }).addTo(mpMeLayer);
+    L.circleMarker([mpMe.lat, mpMe.lng], { radius: 8, color: '#fff', weight: 3, fillColor: '#2f7de1', fillOpacity: 1, interactive: false }).addTo(mpMeLayer);
+  }
+  function mpDraftMarker() {
+    if (!mpMap) return;
+    const ok = mpView === 'form' && Number.isFinite(mpDraft.lat) && Number.isFinite(mpDraft.lng);
+    if (!ok) { if (mpDraftMk) { mpMap.removeLayer(mpDraftMk); mpDraftMk = null; } return; }
+    if (mpDraftMk) mpDraftMk.setLatLng([mpDraft.lat, mpDraft.lng]);
+    else mpDraftMk = L.marker([mpDraft.lat, mpDraft.lng], { icon: mpIcon('draft'), interactive: false, keyboard: false }).addTo(mpMap);
+  }
+
+  // ----- 목록 · 핀 -----
+  function mpVisible() {
+    const q = mpSearch.trim().toLowerCase();
+    return mpDB.items.filter((p) => {
+      if (q && (p.name + ' ' + p.addr + ' ' + p.memo + ' ' + p.hours + ' ' + p.tel).toLowerCase().indexOf(q) < 0) return false;
+      for (const k of mpFilt) if (p.amen.indexOf(k) < 0) return false;
+      return true;
+    });
+  }
+  const mpDistOf = (p) => (mpMe ? mpDist(mpMe, p) : null);
+  function mpSorted() {
+    const list = mpVisible().map((p) => ({ p, d: mpDistOf(p) }));
+    list.sort((a, b) => (a.d !== null && b.d !== null ? a.d - b.d : 0) || a.p.name.localeCompare(b.p.name, 'ko'));
+    return list;
+  }
+  function mpTags(p) {
+    return p.amen.map((k) => '<i>' + esc(MP_AMEN_NAME[k]) + '</i>').join('') + (p.cap ? '<i>' + p.cap + '명</i>' : '');
+  }
+  function mpRenderLoc() {
+    const box = mpS('#mp-loc');
+    let msg;
+    if (mpLocState === 'busy') msg = '내 위치를 확인하는 중…';
+    else if (mpLocState === 'ok' && mpMe) msg = '내 위치 기준 · 가까운 순' + (mpMe.acc > 0 ? ' (오차 약 ' + Math.round(mpMe.acc) + 'm)' : '');
+    else if (mpLocState === 'denied') msg = mpLocErr('denied');
+    else if (mpLocState === 'fail') msg = mpLocErr('fail');
+    else msg = mpMe ? '내 위치 기준 · 가까운 순' : '내 위치를 아직 모릅니다 · 이름순';
+    box.innerHTML = '<span class="mp-loc-t' + (mpLocState === 'denied' || mpLocState === 'fail' ? ' warn' : '') + '">' + esc(msg) + '</span>' +
+      '<button type="button" class="mp-mini" id="mp-loc-btn"' + (mpLocState === 'busy' ? ' disabled' : '') + '>내 위치 새로고침</button>';
+    mpS('#mp-loc-btn').addEventListener('click', () => mpRefreshLoc(true));
+  }
+  function mpRenderList() {
+    if (!mpEl) return;
+    mpRenderLoc();
+    const all = mpDB.items.length, list = mpSorted();
+    mpS('#mp-count').textContent = all ? (list.length === all ? all + '곳' : all + '곳 중 ' + list.length + '곳') : '';
+    mpS('#mp-chips').innerHTML = MP_AMEN.map((a) => '<button type="button" class="mp-chip' + (mpFilt.has(a[0]) ? ' on' : '') + '" data-k="' + a[0] + '">' + a[1] + '</button>').join('');
+    const box = mpS('#mp-items');
+    if (!all) {
+      box.innerHTML = '<div class="mp-empty"><b>아직 등록한 장소가 없습니다.</b><br>모임으로 쓰기 좋은 카페를 직접 등록해 보세요. 위치(현재 위치·주소·지도에서 고르기)와 전화·영업시간·수용 인원·콘센트 같은 정보, 메모를 남길 수 있고, 등록하면 내 위치에서 가까운 순으로 보입니다.</div>';
+    } else if (!list.length) {
+      box.innerHTML = '<div class="mp-empty">조건에 맞는 장소가 없습니다. 검색어나 항목 선택을 바꿔 보세요.</div>';
+    } else {
+      box.innerHTML = list.map(({ p, d }) =>
+        '<div class="mp-item' + (p.id === mpSel ? ' sel' : '') + '" data-id="' + p.id + '">' +
+          '<button type="button" class="mp-it-main"><span class="mp-it-top"><span class="mp-it-name">' + esc(p.name) + '</span>' +
+          (d !== null ? '<span class="mp-it-d">' + mpFmtDist(d) + '</span>' : '') + '</span>' +
+          (p.addr ? '<span class="mp-it-sub">' + esc(p.addr) + '</span>' : '') +
+          (p.amen.length || p.cap ? '<span class="mp-tags">' + mpTags(p) + '</span>' : '') + '</button>' +
+          '<button type="button" class="mp-it-edit" aria-label="' + esc(p.name) + ' 수정"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button></div>').join('');
+    }
+  }
+  function mpRenderMarkers() {
+    if (!mpMap || !mpPinLayer) return;
+    mpPinLayer.clearLayers();
+    Object.keys(mpMk).forEach((k) => { delete mpMk[k]; });
+    mpVisible().forEach((p) => {
+      const mk = L.marker([p.lat, p.lng], { icon: mpIcon(p.id === mpSel ? 'sel' : ''), title: p.name, zIndexOffset: p.id === mpSel ? 1000 : 0 });
+      mk.on('click', () => mpSelect(p.id, { list: true }));
+      mk.addTo(mpPinLayer);
+      mpMk[p.id] = mk;
+    });
+  }
+  function mpRefresh() { mpRenderList(); mpRenderMarkers(); mpRenderCard(mpSel ? mpFind(mpSel) : null); }
+
+  function mpSelect(id, opt) {
+    opt = opt || {};
+    const prev = mpSel;
+    mpSel = id && mpFind(id) ? id : null;
+    if (prev && mpMk[prev]) { mpMk[prev].setIcon(mpIcon('')); mpMk[prev].setZIndexOffset(0); }
+    if (mpSel && mpMk[mpSel]) { mpMk[mpSel].setIcon(mpIcon('sel')); mpMk[mpSel].setZIndexOffset(1000); }
+    const p = mpSel ? mpFind(mpSel) : null;
+    mpEl.querySelectorAll('.mp-item').forEach((it) => it.classList.toggle('sel', it.dataset.id === mpSel));
+    mpRenderCard(p);
+    if (p && opt.list) { const it = mpS('.mp-item[data-id="' + p.id + '"]'); if (it && it.scrollIntoView) it.scrollIntoView({ block: 'nearest' }); }
+    if (p && opt.fly && mpMap) { mpMap.invalidateSize(); mpMap.setView([p.lat, p.lng], Math.max(mpMap.getZoom(), 16), { animate: false }); }
+  }
+  function mpRenderCard(p) {
+    const c = mpS('#mp-card');
+    if (!p || mpPicking) { c.hidden = true; c.innerHTML = ''; return; }
+    const d = mpDistOf(p), lk = mpLinks(p), kr = mpInKorea(p);
+    c.innerHTML =
+      '<div class="mp-c-top"><strong>' + esc(p.name) + '</strong>' + (d !== null ? '<span class="mp-it-d">' + mpFmtDist(d) + '</span>' : '') +
+        '<button type="button" class="mp-c-x" id="mp-c-x" aria-label="닫기">✕</button></div>' +
+      (p.addr ? '<div class="mp-c-l">' + esc(p.addr) + '</div>' : '') +
+      (p.hours ? '<div class="mp-c-l">영업시간 · ' + esc(p.hours) + '</div>' : '') +
+      (p.tel ? '<div class="mp-c-l">전화 · ' + esc(p.tel) + '</div>' : '') +
+      (p.amen.length || p.cap ? '<div class="mp-tags">' + mpTags(p) + '</div>' : '') +
+      (p.memo ? '<div class="mp-c-m">' + esc(p.memo) + '</div>' : '') +
+      '<div class="mp-c-b">' +
+        '<button type="button" class="mp-lk" data-o="naver"' + (kr ? '' : ' disabled title="한국 밖의 장소는 네이버 지도로 열 수 없습니다"') + '>네이버 지도</button>' +
+        '<button type="button" class="mp-lk" data-o="apple">애플 지도</button>' +
+        '<button type="button" class="mp-lk" data-o="google">구글 지도</button>' +
+        (p.tel ? '<button type="button" class="mp-lk" data-o="tel">전화</button>' : '') +
+        '<button type="button" class="mp-lk edit" data-o="edit">수정</button></div>';
+    c.hidden = false;
+    mpS('#mp-c-x').addEventListener('click', () => mpSelect(null));
+    c.querySelectorAll('.mp-lk').forEach((b) => b.addEventListener('click', () => {
+      const o = b.dataset.o;
+      if (o === 'edit') { mpOpenForm(p); return; }
+      if (o === 'tel') { mpOpen('tel:' + p.tel.replace(/[^\d+]/g, '')); return; }
+      mpOpen(lk[o][0], lk[o][1]);
+    }));
+  }
+
+  // ----- 내 위치 -----
+  async function mpRefreshLoc(manual) {
+    if (mpLocState === 'busy') return;
+    mpLocState = 'busy'; mpRenderLoc();
+    const r = await mpLocate();
+    if (!mpEl) return;
+    if (r.error) {
+      mpLocState = r.error === 'denied' ? 'denied' : 'fail';
+    } else {
+      mpMe = { lat: r.lat, lng: r.lng, acc: Number.isFinite(r.acc) ? r.acc : 0 };
+      mpLocState = 'ok';
+      mpDrawMe();
+      if (mpMap && (manual || !mpUserMoved) && !mpPicking && mpView === 'list') { mpMap.invalidateSize(); mpMap.setView([mpMe.lat, mpMe.lng], 15, { animate: false }); }
+      mpSyncLL();
+    }
+    mpRenderList();
+    mpRenderMarkers();
+    if (mpSel) mpRenderCard(mpFind(mpSel));
+  }
+
+  // ----- 등록·수정 입력 화면 -----
+  function mpFormSnap() {
+    return JSON.stringify([mpS('#mp-f-name').value, mpS('#mp-f-addr').value, mpS('#mp-f-tel').value, mpS('#mp-f-hours').value, mpS('#mp-f-cap').value,
+      mpS('#mp-f-memo').value, mpDraft.lat, mpDraft.lng, [...mpFormAmen].sort()]);
+  }
+  function mpFormMsg(t, warn) {
+    const m = mpS('#mp-f-msg');
+    m.textContent = t || ''; m.hidden = !t; m.classList.toggle('warn', !!warn);
+  }
+  function mpSyncAmen() {
+    mpS('#mp-f-amen').innerHTML = MP_AMEN.map((a) => '<button type="button" class="mp-chip' + (mpFormAmen.has(a[0]) ? ' on' : '') + '" data-k="' + a[0] + '">' + a[1] + '</button>').join('');
+  }
+  function mpSyncLL() {
+    if (!mpEl) return;
+    const box = mpS('#mp-f-ll'), ok = Number.isFinite(mpDraft.lat) && Number.isFinite(mpDraft.lng);
+    box.classList.toggle('ok', ok);
+    box.textContent = ok
+      ? '위치 지정됨 · 위도 ' + mpDraft.lat.toFixed(5) + ' · 경도 ' + mpDraft.lng.toFixed(5) + (mpMe ? ' · 내 위치에서 ' + mpFmtDist(mpDist(mpMe, mpDraft)) : '')
+      : '아직 정하지 않았습니다 — 아래 세 가지 중 하나로 정하세요';
+  }
+  function mpShowView(v) {
+    mpView = v;
+    mpS('#mp-list').hidden = v !== 'list';
+    mpS('#mp-form').hidden = v !== 'form';
+    mpEl.dataset.view = v;
+    mpS('.mp-l').scrollTop = 0;
+    mpS(v === 'form' ? '#mp-form' : '#mp-list').scrollTop = 0;
+    mpDraftMarker();
+  }
+  function mpOpenForm(p) {
+    if (mpPicking) mpPickEnd(false);
+    mpEditId = p ? p.id : null;
+    mpS('#mp-f-name').value = p ? p.name : '';
+    mpS('#mp-f-addr').value = p ? p.addr : '';
+    mpS('#mp-f-tel').value = p ? p.tel : '';
+    mpS('#mp-f-hours').value = p ? p.hours : '';
+    mpS('#mp-f-cap').value = p && p.cap ? String(p.cap) : '';
+    mpS('#mp-f-memo').value = p ? p.memo : '';
+    mpDraft.lat = p ? p.lat : NaN; mpDraft.lng = p ? p.lng : NaN;
+    mpFormAmen = new Set(p ? p.amen : []);
+    mpS('#mp-ftitle').textContent = p ? '카페 정보 수정' : '카페 추가';
+    mpS('#mp-f-del').hidden = !p;
+    mpDisarmDel();
+    mpS('#mp-f-res').hidden = true; mpS('#mp-f-res').innerHTML = '';
+    mpFormMsg('');
+    mpSyncAmen(); mpSyncLL();
+    mpShowView('form');
+    mpFormInit = mpFormSnap();
+    if (mpNarrow()) mpTab('l');
+    mpRenderCard(null);
+    if (p && mpMap) { mpMap.invalidateSize(); mpMap.setView([p.lat, p.lng], Math.max(mpMap.getZoom(), 16), { animate: false }); }
+  }
+  function mpCloseForm() {
+    if (mpPicking) mpPickEnd(false);
+    mpEditId = null;
+    mpDisarmDel();
+    mpShowView('list');
+    mpRenderCard(mpSel ? mpFind(mpSel) : null);
+  }
+  function mpSetDraft(lat, lng, fly) {
+    mpDraft.lat = lat; mpDraft.lng = lng;
+    mpSyncLL(); mpDraftMarker();
+    if (mpMap && fly !== false) { mpMap.invalidateSize(); mpMap.setView([lat, lng], Math.max(mpMap.getZoom(), 16), { animate: false }); }
+    mpAutoAddr(lat, lng);
+  }
+  // 주소 칸이 비어 있으면 고른 위치의 주소를 찾아 채운다 (직접 적은 주소는 덮어쓰지 않는다)
+  async function mpAutoAddr(lat, lng) {
+    const inp = mpS('#mp-f-addr');
+    if (inp.value.trim()) return;
+    const r = await mpGeo('r', { lat, lng });
+    if (!mpEl || inp.value.trim() || mpDraft.lat !== lat || mpDraft.lng !== lng) return;
+    const it = r.results && r.results[0];
+    if (it && it.addr) { inp.value = it.addr.slice(0, 120); mpFormMsg('고른 위치의 주소를 채웠습니다. 다르면 고쳐 쓰세요.'); }
+  }
+  async function mpFormGps() {
+    mpFormMsg('현재 위치를 확인하는 중…');
+    const r = await mpLocate();
+    if (!mpEl) return;
+    if (r.error) { mpFormMsg(mpLocErr(r.error), true); if (r.error === 'denied') mpLocState = 'denied'; return; }
+    mpMe = { lat: r.lat, lng: r.lng, acc: Number.isFinite(r.acc) ? r.acc : 0 }; mpLocState = 'ok'; mpDrawMe();
+    mpSetDraft(r.lat, r.lng);
+    mpFormMsg('현재 위치를 카페 위치로 정했습니다. 카페에 계신 게 아니라면 "지도에서 고르기"로 다듬으세요.');
+  }
+  async function mpFormFind() {
+    const q = mpS('#mp-f-addr').value.trim(), res = mpS('#mp-f-res');
+    res.hidden = true; res.innerHTML = '';
+    if (!q) { mpFormMsg('주소나 건물 이름을 먼저 적어 주세요. (예: 서울 강동구 강동대로 229)', true); return; }
+    mpFormMsg('찾는 중…');
+    const r = await mpGeo('q', q);
+    if (!mpEl) return;
+    if (r.error) { mpFormMsg(r.error === 'network' ? '인터넷에 연결되어 있지 않아 찾지 못했습니다.' : '주소를 찾지 못했습니다. 잠시 뒤 다시 눌러 보세요.', true); return; }
+    const list = (r.results || []).filter((x) => x && Number.isFinite(x.lat) && Number.isFinite(x.lng));
+    if (!list.length) { mpFormMsg('찾지 못했습니다. 도로명 주소나 "동 이름 + 건물 이름"으로 다시 적어 보세요.', true); return; }
+    const pickOne = (it) => {
+      mpS('#mp-f-addr').value = (it.addr || q).slice(0, 120);
+      mpSetDraft(it.lat, it.lng);
+      res.hidden = true; res.innerHTML = '';
+      mpFormMsg('찾은 위치로 정했습니다. 지도에서 맞는지 확인하고, 다르면 "지도에서 고르기"로 다듬으세요.');
+    };
+    if (list.length === 1) { pickOne(list[0]); return; }
+    mpFormMsg('아래에서 맞는 곳을 골라 주세요.');
+    res.innerHTML = list.map((it, i) => '<button type="button" data-i="' + i + '"><b>' + esc(it.name || it.addr || '(이름 없음)') + '</b>' + (it.name && it.addr ? '<span>' + esc(it.addr) + '</span>' : '') + '</button>').join('');
+    res.hidden = false;
+    res.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => pickOne(list[+b.dataset.i])));
+  }
+  // 지도에서 고르기: 지도를 끌어 가운데 십자 표시를 맞추고 '여기로 정하기'를 누른다
+  function mpPickStart() {
+    if (!mpMap) { mpFormMsg('지도를 아직 불러오지 못했습니다. 잠시 뒤 다시 눌러 보세요.', true); return; }
+    mpPicking = true;
+    mpEl.classList.add('picking');
+    mpS('#mp-cross').hidden = false; mpS('#mp-pick').hidden = false;
+    mpRenderCard(null);
+    if (mpNarrow()) mpTab('r');
+    mpMap.invalidateSize();
+    if (Number.isFinite(mpDraft.lat)) mpMap.setView([mpDraft.lat, mpDraft.lng], Math.max(mpMap.getZoom(), 16), { animate: false });
+    else if (mpMe) mpMap.setView([mpMe.lat, mpMe.lng], Math.max(mpMap.getZoom(), 16), { animate: false });
+  }
+  function mpPickEnd(ok) {
+    if (!mpPicking) return;
+    mpPicking = false;
+    mpEl.classList.remove('picking');
+    mpS('#mp-cross').hidden = true; mpS('#mp-pick').hidden = true;
+    if (ok && mpMap) {
+      const c = mpMap.getCenter();
+      mpSetDraft(c.lat, c.lng, false);
+      mpFormMsg('지도에서 고른 위치로 정했습니다.');
+    }
+    if (mpNarrow()) mpTab('l');
+    mpRenderCard(mpSel && mpView === 'list' ? mpFind(mpSel) : null);
+  }
+  function mpDisarmDel() { mpDelArm = 0; clearTimeout(mpDelTimer); const b = mpEl && mpEl.querySelector('#mp-f-del'); if (b) b.textContent = '삭제'; }
+  function mpFormSave() {
+    const name = mpS('#mp-f-name').value.trim();
+    if (!name) { mpFormMsg('이름을 적어 주세요.', true); mpS('#mp-f-name').focus(); return; }
+    if (!(Number.isFinite(mpDraft.lat) && Number.isFinite(mpDraft.lng))) { mpFormMsg('위치를 정해 주세요. "현재 위치로", "주소로 찾기", "지도에서 고르기" 중 하나를 쓰면 됩니다.', true); mpS('#mp-f-ll').scrollIntoView({ block: 'center' }); return; }
+    const old = mpEditId ? mpFind(mpEditId) : null;
+    if (!old && mpDB.items.length >= MP_MAX) { mpFormMsg('장소는 ' + MP_MAX + '곳까지 등록할 수 있습니다.', true); return; }
+    const cap = Math.round(parseFloat(mpS('#mp-f-cap').value));
+    const rec = mpClean([{
+      id: old ? old.id : newId(), name, lat: mpDraft.lat, lng: mpDraft.lng,
+      addr: mpS('#mp-f-addr').value, tel: mpS('#mp-f-tel').value, hours: mpS('#mp-f-hours').value, cap: cap > 0 ? cap : 0,
+      amen: [...mpFormAmen], memo: mpS('#mp-f-memo').value, ts: old ? old.ts : Date.now(),
+    }])[0];
+    if (old) mpDB.items = mpDB.items.map((p) => (p.id === old.id ? rec : p)); else mpDB.items.push(rec);
+    mpSave();
+    mpFormInit = mpFormSnap();
+    mpCloseForm();
+    mpRefresh();
+    mpSelect(rec.id, { fly: true, list: true });
+    showToastLine('저장했습니다 · ' + rec.name, true);
+  }
+  function mpFormDelete() {
+    const old = mpEditId ? mpFind(mpEditId) : null;
+    if (!old) return;
+    const b = mpS('#mp-f-del');
+    if (!mpDelArm) {
+      mpDelArm = 1; b.textContent = '한 번 더 누르면 삭제';
+      clearTimeout(mpDelTimer); mpDelTimer = setTimeout(mpDisarmDel, 4000);
+      return;
+    }
+    mpDB.items = mpDB.items.filter((p) => p.id !== old.id);
+    mpSave();
+    if (mpSel === old.id) mpSel = null;
+    mpFormInit = mpFormSnap();
+    mpCloseForm();
+    mpRefresh();
+    showToastLine('삭제했습니다 · ' + old.name, true);
+  }
+  function mpTryClose() {
+    if (mpView === 'form' && mpFormSnap() !== mpFormInit) { showToastLine('작성 중인 내용이 있습니다. 저장하거나 [취소]를 눌러 주세요.', true); return; }
+    closeMp();
+  }
+
+  // ----- 배치: 펼침(넓은 화면)은 왼쪽 목록·입력 / 오른쪽 지도, 좁은 화면은 '목록 | 지도' 탭 -----
+  function layoutMp() {
+    if (!mpEl) return;
+    const g = geometry(), W = g.W, H = g.H, si = g.si;
+    const two = W >= 680 && W >= H * 1.1;
+    mpEl.classList.toggle('two', two);
+    mpEl.classList.toggle('narrow', !two);
+    const rail = NATIVE && two && si.left < 8 && si.right >= 60;   // 듀오 펼침: 오른쪽 안전영역 맨 위의 상태 알약 자리만 비운다
+    const top = Math.max(Math.round(si.top), 0) + 12;
+    const set = (k, v) => mpEl.style.setProperty(k, v + 'px');
+    set('--mp-top', top);
+    set('--mp-topr', two ? (rail ? Math.max(top, NATIVE_PILL_BOTTOM + 6) : top) : 12);
+    set('--mp-bot', (kbH > 0 && !two ? 0 : Math.max(Math.round(si.bottom), 0)) + 14);
+    set('--mp-l', Math.max(rail || si.left < 8 ? 22 : 0, Math.round(si.left) + 10));
+    set('--mp-r', Math.max(rail || si.right < 8 ? 22 : 0, rail ? 22 : Math.round(si.right) + 10));
+    if (mpMap) requestAnimationFrame(() => { if (mpIsOpen() && mpMap) mpMap.invalidateSize(); });
+  }
+  function mpTab(t) {
+    mpEl.dataset.tab = t;
+    mpEl.querySelectorAll('.mp-tabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === t));
+    if (mpMap) requestAnimationFrame(() => { if (mpIsOpen() && mpMap) mpMap.invalidateSize(); });
+  }
+
+  function buildMp() {
+    const el = document.createElement('div');
+    el.id = 'mp'; el.hidden = true;
+    el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', '모임 장소 지도');
+    const field = (id, label, inner) => '<div class="mp-f"><label for="' + id + '">' + label + '</label>' + inner + '</div>';
+    el.innerHTML =
+      '<div class="mp-bar">' +
+        '<button type="button" class="link-btn mp-x" id="mp-close">‹ 닫기</button>' +
+        '<strong>모임 장소</strong>' +
+        '<div class="mp-tabs"><button type="button" data-t="l">목록</button><button type="button" data-t="r">지도</button></div>' +
+      '</div>' +
+      '<div class="mp-l">' +
+        '<div class="mp-view" id="mp-list">' +
+          '<div class="mp-loc" id="mp-loc"></div>' +
+          '<div class="mp-top"><span class="mp-count" id="mp-count"></span><button type="button" class="mp-add" id="mp-add">＋ 카페 추가</button></div>' +
+          '<input id="mp-q" class="mp-in" type="search" placeholder="이름·주소·메모로 찾기" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="장소 찾기">' +
+          '<div class="mp-chips" id="mp-chips"></div>' +
+          '<div id="mp-items"></div>' +
+        '</div>' +
+        '<div class="mp-view" id="mp-form" hidden>' +
+          '<h3 id="mp-ftitle">카페 추가</h3>' +
+          field('mp-f-name', '이름 <b>*</b>', '<input id="mp-f-name" class="mp-in" type="text" maxlength="60" placeholder="예: OO커피 강동점" autocomplete="off" enterkeyhint="next">') +
+          '<div class="mp-f"><label>위치 <b>*</b></label><div class="mp-ll" id="mp-f-ll"></div>' +
+            '<div class="mp-btns"><button type="button" class="mp-btn" id="mp-f-gps">현재 위치로</button><button type="button" class="mp-btn" id="mp-f-pick">지도에서 고르기</button></div>' +
+            '<div class="mp-addr"><input id="mp-f-addr" class="mp-in" type="text" maxlength="120" placeholder="주소 (예: 서울 강동구 강동대로 229)" autocomplete="off" enterkeyhint="search" aria-label="주소">' +
+              '<button type="button" class="mp-btn" id="mp-f-find">주소로 찾기</button></div>' +
+            '<div class="mp-res" id="mp-f-res" hidden></div><p class="mp-msg" id="mp-f-msg" hidden></p></div>' +
+          field('mp-f-tel', '전화', '<input id="mp-f-tel" class="mp-in" type="tel" inputmode="tel" maxlength="30" placeholder="예: 02-1234-5678" autocomplete="off" enterkeyhint="next">') +
+          field('mp-f-hours', '영업시간', '<input id="mp-f-hours" class="mp-in" type="text" maxlength="80" placeholder="예: 매일 09:00–22:00 (월 휴무)" autocomplete="off" enterkeyhint="next">') +
+          field('mp-f-cap', '수용 인원', '<div class="mp-cap"><input id="mp-f-cap" class="mp-in" type="number" inputmode="numeric" min="0" max="999" placeholder="예: 20" enterkeyhint="next"><span>명</span></div>') +
+          '<div class="mp-f"><label>편의 항목</label><div class="mp-chips" id="mp-f-amen"></div></div>' +
+          field('mp-f-memo', '메모', '<textarea id="mp-f-memo" class="mp-in" rows="4" maxlength="1000" placeholder="예: 2층 별실은 8명까지, 오후 3시 이후 한산"></textarea>') +
+          '<div class="mp-fa"><button type="button" class="mp-act" id="mp-f-save">저장</button><button type="button" class="mp-btn" id="mp-f-cancel">취소</button><button type="button" class="mp-btn warn" id="mp-f-del" hidden>삭제</button></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="mp-r"><div class="mp-mapwrap">' +
+        '<div id="mp-map"></div>' +
+        '<div class="mp-note" id="mp-note" hidden>지도 바탕을 불러오지 못했습니다. 인터넷 연결을 확인해 주세요. 목록과 핀 위치는 그대로 쓸 수 있습니다.</div>' +
+        '<button type="button" class="mp-me" id="mp-me" aria-label="내 위치로 이동">' +
+          '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>' +
+        '<div class="mp-card" id="mp-card" hidden></div>' +
+        '<div class="mp-cross" id="mp-cross" hidden><i></i></div>' +
+        '<div class="mp-pick" id="mp-pick" hidden><span>지도를 끌어 가운데 십자(+)를 카페 위치에 맞춘 뒤 눌러 주세요.</span>' +
+          '<button type="button" class="mp-btn" id="mp-pick-no">취소</button><button type="button" class="mp-act" id="mp-pick-ok">여기로 정하기</button></div>' +
+      '</div></div>';
+    document.body.appendChild(el);
+    mpEl = el;
+
+    mpS('#mp-close').addEventListener('click', mpTryClose);
+    mpEl.querySelectorAll('.mp-tabs button').forEach((b) => b.addEventListener('click', () => mpTab(b.dataset.t)));
+    // 목록
+    mpS('#mp-add').addEventListener('click', () => mpOpenForm(null));
+    mpS('#mp-q').addEventListener('input', (e) => { mpSearch = e.target.value; mpRefresh(); });
+    mpS('#mp-q').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
+    mpS('#mp-chips').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-k]');
+      if (!b) return;
+      if (mpFilt.has(b.dataset.k)) mpFilt.delete(b.dataset.k); else mpFilt.add(b.dataset.k);
+      mpRefresh();
+    });
+    mpS('#mp-items').addEventListener('click', (e) => {
+      const it = e.target.closest('.mp-item');
+      if (!it) return;
+      const p = mpFind(it.dataset.id);
+      if (!p) return;
+      if (e.target.closest('.mp-it-edit')) { mpOpenForm(p); return; }
+      if (mpNarrow()) mpTab('r');
+      mpSelect(p.id, { fly: true });
+    });
+    // 입력 화면
+    mpS('#mp-f-gps').addEventListener('click', mpFormGps);
+    mpS('#mp-f-pick').addEventListener('click', mpPickStart);
+    mpS('#mp-f-find').addEventListener('click', mpFormFind);
+    mpS('#mp-f-addr').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); mpFormFind(); } });
+    mpS('#mp-f-amen').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-k]');
+      if (!b) return;
+      if (mpFormAmen.has(b.dataset.k)) mpFormAmen.delete(b.dataset.k); else mpFormAmen.add(b.dataset.k);
+      b.classList.toggle('on', mpFormAmen.has(b.dataset.k));
+    });
+    ['#mp-f-name', '#mp-f-tel', '#mp-f-hours', '#mp-f-cap'].forEach((q) => mpS(q).addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }));
+    mpS('#mp-f-save').addEventListener('click', mpFormSave);
+    mpS('#mp-f-cancel').addEventListener('click', mpCloseForm);
+    mpS('#mp-f-del').addEventListener('click', mpFormDelete);
+    // 지도 위 단추
+    mpS('#mp-me').addEventListener('click', () => {
+      if (mpMe && mpMap) { mpMap.setView([mpMe.lat, mpMe.lng], Math.max(mpMap.getZoom(), 15), { animate: false }); mpRefreshLoc(false); }
+      else mpRefreshLoc(true);
+    });
+    mpS('#mp-pick-ok').addEventListener('click', () => mpPickEnd(true));
+    mpS('#mp-pick-no').addEventListener('click', () => mpPickEnd(false));
+    if (window.ResizeObserver) new ResizeObserver(() => { if (mpIsOpen()) layoutMp(); }).observe(el);
+  }
+
+  async function openMp() {
+    closeSpot();
+    if (!mpEl) buildMp();
+    mpEl.hidden = false;
+    mpUserMoved = false;
+    mpTab('l');
+    layoutMp();
+    mpShowView(mpView);
+    mpRenderList();
+    setTimeout(layoutMp, 120);
+    mpRefreshLoc(false);   // 열 때마다 내 위치를 새로 읽는다 (처음에는 iOS가 위치 허용을 묻는다)
+    try { await mpLoadLeaflet(); } catch (e) {
+      if (mpIsOpen()) { const n = mpS('#mp-note'); n.textContent = '지도 부품을 불러오지 못했습니다. 앱을 다시 열어 보세요. 목록은 그대로 쓸 수 있습니다.'; n.hidden = false; }
+      return;
+    }
+    if (!mpIsOpen()) return;
+    mpEnsureMap();
+    layoutMp();
+  }
+  function closeMp() {
+    if (!mpEl) return;
+    if (mpView === 'form') mpCloseForm();   // 입력 화면을 열어 둔 채 닫아도, 다음에 열면 목록부터 보인다 (작성 중인 내용이 있으면 mpTryClose가 먼저 막는다)
+    if (mpPicking) mpPickEnd(false);
+    mpEl.hidden = true;
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  }
+
   onMenu($('#btn-pick'), () => { showBooks(pos.book >= 39 ? 'nt' : 'ot'); openSheet(false); });
-  onMenu($('#btn-easy'), () => { showTranslations(); openSheet(false); });
   onMenu($('#btn-settings'), () => { showSettings(); openSheet(false); });
   onMenu($('#btn-hl'), () => { showHighlights(); openSheet(false); });
   onMenu($('#btn-notes'), () => { showNotes(); openSheet(true); });
   onMenu($('#btn-card'), () => { openPc(); });
+  onMenu($('#btn-map'), () => { openMp(); });
   onMenu($('#btn-search'), () => {
     const input = showSearch();
     openSheet(true);

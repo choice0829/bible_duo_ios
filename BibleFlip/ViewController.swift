@@ -14,6 +14,7 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
     private var webView: WKWebView!
     private var theme: String = UserDefaults.standard.string(forKey: "bf.theme") ?? "paper"
     private var errorShown = false
+    private let places = LocationBridge()   // 모임 장소 지도: 현재 위치·주소 찾기
 
     // Mac 없이도 문제를 알 수 있도록: 웹에서 난 오류를 앱이 한 번 화면에 띄운다 (진단용)
     private static let diagScript = """
@@ -36,6 +37,8 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         let config = WKWebViewConfiguration()
         config.setURLSchemeHandler(BundleSchemeHandler(), forURLScheme: "bibleflip")
         config.allowsInlineMediaPlayback = true
+        // 지도 바탕(OpenStreetMap) 서버가 앱을 알아볼 수 있도록 앱 이름을 접속 정보(User-Agent)에 덧붙인다
+        config.applicationNameForUserAgent = "BibleFlip/48"
         let controller = WKUserContentController()
         controller.add(WeakMessageHandler(self), name: "bf")
         controller.addUserScript(WKUserScript(source: ViewController.diagScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
@@ -70,6 +73,7 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
                                                name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillHide(_:)),
                                                name: UIResponder.keyboardWillHideNotification, object: nil)
+        places.onFix = { [weak self] r in self?.sendToWeb("bfLocation", r) }
         load()
     }
 
@@ -121,9 +125,49 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         if let err = body["error"] as? String { reportError(err); return }
         // 바이블 포토 카드: 웹이 만든 JPEG(base64)를 받아 아이폰 공유 창(이미지 저장·메시지·카카오톡 등)을 띄운다
         if let b64 = body["share"] as? String { shareImage(base64: b64, name: body["name"] as? String); return }
+        // 모임 장소 지도: 현재 위치 · 주소 → 좌표 · 좌표 → 주소 · 다른 지도 앱 열기
+        if body["loc"] != nil { places.requestFix(); return }
+        if let q = body["geocode"] as? String {
+            let id = (body["id"] as? Int) ?? 0
+            places.geocode(String(q.prefix(200))) { [weak self] r in
+                var out = r
+                out["id"] = id
+                self?.sendToWeb("bfGeo", out)
+            }
+            return
+        }
+        if let r = body["rgeo"] as? [String: Any], let lat = r["lat"] as? Double, let lng = r["lng"] as? Double {
+            let id = (body["id"] as? Int) ?? 0
+            places.reverse(lat: lat, lng: lng) { [weak self] res in
+                var out = res
+                out["id"] = id
+                self?.sendToWeb("bfGeo", out)
+            }
+            return
+        }
+        if let u = body["open"] as? String { openExternal(u, fallback: body["fallback"] as? String); return }
         guard let t = body["theme"] as? String else { return }
         UserDefaults.standard.set(t, forKey: "bf.theme")
         applyTheme(t)
+    }
+
+    // MARK: 웹으로 결과 보내기 (window.함수이름(JSON))
+    private func sendToWeb(_ fn: String, _ payload: [String: Any]) {
+        guard JSONSerialization.isValidJSONObject(payload),
+              let data = try? JSONSerialization.data(withJSONObject: payload),
+              let json = String(data: data, encoding: .utf8) else { return }
+        webView.evaluateJavaScript("window.\(fn) && window.\(fn)(\(json))", completionHandler: nil)
+    }
+
+    // MARK: 다른 지도 앱(네이버 지도 등) 열기. 앱이 없어 열리지 않으면 fallback 주소(웹)로 연다.
+    private func openExternal(_ text: String, fallback: String?) {
+        let allowed = ["https", "http", "nmap", "tel"]
+        guard let url = URL(string: text), let scheme = url.scheme?.lowercased(), allowed.contains(scheme) else { return }
+        UIApplication.shared.open(url, options: [:]) { ok in
+            guard !ok, let f = fallback, let fu = URL(string: f),
+                  let fs = fu.scheme?.lowercased(), fs == "https" || fs == "http" else { return }
+            UIApplication.shared.open(fu, options: [:], completionHandler: nil)
+        }
     }
 
     // MARK: 바이블 포토 카드 공유 (웹의 사진 → 임시 파일 → 공유 창)

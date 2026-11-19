@@ -1,6 +1,6 @@
 // 오프라인에서도 열리도록 앱 파일과 본문을 저장해 둔다.
 // 앱을 수정해서 다시 올릴 때는 아래 CACHE 이름의 숫자를 올려야 기기에 새 버전이 반영된다.
-const CACHE = 'bibleflip-v47';
+const CACHE = 'bibleflip-v48';
 const ASSETS = [
   './',
   'index.html',
@@ -8,6 +8,8 @@ const ASSETS = [
   'app.js',
   'manifest.webmanifest',
   'lib/page-flip.browser.js',
+  'lib/leaflet.js',
+  'lib/leaflet.css',
   'data/krv.json',
   'fonts/nanum-myeongjo.woff2',
   'fonts/gowun-batang.woff2',
