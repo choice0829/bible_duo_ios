@@ -558,8 +558,9 @@ html.kb #pc.two .pc-l { padding-bottom: var(--kb, 0px); }   /* 키보드는 왼�
   display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto minmax(0, 1fr); --mp-gap: 18px; --mp-tint: rgba(0, 0, 0, .045);
 }
 body.theme-night #mp { --mp-tint: rgba(255, 255, 255, .05); }
-#mp.two { grid-template-columns: minmax(320px, 5fr) 6fr; }
-#mp.two .mp-r { background: var(--mp-tint); }   /* 지도 쪽은 살짝 다른 바탕 */
+#mp.two { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto; --mp-plw: clamp(300px, 38vw, 380px); --mp-cl: calc(var(--mp-plw) + 20px); --mp-nl: var(--mp-cl); }
+#mp.two.pl-off[data-view="list"] { --mp-cl: 10px; --mp-nl: 168px; }   /* 목록 창을 접으면 카드·안내가 왼쪽 끝까지 */
+#mp.two.picking { --mp-cl: 10px; --mp-nl: 58px; }
 #mp.narrow[data-tab="r"] { background-image: linear-gradient(var(--mp-tint), var(--mp-tint)); }
 #mp[hidden] { display: none; }
 #mp.narrow { grid-template-columns: 1fr; }
@@ -655,13 +656,13 @@ body.theme-night #mp-map, body.theme-night .mp-mapwrap { background: #1c1d20; }
 .mp-pin.sel .pn { fill: #1f6f78; }
 .mp-pin.draft .pn { fill: rgba(255, 255, 255, .85); stroke: var(--accent); stroke-dasharray: 4 3; }
 .mp-pin.draft .cup { stroke: var(--accent); }
-.mp-note { position: absolute; z-index: 900; top: 10px; left: 58px; right: 58px; padding: 8px 12px; border-radius: 10px; background: rgba(34, 34, 34, .88); color: #fff; font-size: 12.5px; line-height: 1.45; text-align: center; }
+.mp-note { position: absolute; z-index: 900; top: 10px; left: var(--mp-nl, 58px); right: 58px; padding: 8px 12px; border-radius: 10px; background: rgba(34, 34, 34, .88); color: #fff; font-size: 12.5px; line-height: 1.45; text-align: center; }
 .mp-note[hidden] { display: none; }
 .mp-me { position: absolute; z-index: 900; top: 10px; right: 10px; width: 44px; height: 44px; border-radius: 12px; background: #fff; color: #2f7de1; box-shadow: 0 1px 5px rgba(0, 0, 0, .4); display: flex; align-items: center; justify-content: center; }
 .mp-me svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; pointer-events: none; }
 #mp.picking .mp-me { display: none; }
 .mp-card, .mp-pick {
-  position: absolute; z-index: 900; left: 10px; right: 10px; bottom: 28px; max-height: 58%; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  position: absolute; z-index: 900; left: var(--mp-cl, 10px); right: 10px; bottom: 28px; max-height: 58%; overflow-y: auto; -webkit-overflow-scrolling: touch;
   padding: 12px 14px; border-radius: 14px; background: var(--bg); color: var(--fg); box-shadow: 0 4px 18px rgba(0, 0, 0, .32); touch-action: pan-y;
 }
 .mp-card[hidden], .mp-pick[hidden], .mp-cross[hidden] { display: none; }
@@ -684,6 +685,34 @@ body.theme-night #mp-map, body.theme-night .mp-mapwrap { background: #1c1d20; }
 .mp-pick .mp-act { grid-column: 3; }
 .mp-pick .mp-btn { grid-column: 2; }
 body.theme-night .mp-add, body.theme-night .mp-act, body.theme-night .mp-tabs button.on, body.theme-night .mp-chip.on { color: #14161A; }
+/* 펼침(넓은 화면): 지도를 화면 가로 전체로 깔고, 위 줄에는 검색·키워드, 지도 아래 오른쪽에는 내 위치·새로고침.
+   목록·입력은 지도 왼쪽 위에 떠 있는 창이다. 좌우 여백(--mp-l, --mp-r)은 같게 둔다. */
+.mp-sub, .mp-foot, .mp-ptog { display: none; }
+#mp.two .mp-bar { grid-column: 1; grid-row: 1; display: flex; align-items: center; gap: 12px; min-height: 0; padding: var(--mp-top, 12px) var(--mp-bandr, 22px) 0 var(--mp-l, 22px); }
+#mp.two .mp-bar strong { flex: none; margin: 0 4px 0 2px; }
+#mp.two .mp-x { flex: none; padding: 8px 0; }
+#mp.two .mp-bar .mp-in { flex: 1 1 200px; width: auto; min-width: 0; max-width: 760px; }
+#mp.two .mp-bar .mp-add { flex: none; margin-left: auto; white-space: nowrap; }
+#mp.two .mp-card { max-height: min(58%, calc(100% - 186px)); }   /* 오른쪽 위 확대·축소·내 위치 단추를 가리지 않게 */
+#mp.two .mp-sub { display: block; grid-column: 1; grid-row: 2; min-width: 0; padding: 10px var(--mp-bandr, 22px) var(--mp-gapt, 10px) var(--mp-l, 22px); }
+#mp.two .mp-sub .mp-chips { flex-wrap: nowrap; margin: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x; scrollbar-width: none; }
+#mp.two .mp-sub .mp-chips::-webkit-scrollbar { display: none; }
+#mp.two .mp-sub .mp-chip { flex: none; }
+#mp.two .mp-top { display: none; }
+#mp.two .mp-r { grid-column: 1; grid-row: 3; padding: 0; margin: 0 var(--mp-r, 22px) 0 var(--mp-l, 22px); background: none; }
+#mp.two .mp-foot { display: flex; align-items: center; gap: 12px; grid-column: 1; grid-row: 4; min-width: 0; padding: 10px var(--mp-r, 22px) var(--mp-bot, 14px) var(--mp-l, 22px); }
+#mp.two .mp-foot .mp-count { flex: none; }
+#mp.two .mp-foot .mp-loc { flex: 1; min-width: 0; padding: 0; justify-content: flex-end; gap: 12px; }
+#mp.two .mp-foot .mp-loc-t { min-width: 0; text-align: right; }
+#mp.two .mp-l { grid-column: 1; grid-row: 3; position: relative; z-index: 5; margin: 0 var(--mp-r, 22px) 0 var(--mp-l, 22px); padding: 10px 0 10px 10px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; pointer-events: none; }
+#mp.two .mp-l > * { pointer-events: auto; }
+#mp.two .mp-ptog { display: inline-flex; align-items: center; flex: none; height: 38px; padding: 0 14px; border-radius: 999px; background: var(--bg); color: var(--fg); font-size: 14px; font-weight: 700; box-shadow: 0 2px 10px rgba(0, 0, 0, .28), 0 0 0 1px var(--line); }
+#mp.two[data-view="form"] .mp-ptog, #mp.two.picking .mp-ptog { display: none; }
+#mp.two .mp-view { flex: 0 1 auto; width: var(--mp-plw); max-width: 100%; padding: 12px 12px 4px; border-radius: 14px; background: var(--bg); box-shadow: 0 4px 18px rgba(0, 0, 0, .28), 0 0 0 1px var(--line); }
+#mp.two.pl-off #mp-list { display: none; }
+#mp.two.picking .mp-l { display: none; }
+#mp.two .mp-me { top: 104px; }   /* 확대·축소 단추가 오른쪽 위로 옮겨 가므로 그 아래 */
+#mp.two .mp-note { right: 62px; }
 html.kb #mp.two { padding-bottom: 0; }
-html.kb #mp.two .mp-l { padding-bottom: var(--kb, 0px); }
+html.kb #mp.two .mp-l { grid-row: 3 / span 2; padding-bottom: var(--kb, 0px); }   /* 키보드는 떠 있는 목록·입력 창만 위로 올린다(지도·아래줄은 그대로) */
 html.kb .mp-view { padding-bottom: 24px; }
