@@ -21,6 +21,7 @@
   const BOTTOM_SPREAD_DEFAULT = 20;
   // 아이폰 앱(껍데기) 전용 — 펼친 화면의 책을 '카드'로 둔다: 좌우 여백을 같게, 아래도 화면 끝에서 띄운다.
   const NATIVE_TEXT_OUT = 30;           // 앱 펼침: 화면 바깥쪽 가장자리에서 본문 글자까지(px). 책 카드 없이 화면 전체를 책장으로 쓴다 (v41)
+  const NATIVE_SIDE_SINGLE = 24;        // 앱 한 쪽(접은·세로) 화면: 본문 좌우 여백(px). 웹앱은 8 (v43)
   const NATIVE_TEXT_IN = 22;            // 앱 펼침: 가운데(책등) 쪽 글자 여백(px). 두 쪽 사이 간격은 이 값의 두 배
   const NATIVE_BOTTOM_GAP = 12;         // 앱 펼침: 본문 아래 끝과 화면 맨 아래 사이(px, 안전영역이 더 크면 그만큼). 낮은 화면(가로로 돌린 아이폰)은 10
   const NATIVE_HEAD_STAGE_GAP = 16;     // 머리줄(책 이름·메뉴) 아래에서 카드 윗면까지(px). 웹앱은 6 (v40: 책 이름을 10px 위로)
@@ -34,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v42';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v43';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const DESKS = { plain: '단색', linen: '린넨', wood: '나무결', leather: '가죽' };   // 책상(상단 배경) 질감
   const DESK_DEFAULT = 'linen';
@@ -172,7 +173,8 @@
     const pageW = spread ? Math.floor((W - shiftX - rightReserve) / 2) : W;
     // 좌우 안전영역: 듀오는 오른쪽 상태 아이콘 때문에 오른쪽만 84px로 알리는데 아이콘은 맨 위에만 있고 윗부분은 따로 비워 두므로
     // 본문 좌우는 끝까지 쓴다. 노치 아이폰 가로 화면(좌우가 같음)은 한 쪽 보기일 때 그만큼 비운다. (펼침은 책 자체를 안쪽으로 둔다)
-    const padX = !spread && sym ? Math.max(SIDE_PAD, Math.round(Math.max(si.left, si.right))) : SIDE_PAD;
+    const padX0 = !spread && sym ? Math.max(SIDE_PAD, Math.round(Math.max(si.left, si.right))) : SIDE_PAD;
+    const padX = NATIVE && !spread ? Math.max(NATIVE_SIDE_SINGLE, padX0) : padX0;   // 앱 한 쪽 화면은 좌우 여백을 넉넉히
     // 앱 펼침: 바깥쪽(화면 가장자리 쪽)·안쪽(책등 쪽) 글자 여백을 따로 둔다. 노치·왼쪽 열 같은 안전영역은 글자가 피한다(듀오 오른쪽 열은 알약이 맨 위에만 있어 쓴다).
     const sideSafe = duo ? 0 : Math.round(Math.max(si.left, si.right));
     const padOut = full ? Math.max(NATIVE_TEXT_OUT, sideSafe + SIDE_PAD) : padX;
@@ -286,7 +288,7 @@
     stage.style.marginLeft = g.shiftX ? g.shiftX + 'px' : '';   // 펼친 화면 가운데 맞춤
     root.setProperty('--shiftx', g.shiftX + 'px');
     // 머리줄(책 이름·메뉴)의 왼쪽 끝: 펼침은 책 왼쪽 가장자리 + 14, 한 쪽은 안전영역 + 14. (좌우가 같은 아이폰은 책 자체가 이미 안쪽이다)
-    root.setProperty('--headx', (g.full ? g.padOut : (g.spread ? (g.sym ? 0 : g.si.left) + g.shiftX : g.si.left) + 14) + 'px');
+    root.setProperty('--headx', (g.full ? g.padOut : NATIVE && !g.spread ? g.padX : (g.spread ? (g.sym ? 0 : g.si.left) + g.shiftX : g.si.left) + 14) + 'px');
     stage.classList.toggle('spread', g.spread);
     document.body.classList.toggle('is-spread', g.spread);
     document.documentElement.classList.toggle('full', !!g.full);   // 앱 펼침: 책 카드 없이 한 색 바탕
