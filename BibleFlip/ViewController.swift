@@ -38,7 +38,7 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         config.setURLSchemeHandler(BundleSchemeHandler(), forURLScheme: "bibleflip")
         config.allowsInlineMediaPlayback = true
         // 지도 바탕(OpenStreetMap) 서버가 앱을 알아볼 수 있도록 앱 이름을 접속 정보(User-Agent)에 덧붙인다
-        config.applicationNameForUserAgent = "BibleFlip/49"
+        config.applicationNameForUserAgent = "BibleFlip/50"
         let controller = WKUserContentController()
         controller.add(WeakMessageHandler(self), name: "bf")
         controller.addUserScript(WKUserScript(source: ViewController.diagScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))

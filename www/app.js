@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v49';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v50';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const DESKS = { plain: '단색', linen: '린넨', wood: '나무결', leather: '가죽' };   // 책상(상단 배경) 질감
   const DESK_DEFAULT = 'linen';
@@ -228,6 +228,7 @@
 
   // 테마(종이·세피아·야간)와 책상 질감을 body 클래스로 적용하고, 상태 표시줄 색(theme-color)을 책상 색에 맞춘다.
   const deskOf = () => (DESKS[settings.desk] ? settings.desk : DESK_DEFAULT);
+  const themeHooks = [];   // 테마가 적용될 때마다 부를 함수들(모임 장소 지도가 바탕·색을 다시 맞출 때 쓴다)
   function applyDesk() {
     const look = ' theme-' + settings.theme + ' desk-' + deskOf();
     const strip = (el) => el.className.replace(/\b(theme|desk)-\w+/g, '').replace(/\s+/g, ' ').trim();
@@ -237,6 +238,7 @@
     refreshSystemColor();
     // 아이폰 앱: 상태 표시줄 글자색(밝게/어둡게)과 빈틈 색을 테마에 맞추도록 앱에 알린다
     try { if (NATIVE) window.webkit.messageHandlers.bf.postMessage({ theme: settings.theme }); } catch (e) { /* 무시 */ }
+    themeHooks.forEach((f) => { try { f(); } catch (e) { /* 무시 */ } });
   }
   // iOS가 오른쪽(듀오 시스템 띠)·위쪽 색을 읽는 곳(theme-color, 가장자리에 닿은 고정 요소)은 테마를 바꿔도 곧바로 다시 읽지 않는 경우가 있다.
   // (v36 실기기: 야간으로 바꿨는데 띠에 세피아색이 그대로 남음) → 색이 바뀌면 meta와 가장자리 띠를 새 노드로 갈아 끼우고, 잠시 뒤 두 번 더 한다.
@@ -2021,7 +2023,7 @@
       '</div></div>' +
       '<div class="row"><span>화면 구성</span>' + seg(LAYOUTS, settings.layout, 'layout') + '</div>' +
       '<button class="row rowlink" id="go-tr" type="button"><span>번역 선택 <small class="sub">' + (settings.std ? 'AI 표준어 번역 켜짐' : '개역한글만 보기') + '</small></span><span class="chev">›</span></button>' +
-      '<button class="row rowlink" id="go-adv" type="button"><span>고급설정 <small class="sub">여백 · 위치 · 화면 정보</small></span><span class="chev">›</span></button>' +
+      '<button class="row rowlink" id="go-adv" type="button"><span>고급설정 <small class="sub">여백 · 위치 · 지도 · 화면 정보</small></span><span class="chev">›</span></button>' +
       '<p class="note">자동: 화면이 넓으면(펼친 상태) 두 쪽, 좁으면(접힌 상태) 한 쪽으로 보여 줍니다.<br>본문: 개역한글 (퍼블릭 도메인)</p>';
     $('#go-tr').addEventListener('click', () => { showTranslations(); sheetBody.scrollTop = 0; });
     $('#go-adv').addEventListener('click', () => { showAdvanced(); sheetBody.scrollTop = 0; });
@@ -2073,6 +2075,13 @@
       '<button class="row rowlink" id="go-bk" type="button"><span>데이터 백업 <small class="sub">하이라이트 · 설교노트 · 모임 장소 내보내기/불러오기</small></span><span class="chev">›</span></button>' +
       '<p class="note">기본값은 기기와 화면에 맞춰 자동으로 정해집니다(듀오 펼침: 윗 ' + TOP_DEFAULT.topSpread + ' · 가로 위치 ' + SHIFT_DEFAULT + ' · 아래 ' + BOTTOM_SPREAD_DEFAULT + ', 한 쪽 윗 ' + TOP_DEFAULT.topSingle + '). 가로로 돌린 아이폰은 머리줄이 작아지고 노치 쪽이 비워집니다.' +
       '<br>값을 바꾸면 본문이 잠시 뒤에 새로 정렬됩니다. 읽던 위치는 그대로 유지됩니다.</p>' +
+      '<div class="adv-head">모임 장소 지도 그림</div>' +
+      '<p class="adv-desc">지도 그림을 앱 테마(종이·세피아·야간)에 맞춘 CARTO 지도로 바꾸려면 무료 열쇠(API 키)가 필요합니다. 아래 단추로 받는 곳을 열어 이메일로 받은 열쇠를 붙여 넣어 주세요. ' +
+        '열쇠는 <b>이 기기에만</b> 저장되며 데이터 백업에는 들어가지 않습니다. 열쇠가 없으면 OpenStreetMap 지도에 테마 색조만 입혀 보여 줍니다.</p>' +
+      '<p class="note tight" id="mk-state"></p>' +
+      '<input id="mk-in" class="bk-text mk-in" type="text" inputmode="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="여기에 열쇠 붙여 넣기" aria-label="지도 열쇠">' +
+      '<div class="mk-btns"><button class="seg-btn" id="mk-open" type="button">받는 곳 열기</button><button class="seg-btn" id="mk-save" type="button">저장</button><button class="seg-btn" id="mk-clear" type="button">지우기</button></div>' +
+      '<p class="adv-desc" id="mk-msg">&nbsp;</p>' +
       '<div class="adv-head">화면 정보</div>' +
       '<p class="note tight">현재 화면 ' + g.W + ' × ' + g.H + ' px (창 ' + window.innerWidth + ' × ' + window.innerHeight + ') · ' + (g.spread ? '펼침(두 쪽)' : '한 쪽') +
       ' (자동 기준: 폭 ' + AUTO_SPREAD_MIN_WIDTH + 'px 이상, 또는 가로 화면이면 ' + AUTO_SPREAD_MIN_LANDSCAPE + 'px 이상)<br>안전영역 위 ' + g.si.top + ' · 아래 ' + g.si.bottom + ' · 좌 ' + g.si.left + ' · 우 ' + g.si.right +
@@ -2087,6 +2096,31 @@
       if (next !== cur) changeSettings({ [key]: next }, showAdvanced);
     }));
     $('#go-bk').addEventListener('click', () => { showBackup(); sheetBody.scrollTop = 0; });
+    // 지도 열쇠: 입력·저장·지우기. 저장한 열쇠는 화면에 다시 보여 주지 않는다. 바뀌면 지도가 열려 있든 아니든 바탕을 다시 맞춘다.
+    const mkMsg = (t) => { $('#mk-msg').textContent = t; };
+    const mkState = () => {
+      const has = !!mpKeyGet();
+      $('#mk-state').innerHTML = has
+        ? '<b>열쇠 입력됨</b> · 지도 그림이 테마에 맞는 CARTO 지도로 보입니다. (인터넷 연결 필요)'
+        : '<b>열쇠 없음</b> · 지금은 OpenStreetMap 지도에 테마 색조만 입혀 보입니다.';
+      $('#mk-clear').disabled = !has;
+    };
+    mkState();
+    $('#mk-open').addEventListener('click', () => mpOpen(MP_KEY_URL, MP_KEY_URL));
+    $('#mk-save').addEventListener('click', () => {
+      const v = $('#mk-in').value.trim();
+      if (!mpKeyOk(v)) { mkMsg('열쇠를 붙여 넣어 주세요. (공백 없이 6자 이상)'); return; }
+      try { localStorage.setItem(MP_KEY_LS, v); } catch (e) { mkMsg('저장하지 못했습니다.'); return; }
+      $('#mk-in').value = '';
+      mpApplyTile(); mkState();
+      mkMsg('저장했습니다. 지도 화면을 열어 확인하세요.');
+    });
+    $('#mk-clear').addEventListener('click', () => {
+      try { localStorage.removeItem(MP_KEY_LS); } catch (e) { /* 무시 */ }
+      $('#mk-in').value = '';
+      mpApplyTile(); mkState();
+      mkMsg('지웠습니다.');
+    });
     $('#adv-refit').addEventListener('click', () => { closeSheet(); refitScreen(); });
     $('#adv-restart').addEventListener('click', () => restartApp('직접', false));
     // 되돌리기 = 저장한 값을 지워 기기에 맞는 자동값으로 돌아간다. (듀오는 예전 기본값 그대로)
@@ -3778,14 +3812,33 @@
 
   // ---------- 모임 장소(카페) 지도 ----------
   // 운영자(본인)가 아는 카페·모임 장소를 직접 등록하고, 내 위치 기준 가까운 순으로 보고, 지도에서 위치를 확인하고, 네이버·애플·구글 지도로 길을 찾는다.
-  // 장소는 이 기기(bf.places)에만 저장하며 데이터 백업에 함께 들어간다. 지도 바탕은 OpenStreetMap(Leaflet을 lib/에 포함)이라 인터넷이 있어야 보이고,
+  // 장소는 이 기기(bf.places)에만 저장하며 데이터 백업에 함께 들어간다. 지도 바탕은 Leaflet(lib/에 포함)이 인터넷에서 받아 오므로 인터넷이 있어야 보이고(열쇠가 있으면 테마별 CARTO, 없으면 OpenStreetMap),
   // 인터넷이 없어도 목록·등록·거리 계산은 된다. 내 위치·주소 찾기·다른 지도 앱 열기는 아이폰 앱(껍데기)이 맡는다(window.bfLocation / bfGeo).
   const MP_AMEN = [['out', '콘센트'], ['wifi', '와이파이'], ['group', '단체석'], ['quiet', '조용함'], ['park', '주차'], ['room', '별실']];
   const MP_AMEN_NAME = {}; MP_AMEN.forEach((a) => { MP_AMEN_NAME[a[0]] = a[1]; });
   const MP_MAX = 500;
   const MP_VIEW0 = { lat: 37.5665, lng: 126.978, z: 12 };   // 장소도 내 위치도 아직 없을 때의 첫 화면: 서울 중심
-  const MP_TILE = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const MP_TILE = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';   // 열쇠가 없을 때의 바탕(OpenStreetMap). CSS 색조로만 테마에 맞춘다.
   const MP_ATTR = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+  // 열쇠(CARTO 무료 API 키)가 있으면 테마에 맞는 CARTO 바탕을 쓴다: 종이·세피아 = Positron(밝고 옅은 도로) + 색조, 야간 = Dark Matter.
+  // 열쇠는 이 기기(bf.mapkey)에만 저장하고 데이터 백업에는 넣지 않는다. 입력은 설정 → 고급설정에서 한다.
+  const MP_CARTO = 'https://basemaps.cartocdn.com/rastertiles/';
+  const MP_CARTO_STYLE = { paper: 'light_all', sepia: 'light_all', night: 'dark_all' };
+  const MP_CARTO_ATTR = MP_ATTR + ', © <a href="https://carto.com/attribution/">CARTO</a>';
+  const MP_KEY_LS = 'bf.mapkey', MP_KEY_URL = 'https://carto.com/basemaps/apikey/';
+  const mpKeyOk = (k) => /^\S{6,200}$/.test(k);
+  const mpKeyGet = () => { try { const k = (localStorage.getItem(MP_KEY_LS) || '').trim(); return mpKeyOk(k) ? k : ''; } catch (e) { return ''; } };
+  // 지금 테마·열쇠에 맞는 바탕 설정. nz = 그 서비스가 실제로 주는 가장 큰 확대 단계(그 이상은 늘려서 보여 준다)
+  function mpTileCfg() {
+    const key = mpKeyGet();
+    return key
+      ? { src: 'carto', url: MP_CARTO + (MP_CARTO_STYLE[settings.theme] || 'light_all') + '/{z}/{x}/{y}.png?key=' + encodeURIComponent(key), attr: MP_CARTO_ATTR, nz: 18 }
+      : { src: 'osm', url: MP_TILE, attr: MP_ATTR, nz: 19 };
+  }
+  const MP_NOTE = {
+    osm: '지도 바탕을 불러오지 못했습니다. 인터넷 연결을 확인해 주세요. 목록과 핀 위치는 그대로 쓸 수 있습니다.',
+    carto: '지도 바탕을 불러오지 못했습니다. 인터넷 연결과, 설정 → 고급설정에 입력한 지도 열쇠를 확인해 주세요. 목록과 핀 위치는 그대로 쓸 수 있습니다.',
+  };
   const MP_PIN = '<svg viewBox="0 0 36 44" aria-hidden="true"><path class="pn" d="M18 43C18 43 3 27.6 3 17.4 3 8.9 9.7 2.5 18 2.5s15 6.4 15 14.9C33 27.6 18 43 18 43z"/>' +
     '<g class="cup"><path d="M11 13.2h12v5.4a4.8 4.8 0 0 1-4.8 4.8h-2.4a4.8 4.8 0 0 1-4.8-4.8z"/><path d="M23 14.6h1a2.3 2.3 0 0 1 0 4.6h-1.2"/><path d="M14 9.6v1.6M17 9.6v1.6M20 9.6v1.6"/></g></svg>';
 
@@ -3890,7 +3943,7 @@
     : '현재 위치를 가져오지 못했습니다. 잠시 뒤 다시 눌러 보세요. (실내·지하에서는 늦을 수 있습니다)');
 
   // ----- 화면 상태 -----
-  let mpEl = null, mpMap = null, mpTile = null, mpPinLayer = null, mpMeLayer = null, mpDraftMk = null, mpLeafP = null, mpZoomCtl = null, mpPlacedTwo = null;
+  let mpEl = null, mpMap = null, mpTile = null, mpTileSig = '', mpPinLayer = null, mpMeLayer = null, mpDraftMk = null, mpLeafP = null, mpZoomCtl = null, mpPlacedTwo = null;
   const mpMk = {};                        // 장소 id → 지도 핀
   let mpMe = null;                        // 내 위치 { lat, lng, acc }
   let mpLocState = 'idle';                // idle | busy | ok | denied | fail
@@ -3936,15 +3989,30 @@
     if (off > 0) c = mpMap.unproject(mpMap.project(c, zoom).subtract([off, 0]), zoom);
     mpMap.setView(c, zoom, { animate: false });
   }
-  function mpEnsureMap() {
-    if (!mpEl || !window.L) return;
-    if (mpMap) { mpMap.invalidateSize(); return; }
-    mpMap = L.map(mpS('#mp-map'), { zoomControl: false, zoomSnap: 1, minZoom: 3, maxZoom: 19 });
-    mpZoomCtl = L.control.zoom({ position: mpNarrow() ? 'topleft' : 'topright', zoomInTitle: '확대', zoomOutTitle: '축소' }).addTo(mpMap);
-    mpTile = L.tileLayer(MP_TILE, { maxZoom: 19, attribution: MP_ATTR });
+  // 지금 테마·열쇠에 맞는 바탕으로 맞춘다. #mp의 mp-src-carto / mp-src-osm 클래스는 CSS가 바탕 그림의 색조(필터)를 고르는 데 쓴다.
+  // 바탕 주소가 그대로면 지도를 건드리지 않는다. 바뀌면(테마 변경·열쇠 입력·삭제) 바탕 층만 새로 만든다.
+  function mpApplyTile() {
+    if (!mpEl) return;
+    const c = mpTileCfg();
+    mpEl.classList.toggle('mp-src-carto', c.src === 'carto');
+    mpEl.classList.toggle('mp-src-osm', c.src === 'osm');
+    if (!mpMap || !window.L) return;
+    if (mpTile && mpTileSig === c.url) return;
+    if (mpTile) mpMap.removeLayer(mpTile);
+    mpTileSig = c.url; mpTileErr = 0;
+    const note = mpS('#mp-note'); note.textContent = MP_NOTE[c.src]; note.hidden = true;
+    mpTile = L.tileLayer(c.url, { maxZoom: 19, maxNativeZoom: c.nz, attribution: c.attr });
     mpTile.on('tileerror', () => { if (++mpTileErr >= 2) mpS('#mp-note').hidden = false; });
     mpTile.on('tileload', () => { mpTileErr = 0; mpS('#mp-note').hidden = true; });
     mpTile.addTo(mpMap);
+  }
+  themeHooks.push(() => { if (mpMap) { mpApplyTile(); mpDrawMe(); } });   // 테마를 바꾸면 바탕(밝은/어두운)과 내 위치 점 색도 바꾼다
+  function mpEnsureMap() {
+    if (!mpEl || !window.L) return;
+    if (mpMap) { mpMap.invalidateSize(); mpApplyTile(); return; }
+    mpMap = L.map(mpS('#mp-map'), { zoomControl: false, zoomSnap: 1, minZoom: 3, maxZoom: 19 });
+    mpZoomCtl = L.control.zoom({ position: mpNarrow() ? 'topleft' : 'topright', zoomInTitle: '확대', zoomOutTitle: '축소' }).addTo(mpMap);
+    mpApplyTile();
     mpPinLayer = L.layerGroup().addTo(mpMap);
     mpMeLayer = L.layerGroup().addTo(mpMap);
     mpMap.on('dragstart', () => { mpUserMoved = true; });
@@ -3966,8 +4034,9 @@
     if (!mpMap || !mpMeLayer) return;
     mpMeLayer.clearLayers();
     if (!mpMe) return;
-    if (mpMe.acc > 25) L.circle([mpMe.lat, mpMe.lng], { radius: Math.min(mpMe.acc, 1500), stroke: false, fillColor: '#2f7de1', fillOpacity: 0.14, interactive: false }).addTo(mpMeLayer);
-    L.circleMarker([mpMe.lat, mpMe.lng], { radius: 8, color: '#fff', weight: 3, fillColor: '#2f7de1', fillOpacity: 1, interactive: false }).addTo(mpMeLayer);
+    const blue = (mpEl && getComputedStyle(mpEl).getPropertyValue('--mp-me').trim()) || '#2f7de1';   // 내 위치 점 색: 테마별(style.css의 --mp-me)
+    if (mpMe.acc > 25) L.circle([mpMe.lat, mpMe.lng], { radius: Math.min(mpMe.acc, 1500), stroke: false, fillColor: blue, fillOpacity: 0.14, interactive: false }).addTo(mpMeLayer);
+    L.circleMarker([mpMe.lat, mpMe.lng], { radius: 8, color: '#fff', weight: 3, fillColor: blue, fillOpacity: 1, interactive: false }).addTo(mpMeLayer);
   }
   function mpDraftMarker() {
     if (!mpMap) return;
@@ -4427,6 +4496,7 @@
     if (!mpEl) buildMp();
     mpEl.hidden = false;
     mpUserMoved = false;
+    mpApplyTile();   // 설정에서 열쇠를 넣거나 지웠을 수 있으니, 열 때마다 바탕을 다시 맞춘다
     mpTab('l');
     layoutMp();
     mpShowView(mpView);

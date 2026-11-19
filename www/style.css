@@ -288,6 +288,10 @@ html.kb #sheet.tall .panel { height: 100%; }
 .adv-head:first-child { margin-top: 4px; }
 .seg-btn { padding: 9px 16px; border-radius: 9px; background: var(--chip); font-size: 14px; white-space: nowrap; }
 .note.tight { margin-top: 4px; }
+.mk-in { height: 42px; font-size: 14px; word-break: normal; }
+.mk-btns { display: flex; gap: 8px; margin: 8px 0 2px; }
+.mk-btns .seg-btn { flex: 1 1 auto; }
+.seg-btn:disabled { opacity: .45; }
 .bk-text {
   display: block; width: 100%; margin-top: 8px; padding: 10px 12px; border-radius: 10px; resize: none;
   border: 1px solid var(--line); background: var(--chip); color: var(--fg); outline: none;
@@ -558,6 +562,10 @@ html.kb #pc.two .pc-l { padding-bottom: var(--kb, 0px); }   /* 키보드는 왼�
   display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto minmax(0, 1fr); --mp-gap: 18px; --mp-tint: rgba(0, 0, 0, .045);
 }
 body.theme-night #mp { --mp-tint: rgba(255, 255, 255, .05); }
+/* 지도 색: --mp-land = 지도 그림이 아직 안 떴을 때의 바탕(필터를 거친 땅 색과 비슷하게), --mp-me = 내 위치 점·단추 색 */
+#mp { --mp-land: #F2EFE2; --mp-me: #2f6fa8; }
+body.theme-sepia #mp { --mp-land: #E8D8BA; --mp-me: #2b6488; }
+body.theme-night #mp { --mp-land: #1A1B1F; --mp-me: #6fb4ea; }
 #mp.two { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto; --mp-plw: clamp(300px, 38vw, 380px); --mp-cl: calc(var(--mp-plw) + 20px); --mp-nl: var(--mp-cl); }
 #mp.two.pl-off[data-view="list"] { --mp-cl: 10px; --mp-nl: 168px; }   /* 목록 창을 접으면 카드·안내가 왼쪽 끝까지 */
 #mp.two.picking { --mp-cl: 10px; --mp-nl: 58px; }
@@ -640,25 +648,36 @@ textarea.mp-in { resize: none; line-height: 1.5; }
 .mp-act { height: 46px; border-radius: 12px; background: var(--accent); color: #fff; font-size: 16px; font-weight: 700; padding: 0 14px; }
 .mp-act:active { opacity: .85; }
 /* 지도 쪽 */
-.mp-mapwrap { position: relative; flex: 1; min-width: 0; min-height: 0; border-radius: 14px; overflow: hidden; background: #e8e4da; box-shadow: 0 6px 22px rgba(0, 0, 0, .22), 0 1px 4px rgba(0, 0, 0, .16); isolation: isolate; }
-#mp-map { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: #e8e4da; touch-action: none; -webkit-user-select: none; user-select: none; }
-body.theme-night .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.9); }
-body.theme-night #mp-map, body.theme-night .mp-mapwrap { background: #1c1d20; }
+.mp-mapwrap { position: relative; flex: 1; min-width: 0; min-height: 0; border-radius: 14px; overflow: hidden; background: var(--mp-land); box-shadow: 0 6px 22px rgba(0, 0, 0, .22), 0 1px 4px rgba(0, 0, 0, .16); isolation: isolate; }
+#mp-map { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: var(--mp-land); touch-action: none; -webkit-user-select: none; user-select: none; }
+/* 지도 그림(바탕 타일)의 색조를 앱 테마에 맞춘다. mp-src-carto = 열쇠가 있어 CARTO 바탕(종이·세피아는 밝은 Positron, 야간은 Dark Matter),
+   mp-src-osm = 열쇠가 없어 OpenStreetMap 바탕(색조만 입힘. 야간은 반전). 필터 값은 타일의 근사 색으로 계산해 정한 것이라, 실기기에서 보고 조정한다. */
+body.theme-paper .mp-src-carto .leaflet-tile-pane { filter: sepia(.15) hue-rotate(-6deg) saturate(1.3) brightness(.95); }
+body.theme-sepia .mp-src-carto .leaflet-tile-pane { filter: brightness(.8) sepia(.5) saturate(1.1); }
+body.theme-night .mp-src-carto .leaflet-tile-pane { filter: brightness(1.25) sepia(1) hue-rotate(185deg) saturate(.5); }
+body.theme-paper .mp-src-osm .leaflet-tile-pane { filter: sepia(.2) hue-rotate(-10deg) saturate(.8) brightness(.96); }
+body.theme-sepia .mp-src-osm .leaflet-tile-pane { filter: brightness(.79) sepia(.7) saturate(.8); }
+body.theme-night .mp-src-osm .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.9); }
 #mp .leaflet-container { font: inherit; }
-#mp .leaflet-bar a { width: 40px; height: 40px; line-height: 40px; font-size: 22px; }
-#mp .leaflet-container .leaflet-control-attribution { font-size: 10px; max-width: 70%; }
-#mp .leaflet-control-attribution a { color: #0b63c8; }
+/* 지도 위 단추(확대·축소·내 위치)와 출처 표기를 앱 색으로 */
+#mp .leaflet-bar { border: 0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 5px rgba(0, 0, 0, .4), 0 0 0 1px var(--line); }
+#mp .leaflet-bar a, #mp .leaflet-bar a:hover, #mp .leaflet-bar a:focus { width: 40px; height: 40px; line-height: 40px; font-size: 22px; background-color: var(--bg); color: var(--fg); border-bottom: 1px solid var(--line); }
+#mp .leaflet-bar a:last-child { border-bottom: 0; }
+#mp .leaflet-bar a.leaflet-disabled { background-color: var(--chip); color: var(--muted); }
+#mp .leaflet-container .leaflet-control-attribution { font-size: 10px; max-width: 70%; background: color-mix(in srgb, var(--bg) 82%, transparent); color: var(--muted); }
+#mp .leaflet-control-attribution a { color: var(--accent); }
 .mp-pin { background: none; border: 0; }
 .mp-pin svg { display: block; width: 36px; height: 44px; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .35)); transform-origin: 50% 95%; }
-.mp-pin .pn { fill: var(--accent); stroke: #fff; stroke-width: 2; }
-.mp-pin .cup { fill: none; stroke: #fff; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.mp-pin .pn { fill: var(--accent); stroke: var(--bg); stroke-width: 2; }
+.mp-pin .cup { fill: none; stroke: var(--bg); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .mp-pin.sel svg { transform: scale(1.22); }
 .mp-pin.sel .pn { fill: #1f6f78; }
-.mp-pin.draft .pn { fill: rgba(255, 255, 255, .85); stroke: var(--accent); stroke-dasharray: 4 3; }
+body.theme-night .mp-pin.sel .pn { fill: #4fb3bf; }
+.mp-pin.draft .pn { fill: color-mix(in srgb, var(--bg) 85%, transparent); stroke: var(--accent); stroke-dasharray: 4 3; }
 .mp-pin.draft .cup { stroke: var(--accent); }
 .mp-note { position: absolute; z-index: 900; top: 10px; left: var(--mp-nl, 58px); right: 58px; padding: 8px 12px; border-radius: 10px; background: rgba(34, 34, 34, .88); color: #fff; font-size: 12.5px; line-height: 1.45; text-align: center; }
 .mp-note[hidden] { display: none; }
-.mp-me { position: absolute; z-index: 900; top: 10px; right: 10px; width: 44px; height: 44px; border-radius: 12px; background: #fff; color: #2f7de1; box-shadow: 0 1px 5px rgba(0, 0, 0, .4); display: flex; align-items: center; justify-content: center; }
+.mp-me { position: absolute; z-index: 900; top: 10px; right: 10px; width: 44px; height: 44px; border-radius: 12px; background: var(--bg); color: var(--mp-me); box-shadow: 0 1px 5px rgba(0, 0, 0, .4), 0 0 0 1px var(--line); display: flex; align-items: center; justify-content: center; }
 .mp-me svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; pointer-events: none; }
 #mp.picking .mp-me { display: none; }
 .mp-card, .mp-pick {

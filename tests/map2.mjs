@@ -17,7 +17,7 @@ async function openDev(dev,{query='?native=1',cfg=null,tiles='ok'}={}) {
   const cdp=await p.createCDPSession(); try{ await cdp.send('Emulation.setSafeAreaInsetsOverride',{insets:si}); }catch(e){}
   await p.setRequestInterception(true);
   const st={tiles};
-  p.on('request',r=>{const u=r.url(); if(u.startsWith('https://tile.openstreetmap.org/')){ tileUrls.push(u); if(st.tiles==='ok') r.respond({status:200,contentType:'image/png',body:PNG,headers:{'access-control-allow-origin':'*'}}); else r.abort(); } else if(u.startsWith('http://localhost')||u.startsWith('data:')||u.startsWith('blob:')) r.continue(); else r.abort();});
+  p.on('request',r=>{const u=r.url(); if(u.startsWith('https://tile.openstreetmap.org/')||u.startsWith('https://basemaps.cartocdn.com/')){ tileUrls.push(u); if(st.tiles==='ok') r.respond({status:200,contentType:'image/png',body:PNG,headers:{'access-control-allow-origin':'*'}}); else r.abort(); } else if(u.startsWith('http://localhost')||u.startsWith('data:')||u.startsWith('blob:')) r.continue(); else r.abort();});
   await p.evaluateOnNewDocument(seed.fn, cfg);
   await p.goto('http://localhost:8965/index.html'+query); await p.waitForFunction(()=>document.querySelector('#loading')?.hidden===true,{timeout:90000}); await sleep(1500);
   return {p,errs,tileUrls,st};
