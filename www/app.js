@@ -20,7 +20,9 @@
   const SPREAD_MIN_SHIFT = 28;     // 그 밖의 기기: 책 왼쪽에 최소로 남기는 폭 (노트 탭이 붙는 자리)
   const BOTTOM_SPREAD_DEFAULT = 20;
   // 아이폰 앱(껍데기) 전용 — 펼친 화면의 책을 '카드'로 둔다: 좌우 여백을 같게, 아래도 화면 끝에서 띄운다.
-  const NATIVE_BOTTOM_GAP = 20;         // 카드 아래 끝과 화면 맨 아래 사이(px). 낮은 화면(가로로 돌린 아이폰)은 10
+  const NATIVE_SHIFT = 36;              // 듀오 펼침: 카드 좌우 여백(px). 왼쪽·오른쪽이 같다 (v39까지 52)
+  const NATIVE_BOTTOM_GAP = 12;         // 카드 아래 끝과 화면 맨 아래 사이(px). 낮은 화면(가로로 돌린 아이폰)은 10 (v39까지 20)
+  const NATIVE_HEAD_STAGE_GAP = 16;     // 머리줄(책 이름·메뉴) 아래에서 카드 윗면까지(px). 웹앱은 6 (v40: 책 이름을 10px 위로)
   const NATIVE_BOTTOM_GAP_COMPACT = 10;
   const NATIVE_PAD_BOTTOM = 14;         // 카드 안에서 본문 아래 여백(px). 카드 밖에 따로 띄우므로 기본값(20)보다 줄인다
   const NATIVE_PILL_BOTTOM = 118;       // 듀오 오른쪽 열의 상태 알약(시계·배터리)이 끝나는 높이(실기기 화면에서 잰 약 114px + 4px). 카드가 알약 쪽까지 올 때 카드 윗면은 이 아래에서 시작한다
@@ -31,7 +33,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v39';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v40';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const DESKS = { plain: '단색', linen: '린넨', wood: '나무결', leather: '가죽' };   // 책상(상단 배경) 질감
   const DESK_DEFAULT = 'linen';
@@ -69,6 +71,14 @@
     settings = Object.assign({}, settings, freshInstall ? { marginRev: MARGIN_REV } : {
       topSpread: TOP_DEFAULT.topSpread, shiftX: SHIFT_DEFAULT, bottomSpread: BOTTOM_SPREAD_DEFAULT, marginRev: MARGIN_REV,
     });
+    store.set('bf.settings', settings);
+  }
+  // 아이폰 앱: 카드 여백 기본값이 바뀐 버전(NATIVE_REV)에서는 저장돼 있던 여백 값(윗·가로 위치·아래)을 한 번 지워 새 기본값을 쓴다.
+  // 그 뒤 고급설정에서 바꾼 값은 그대로 유지된다. (글자 크기·테마·글씨체는 건드리지 않는다)
+  const NATIVE_REV = 2;
+  if (NATIVE && settings.nativeRev !== NATIVE_REV) {
+    settings = Object.assign({}, settings, { nativeRev: NATIVE_REV });
+    delete settings.topSpread; delete settings.shiftX; delete settings.bottomSpread;
     store.set('bf.settings', settings);
   }
   let pos = store.get('bf.pos', { book: 0, chapter: 0, verse: 1 });
@@ -148,7 +158,7 @@
     const auto = {
       topSpread: compact ? TOP_COMPACT.topSpread : TOP_DEFAULT.topSpread,
       topSingle: compact ? TOP_COMPACT.topSingle : TOP_DEFAULT.topSingle,
-      shiftX: duo ? SHIFT_DEFAULT : Math.max(Math.round(si.left), SPREAD_MIN_SHIFT),
+      shiftX: duo ? (NATIVE ? NATIVE_SHIFT : SHIFT_DEFAULT) : Math.max(Math.round(si.left), SPREAD_MIN_SHIFT),
       bottomSpread: NATIVE && spread ? NATIVE_PAD_BOTTOM : duo ? BOTTOM_SPREAD_DEFAULT : Math.max(Math.round(si.bottom), compact ? 10 : BOTTOM_SPREAD_DEFAULT),
     };
     const eff = {};
@@ -261,7 +271,7 @@
     const hb = headBox(g.spread, g.compact), titleFs = hb.titleFs, rowH = hb.rowH;
     lastTitleFs = titleFs;
     root.setProperty('--title-fs', titleFs + 'px');
-    root.setProperty('--head-top', Math.max(g.si.top + HEAD_TOP_GAP, (g.spread ? g.stageTop - HEAD_STAGE_GAP : g.padTop - 12) - rowH) + 'px');
+    root.setProperty('--head-top', Math.max(g.si.top + HEAD_TOP_GAP, (g.spread ? g.stageTop - (NATIVE ? NATIVE_HEAD_STAGE_GAP : HEAD_STAGE_GAP) : g.padTop - 12) - rowH) + 'px');
     applyDesk();
     stage.style.width = g.bookW + 'px';
     stage.style.height = g.pageH + 'px';
