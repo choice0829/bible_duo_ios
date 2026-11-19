@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v46';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v47';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const DESKS = { plain: '단색', linen: '린넨', wood: '나무결', leather: '가죽' };   // 책상(상단 배경) 질감
   const DESK_DEFAULT = 'linen';
@@ -1435,7 +1435,7 @@
   stage.addEventListener('pointerup', (e) => endPointer(e, false));
   stage.addEventListener('pointercancel', (e) => endPointer(e, true));
   window.addEventListener('keydown', (e) => {
-    if (pcIsOpen()) { if (e.key === 'Escape') closePc(); return; }   // 포토카드 화면이 열려 있으면 책장은 넘기지 않는다
+    if (pcIsOpen()) { if (e.key === 'Escape') closePc(); return; }   // 바이블 포토 카드 화면이 열려 있으면 책장은 넘기지 않는다
     if (e.key === 'Escape' && spot.id) { closeSpot(); return; }
     if (!flip && !scroller) return;
     // 창이 열려 있거나 글을 입력하는 중(검색·노트)에는 띄어쓰기·방향키로 책장이 넘어가지 않게 한다
@@ -1840,7 +1840,7 @@
     window.visualViewport.addEventListener('scroll', fitSheet);
   }
   // 키보드: 아이폰 앱의 웹뷰는 키보드가 올라와도 보이는 영역이 줄지 않아(위의 visualViewport 방식이 통하지 않음), 앱이 키보드 높이를 직접 알려 준다.
-  // → --kb(px)와 html.kb 클래스로 창(#sheet)·포토카드 화면(#pc)을 키보드 위쪽 영역에 맞추고, 입력 중인 칸이 보이도록 스크롤한다.
+  // → --kb(px)와 html.kb 클래스로 창(#sheet)·바이블 포토 카드 화면(#pc)을 키보드 위쪽 영역에 맞추고, 입력 중인 칸이 보이도록 스크롤한다.
   let kbH = 0;
   function revealFocused() {
     const a = document.activeElement;
@@ -2951,7 +2951,7 @@
     btn.addEventListener('pointercancel', () => { downAt = null; });
     btn.addEventListener('click', run);
   }
-  // ---------- 성경구절 포토카드 ----------
+  // ---------- 바이블 포토 카드 ----------
   // 왼쪽: 구절·사진/배경·문구 입력, 오른쪽: 폴라로이드 카드 미리보기(캔버스 1080×1320).
   // 저장은 JPEG 사진 파일로 만들어 앱에서는 아이폰 공유 창(이미지 저장·메시지·카카오톡 …)으로, 웹에서는 공유/내려받기로 보낸다.
   const PC_W = 1080, PC_H = 1320;                       // 카드 크기(픽셀)
@@ -3002,8 +3002,7 @@
   const pcSavePref = () => store.set('bf.pc', pcPref);
 
   const pcv = { bi: 0, c: 1, v1: 1, v2: 1 };   // 고른 구절 (장은 1부터)
-  let pcKey = '';                               // 본문 칸을 마지막으로 채운 구절
-  let pcVerseText = '', pcCaption = '', pcDateStr = '';
+  let pcVerseText = '', pcCaption = '', pcDateStr = '';   // 구절 본문은 고른 구절에서 자동으로 채운다(직접 고쳐 쓰는 칸은 없음)
   let pcPhoto = null;                           // { img(줄여 둔 사진), w, h }
   let pcZoom = 1, pcPanX = 0, pcPanY = 0;       // 확대 배율 · 끌어서 옮긴 양(카드 픽셀)
   let pcRaf = 0;
@@ -3036,7 +3035,7 @@
   }
 
   // ----- 글꼴: 캔버스는 글꼴을 미리 불러 둬야 하므로, 쓰는 글꼴을 한 번 불러오고 다 되면 다시 그린다 -----
-  function pcFaces() { return [FONTS[pcPref.font].face, 'KF Gowun Dodum']; }
+  function pcFaces() { return [FONTS[pcPref.font].face]; }
   function pcEnsureFonts() {
     pcFaces().forEach((face) => {
       if (pcFontState[face]) return;
@@ -3205,7 +3204,7 @@
 
     // ---- 아래 문구·날짜 덩어리 ----
     {
-      const o = pcPref.c, cst = FONTS.gowunD.stack, bw = Math.round(PC_PS * o.w / 100), LH = 1.35;
+      const o = pcPref.c, cst = font.stack, bw = Math.round(PC_PS * o.w / 100), LH = 1.35;   // 글씨체는 구절·문구·날짜 모두 같은 것을 쓴다
       const cap = pcCaption.trim(), date = pcPref.showDate ? pcFmtDate(pcDateStr) : '';
       if (cap || date) {
         let cf = { fs: 0, lines: [] };
@@ -3299,7 +3298,8 @@
     const set = (k, v) => pcEl.style.setProperty(k, v + 'px');
     set('--pc-top', top);
     set('--pc-topr', two ? (rail ? Math.max(top, NATIVE_PILL_BOTTOM + 6) : top) : 12);
-    set('--pc-bot', (kbH > 0 ? 0 : Math.max(Math.round(si.bottom), 0)) + 14);   // 키보드가 올라와 있으면 홈 막대 자리는 키보드가 덮는다
+    // 펼침(두 쪽)은 오른쪽 화면을 키보드와 상관없이 그대로 둔다. 좁은 화면은 키보드가 올라오면 홈 막대 자리를 키보드가 덮는다.
+    set('--pc-bot', (kbH > 0 && !two ? 0 : Math.max(Math.round(si.bottom), 0)) + 14);
     set('--pc-l', Math.max(rail || si.left < 8 ? 22 : 0, Math.round(si.left) + 10));
     set('--pc-r', Math.max(rail || si.right < 8 ? 22 : 0, rail ? 22 : Math.round(si.right) + 10));
     pcFitCanvas();
@@ -3336,10 +3336,9 @@
     pcQ('#pc-v2').innerHTML = nums.filter((n) => n >= pcv.v1).map((n) => '<option value="' + n + '">' + n + '절</option>').join('');
     pcQ('#pc-v2').value = String(pcv.v2);
   }
-  function pcRefill() {   // 고른 구절의 본문을 본문 칸에 넣는다 (직접 고친 글은 다른 구절을 고르면 새 본문으로 바뀐다)
-    pcKey = pcv.bi + '.' + pcv.c + '.' + pcv.v1 + '.' + pcv.v2;
+  function pcRefill() {   // 고른 구절의 본문을 카드에 넣는다
     pcVerseText = pcGather();
-    pcQ('#pc-verse').value = pcVerseText;
+    pcQ('#pc-canvas').setAttribute('aria-label', '바이블 포토 카드 미리보기 · ' + pcRef() + ' · ' + pcVerseText);
     pcRender();
   }
   function pcSync() {
@@ -3595,13 +3594,13 @@
   function buildPc() {
     const el = document.createElement('div');
     el.id = 'pc'; el.hidden = true;
-    el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', '성경구절 포토카드');
+    el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', '바이블 포토 카드');
     const seg = (k, items) => '<div class="seg pc-seg" data-k="' + k + '">' +
       items.map((it) => '<button type="button" data-v="' + it[0] + '">' + it[1] + '</button>').join('') + '</div>';
     el.innerHTML =
       '<div class="pc-bar">' +
         '<button type="button" class="link-btn pc-x" id="pc-close">‹ 닫기</button>' +
-        '<strong>포토카드</strong>' +
+        '<strong>바이블 포토 카드</strong>' +
         '<div class="pc-tabs"><button type="button" data-t="l">입력</button><button type="button" data-t="r">카드</button></div>' +
       '</div>' +
       '<div class="pc-l"><div class="pc-form" id="pc-form">' +
@@ -3610,7 +3609,6 @@
           '<p class="pc-msg" id="pc-refmsg" hidden></p>' +
           '<div class="pc-sel"><select id="pc-book" aria-label="책"></select><select id="pc-ch" aria-label="장"></select>' +
             '<select id="pc-v1" aria-label="시작 절"></select><span>~</span><select id="pc-v2" aria-label="끝 절"></select></div>' +
-          '<textarea id="pc-verse" class="pc-in pc-verse" rows="5" placeholder="구절을 고르면 본문이 들어갑니다. 직접 고쳐 쓸 수도 있습니다."></textarea>' +
           '<p class="pc-msg warn" id="pc-warn" hidden></p>' +
         '</div>' +
         '<div class="pc-sec"><h3>사진 · 배경</h3>' +
@@ -3643,13 +3641,13 @@
           '<button type="button" class="pc-btn pc-mini" id="pc-pos-reset">위치 되돌리기</button>' +
         '</div>' +
         '<div class="pc-sec"><h3>꾸미기</h3>' +
-          '<div class="pc-lbl">글씨체</div>' + seg('font', PC_FONT_KEYS.map((k) => [k, FONTS[k].label])) +
+          '<div class="pc-lbl">글씨체 (구절 · 추가 문구 · 날짜 모두)</div>' + seg('font', PC_FONT_KEYS.map((k) => [k, FONTS[k].label])) +
           '<div class="pc-lbl">글자색 (사진 위)</div>' + seg('ink', [['light', '흰색'], ['dark', '진한 색']]) +
           '<div class="pc-lbl">카드 틀</div>' + seg('frame', Object.keys(PC_FRAMES).map((k) => [k, PC_FRAMES[k].label])) +
         '</div>' +
       '</div></div>' +
       '<div class="pc-r">' +
-        '<div class="pc-stage"><canvas id="pc-canvas" width="' + PC_W + '" height="' + PC_H + '" aria-label="포토카드 미리보기"></canvas></div>' +
+        '<div class="pc-stage"><canvas id="pc-canvas" width="' + PC_W + '" height="' + PC_H + '" aria-label="바이블 포토 카드 미리보기"></canvas></div>' +
         '<div class="seg pc-mode" id="pc-mode"><button type="button" data-m="photo">사진 위치 · 크기</button><button type="button" data-m="text">글씨 배치</button></div>' +
         '<p class="pc-hint" id="pc-hint"></p>' +
         '<button type="button" class="pc-act" id="pc-save">사진으로 저장 · 공유</button>' +
@@ -3683,7 +3681,6 @@
     refIn.addEventListener('input', () => readRef(false));
     refIn.addEventListener('change', () => readRef(true));
     refIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); readRef(true); refIn.blur(); } });
-    pcQ('#pc-verse').addEventListener('input', (e) => { pcVerseText = e.target.value; pcRender(); });
     // 사진·배경
     pcQ('#pc-file').addEventListener('change', (e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; pcLoadPhoto(f); });
     pcQ('#pc-nophoto').addEventListener('click', pcClearPhoto);
@@ -3759,7 +3756,7 @@
     pcEl.hidden = false;
     pcEl.dataset.tab = 'l';
     pcEl.querySelectorAll('.pc-tabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === 'l'));
-    if (pcKey !== pcv.bi + '.' + pcv.c + '.' + pcv.v1 + '.' + pcv.v2) pcRefill(); else pcQ('#pc-verse').value = pcVerseText;
+    pcRefill();
     pcSync();
     layoutPc();
     pcEnsureFonts();

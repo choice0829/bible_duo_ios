@@ -453,7 +453,7 @@ html.kb #sheet.tall .panel { height: 100%; }
 .easy-eg { margin: 2px 0 4px; padding: 10px 14px; border-radius: 12px; background: var(--chip); font-size: 16px; text-align: left; }
 .easy-eg .eg-h { font-family: var(--sans); font-size: 12px; color: var(--muted); margin-bottom: 4px; }
 
-/* ---------- 성경구절 포토카드 (펼침: 왼쪽 입력 · 오른쪽 폴라로이드 미리보기 / 좁은 화면: 입력·카드 탭) ---------- */
+/* ---------- 바이블 포토 카드 (펼침: 왼쪽 입력 · 오른쪽 폴라로이드 미리보기 / 좁은 화면: 입력·카드 탭) ---------- */
 #pc {
   position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 36; background-color: var(--bg); color: var(--fg);
   padding-bottom: var(--kb, 0px);   /* 키보드가 올라오면 내용만 그 위로 올리고, 화면(배경)은 키보드 뒤까지 그대로 덮는다 */
@@ -472,6 +472,10 @@ body.theme-night #pc { --pc-tint: rgba(255, 255, 255, .05); }
 .pc-x { justify-self: start; padding: 8px 0; }
 .pc-tabs { display: none; justify-self: end; gap: 6px; }
 #pc.narrow .pc-tabs { display: flex; }
+.pc-bar strong, .pc-tabs button { white-space: nowrap; }
+#pc.narrow .pc-bar { grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 8px; }   /* 좁은 화면: 이름이 길어도 닫기·탭 단추 사이에서 줄바꿈 없이 */
+#pc.narrow .pc-bar strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: center; font-size: 15px; }
+#pc.narrow .pc-tabs button { padding: 7px 12px; }
 .pc-tabs button { padding: 7px 14px; border-radius: 9px; background: var(--chip); font-size: 14px; font-weight: 600; }
 .pc-tabs button.on { background: var(--accent); color: #fff; }
 .pc-l { grid-column: 1; grid-row: 2; min-height: 0; display: flex; flex-direction: column; padding: 0 var(--pc-gap) 0 var(--pc-l, 22px); }
@@ -498,7 +502,6 @@ body.theme-night #pc { --pc-tint: rgba(255, 255, 255, .05); }
 .pc-sel { display: grid; grid-template-columns: 1.7fr 1fr 1fr auto 1fr; gap: 6px; align-items: center; margin: 8px 0; }
 .pc-sel select { padding: 10px 4px 10px 8px; }
 .pc-sel span { color: var(--muted); }
-.pc-verse { display: block; resize: none; font-family: var(--serif); line-height: 1.55; }
 .pc-msg { margin: 6px 2px 0; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
 .pc-msg.warn { color: #c0392b; }
 .pc-msg[hidden] { display: none; }
@@ -545,4 +548,5 @@ body.theme-night #pc { --pc-tint: rgba(255, 255, 255, .05); }
 .pc-act:disabled { opacity: .5; }
 body.theme-night .pc-btn.main, body.theme-night .pc-act, body.theme-night .pc-tabs button.on, body.theme-night .pc-seg button.on, body.theme-night .pc-tg button.on, body.theme-night .pc-mode button.on, body.theme-night .pc-chip.on { color: #14161A; }   /* 야간: 밝은 강조색 위에는 어두운 글자 */
 html.kb .pc-form { padding-bottom: 24px; }   /* 키보드가 올라오면 화면 자체가 키보드 위로 줄어들므로 아래 여유는 조금만 */
-html.kb #pc.two .pc-hint, html.kb #pc.two .pc-act, html.kb #pc.two .pc-mode { display: none; }   /* 펼침: 키보드가 올라오면 카드를 조금이라도 크게 보이도록 안내·저장 단추는 잠시 숨김 */
+html.kb #pc.two { padding-bottom: 0; }   /* 펼침: 오른쪽 화면(카드·전환·저장)은 키보드와 상관없이 그대로 두고, */
+html.kb #pc.two .pc-l { padding-bottom: var(--kb, 0px); }   /* 키보드는 왼쪽 입력 화면만 위로 올린다 */

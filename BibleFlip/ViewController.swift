@@ -119,17 +119,17 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
     func userContentController(_ ucc: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.name == "bf", let body = message.body as? [String: Any] else { return }
         if let err = body["error"] as? String { reportError(err); return }
-        // 포토카드: 웹이 만든 JPEG(base64)를 받아 아이폰 공유 창(이미지 저장·메시지·카카오톡 등)을 띄운다
+        // 바이블 포토 카드: 웹이 만든 JPEG(base64)를 받아 아이폰 공유 창(이미지 저장·메시지·카카오톡 등)을 띄운다
         if let b64 = body["share"] as? String { shareImage(base64: b64, name: body["name"] as? String); return }
         guard let t = body["theme"] as? String else { return }
         UserDefaults.standard.set(t, forKey: "bf.theme")
         applyTheme(t)
     }
 
-    // MARK: 포토카드 공유 (웹의 사진 → 임시 파일 → 공유 창)
+    // MARK: 바이블 포토 카드 공유 (웹의 사진 → 임시 파일 → 공유 창)
     private func shareImage(base64: String, name: String?) {
         guard let data = Data(base64Encoded: base64, options: .ignoreUnknownCharacters), !data.isEmpty else {
-            reportError("포토카드 이미지를 읽지 못했습니다")
+            reportError("바이블 포토 카드 이미지를 읽지 못했습니다")
             return
         }
         if presentedViewController != nil { return }   // 이미 다른 창이 떠 있으면 겹쳐 띄우지 않는다
@@ -141,7 +141,7 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         do {
             try data.write(to: url, options: .atomic)
         } catch {
-            reportError("포토카드 파일을 만들지 못했습니다: \(error.localizedDescription)")
+            reportError("바이블 포토 카드 파일을 만들지 못했습니다: \(error.localizedDescription)")
             return
         }
         let vc = UIActivityViewController(activityItems: [url], applicationActivities: nil)
