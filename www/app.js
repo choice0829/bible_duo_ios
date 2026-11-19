@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v45';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v46';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const DESKS = { plain: '단색', linen: '린넨', wood: '나무결', leather: '가죽' };   // 책상(상단 배경) 질감
   const DESK_DEFAULT = 'linen';
@@ -2972,17 +2972,31 @@
     black: { label: '검정', bg: '#17181B', ink: '#EEEAE2' },
   };
   const PC_FONT_KEYS = ['nanumM', 'gowunB', 'gowunD', 'nanumG'];
-  const PC_SIZES = [[0.85, '작게'], [1, '보통'], [1.15, '크게']];
+  // 글씨 두 덩어리: v = 성경 구절(본문 + 출처), c = 추가 문구(+ 날짜). 크기는 pt(1pt = 카드 2픽셀, 카드 가로 = 540pt), pt 0 = 자동(상자에 맞춰 줄임)
+  const PT = 2;
+  const PC_TXT = {
+    v: { label: '구절 글씨', min: 12, max: 60, def: { pt: 0, al: 'c', w: 83 } },
+    c: { label: '추가 문구 · 날짜', min: 10, max: 48, def: { pt: 0, al: 'c', w: 90 } },
+  };
+  const PC_AL = [['l', '왼쪽'], ['c', '가운데'], ['r', '오른쪽']];
   let pcEl = null;
   function pcIsOpen() { return !!pcEl && !pcEl.hidden; }
 
-  // 꾸밈 값(글씨체·색·틀·배경·어둡기·크기·날짜 표시)만 기억한다. 구절·문구·사진은 카드를 만들 때마다 새로 고른다.
-  const pcPref = store.get('bf.pc', { font: 'nanumM', ink: 'light', frame: 'white', bg: 0, dim: 25, size: 1, showDate: true });
+  // 꾸밈 값(글씨체·색·틀·배경·어둡기·날짜 표시, 글씨 크기·정렬·상자 너비)만 기억한다. 구절·문구·사진·글씨 위치는 카드를 만들 때마다 새로 정한다.
+  const pcPref = store.get('bf.pc', { font: 'nanumM', ink: 'light', frame: 'white', bg: 0, dim: 25, showDate: true });
   if (PC_FONT_KEYS.indexOf(pcPref.font) < 0) pcPref.font = 'nanumM';
   if (!PC_FRAMES[pcPref.frame]) pcPref.frame = 'white';
   if (!(pcPref.bg >= 0 && pcPref.bg < PC_BG.length)) pcPref.bg = 0;
   pcPref.dim = Math.min(Math.max(+pcPref.dim || 0, 0), 70);
-  if (!PC_SIZES.some((s) => s[0] === pcPref.size)) pcPref.size = 1;
+  delete pcPref.size;   // v44의 '작게·보통·크게'는 pt 지정으로 바뀌었다
+  Object.keys(PC_TXT).forEach((k) => {
+    const o = (pcPref[k] && typeof pcPref[k] === 'object') ? pcPref[k] : {}, m = PC_TXT[k];
+    pcPref[k] = {
+      pt: (+o.pt >= m.min && +o.pt <= m.max) ? Math.round(+o.pt) : 0,
+      al: ['l', 'c', 'r'].indexOf(o.al) >= 0 ? o.al : m.def.al,
+      w: Math.min(Math.max(Math.round(+o.w || m.def.w), 30), 100),
+    };
+  });
   pcPref.ink = pcPref.ink === 'dark' ? 'dark' : 'light';
   pcPref.showDate = pcPref.showDate !== false;
   const pcSavePref = () => store.set('bf.pc', pcPref);
@@ -2993,6 +3007,13 @@
   let pcPhoto = null;                           // { img(줄여 둔 사진), w, h }
   let pcZoom = 1, pcPanX = 0, pcPanY = 0;       // 확대 배율 · 끌어서 옮긴 양(카드 픽셀)
   let pcRaf = 0;
+  let pcMode = 'text', pcTarget = 'v';          // 카드 위에서 끌 대상: 'photo'(사진) | 'text'(글씨) · 글씨 중 고른 덩어리
+  const pcPos = { v: { dx: 0, dy: 0 }, c: { dx: 0, dy: 0 } };   // 글씨를 끌어 옮긴 양(기본 위치에서, 카드 픽셀)
+  const pcEff = { v: { dx: 0, dy: 0 }, c: { dx: 0, dy: 0 } };   // 카드 안에 맞춰 실제로 그려진 옮김 양 (글씨가 커져 한도를 넘으면 pcPos와 달라진다)
+  const pcBox = { v: null, c: null };           // 마지막으로 그린 글상자 {x, y, w, h}
+  const pcDef = { v: null, c: null };           // 글상자의 기본 중심 {cx, cy}
+  const pcFs = { v: 0, c: 0 };                  // 마지막으로 그린 글자 크기(px) — 자동일 때 pt 표시에 쓴다
+  const pcGuide = { x: false, y: false };       // 끄는 동안 가운데 맞춤선 표시
   const pcFontState = {};
   const pcToday = () => {
     const d = new Date();
@@ -3078,7 +3099,22 @@
     return { x: PC_PX + (A - w) / 2 + pcPanX, y: PC_PY + (A - h) / 2 + pcPanY, w, h };
   }
 
-  function pcDraw() {
+  // 글상자를 카드 안에 두는 한도: 기본 중심에서 얼마나(dx, dy) 옮길 수 있는지
+  const PC_EDGE = 24;
+  function pcLimits(k) {
+    const b = pcBox[k], d = pcDef[k];
+    if (!b || !d) return { loX: 0, hiX: 0, loY: 0, hiY: 0 };
+    const f = (lo, hi) => (lo <= hi ? [lo, hi] : [0, 0]);
+    const x = f(PC_EDGE + b.w / 2 - d.cx, PC_W - PC_EDGE - b.w / 2 - d.cx);
+    const y = f(PC_EDGE + b.h / 2 - d.cy, PC_H - PC_EDGE - b.h / 2 - d.cy);
+    return { loX: x[0], hiX: x[1], loY: y[0], hiY: y[1] };
+  }
+  // 사진 안에 놓인 글씨는 사진 위 글자색(흰색+그림자 / 진한 색), 흰 종이 띠에 놓이면 카드 틀 글자색을 쓴다
+  const pcOnPhoto = (cx, cy) => cx >= PC_PX && cx <= PC_PX + PC_PS && cy >= PC_PY && cy <= PC_PY + PC_PS;
+  const pcRefFs = (fs) => Math.round(Math.min(40, Math.max(26, fs * 0.6)));
+  const pcRefBlock = (rf) => 44 + 3 + 30 + Math.round(rf * 1.2);   // 본문과 출처 사이 간격 + 짧은 줄 + 출처 글자
+
+  function pcDraw(guides) {
     const cv = pcQ('#pc-canvas'), ctx = cv.getContext('2d');
     const fr = PC_FRAMES[pcPref.frame], font = FONTS[pcPref.font];
     const light = pcPref.ink === 'light';
@@ -3111,70 +3147,127 @@
     vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.22)');
     ctx.fillStyle = vg;
     ctx.fillRect(PC_PX, PC_PY, PC_PS, PC_PS);
-
-    // 성경 구절
-    const stack = font.stack;
-    const ink = light ? '#FFFFFF' : '#2B2A28';
-    const text = (pcVerseText || '').trim();
-    const IN = 84, bx = PC_PX + IN, by = PC_PY + IN, bw = PC_PS - IN * 2, bh = PC_PS - IN * 2;
-    const refFs = 40, refBlock = 44 + 3 + 30 + Math.round(refFs * 1.2);   // 본문과 출처 사이 간격 + 짧은 줄 + 출처 글자
-    let over = false;
-    if (light) { ctx.shadowColor = 'rgba(0,0,0,.42)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 3; }
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = ink;
-    let body = { fs: 0, lines: [] };
-    const lhR = 1.62;
-    if (text) {
-      body = pcFit2(ctx, text, stack, bw, bh - refBlock, Math.round(72 * pcPref.size), Math.round(30 * pcPref.size), lhR);
-      over = body.over;
-    }
-    const bodyH = body.lines.length * body.fs * lhR;
-    const total = bodyH + (text ? refBlock : refBlock - 44);
-    let y = by + (bh - total) / 2;
-    ctx.font = body.fs + 'px ' + stack;
-    body.lines.forEach((ln, i) => { ctx.fillText(ln, PC_PX + PC_PS / 2, y + (i + 0.5) * body.fs * lhR); });
-    y += bodyH + (text ? 44 : 0);
-    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-    ctx.globalAlpha = 0.75; ctx.fillStyle = ink;
-    ctx.fillRect(PC_PX + PC_PS / 2 - 32, y, 64, 3);
-    ctx.globalAlpha = 0.95;
-    ctx.font = refFs + 'px ' + stack;
-    if ('letterSpacing' in ctx) ctx.letterSpacing = '2px';
-    if (light) { ctx.shadowColor = 'rgba(0,0,0,.42)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 2; }
-    ctx.fillText(pcRef(), PC_PX + PC_PS / 2, y + 3 + 30 + refFs * 0.6);
-    if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
-    ctx.globalAlpha = 1; ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
     ctx.restore();
 
     // 사진 테두리
     ctx.strokeStyle = 'rgba(0,0,0,.10)'; ctx.lineWidth = 2;
     ctx.strokeRect(PC_PX - 1, PC_PY - 1, PC_PS + 2, PC_PS + 2);
 
-    // 아래 문구·날짜
-    const cap = pcCaption.trim(), date = pcPref.showDate ? pcFmtDate(pcDateStr) : '';
-    if (cap || date) {
-      const cst = FONTS.gowunD.stack, top = PC_PY + PC_PS, bandH = PC_H - top;
-      const dateFs = 36, dateH = date ? Math.round(dateFs * 1.4) : 0, gap = cap && date ? 14 : 0;
-      let cf = { fs: 0, lines: [] };
-      if (cap) cf = pcFit2(ctx, cap, cst, PC_W - 220, 140, 58, 34, 1.35, 2);
-      const capH = cf.lines.length * cf.fs * 1.35;
-      const tot = capH + gap + dateH;
-      let cy = top + (bandH - tot) / 2 - 4;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = fr.ink;
-      ctx.font = cf.fs + 'px ' + cst;
-      cf.lines.forEach((ln, i) => ctx.fillText(ln, PC_W / 2, cy + (i + 0.5) * cf.fs * 1.35));
-      cy += capH + gap;
-      if (date) {
-        ctx.globalAlpha = 0.58;
-        ctx.font = dateFs + 'px ' + cst;
-        if ('letterSpacing' in ctx) ctx.letterSpacing = '3px';
-        ctx.fillText(date, PC_W / 2, cy + dateH / 2);
-        if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
-        ctx.globalAlpha = 1;
+    const TA = { l: 'left', c: 'center', r: 'right' };
+    const photoInk = light ? '#FFFFFF' : '#2B2A28';
+    const setShadow = (on, blur, oy) => {
+      if (on) { ctx.shadowColor = 'rgba(0,0,0,.42)'; ctx.shadowBlur = blur; ctx.shadowOffsetY = oy; }
+      else { ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0; }
+    };
+    let over = false;
+
+    // ---- 성경 구절 덩어리(본문 + 짧은 줄 + 출처) ----
+    {
+      const o = pcPref.v, stack = font.stack, bw = Math.round(PC_PS * o.w / 100), lhR = 1.62;
+      const text = (pcVerseText || '').trim();
+      let body = { fs: 0, lines: [] };
+      if (text) {
+        if (o.pt) body = pcFit2(ctx, text, stack, bw, PC_H - 2 * PC_EDGE - pcRefBlock(pcRefFs(o.pt * PT)), o.pt * PT, o.pt * PT, lhR);
+        else body = pcFit2(ctx, text, stack, bw, PC_PS - 168 - pcRefBlock(40), 72, 30, lhR);   // 자동: 상자(사진 안쪽)에 들어가도록 72px → 30px 사이에서 줄인다
+        over = body.over;
+      }
+      const fsShown = body.fs || (o.pt ? o.pt * PT : 72);
+      pcFs.v = fsShown;
+      const refFs = pcRefFs(fsShown), refBlock = pcRefBlock(refFs);
+      const bodyH = body.lines.length * body.fs * lhR;
+      const total = bodyH + (text ? refBlock : refBlock - 44);
+      pcDef.v = { cx: PC_W / 2, cy: PC_PY + PC_PS / 2 };
+      pcBox.v = { x: 0, y: 0, w: bw, h: total };
+      const lim = pcLimits('v');
+      pcEff.v.dx = Math.min(Math.max(pcPos.v.dx, lim.loX), lim.hiX);   // 사용자가 정한 위치(pcPos)는 그대로 두고, 그릴 때만 카드 안으로 맞춘다
+      pcEff.v.dy = Math.min(Math.max(pcPos.v.dy, lim.loY), lim.hiY);
+      const cx = pcDef.v.cx + pcEff.v.dx, cy = pcDef.v.cy + pcEff.v.dy;
+      const left = cx - bw / 2, top = cy - total / 2;
+      pcBox.v = { x: left, y: top, w: bw, h: total };
+      const onPhoto = pcOnPhoto(cx, cy), ink = onPhoto ? photoInk : fr.ink, sh = onPhoto && light;
+      const ax = o.al === 'l' ? left : o.al === 'r' ? left + bw : cx;
+      ctx.textAlign = TA[o.al]; ctx.textBaseline = 'middle'; ctx.fillStyle = ink;
+      setShadow(sh, 16, 3);
+      ctx.font = body.fs + 'px ' + stack;
+      body.lines.forEach((ln, i) => { ctx.fillText(ln, ax, top + (i + 0.5) * body.fs * lhR); });
+      let y = top + bodyH + (text ? 44 : 0);
+      setShadow(false);
+      ctx.globalAlpha = 0.75; ctx.fillStyle = ink;
+      ctx.fillRect(o.al === 'l' ? left : o.al === 'r' ? left + bw - 64 : cx - 32, y, 64, 3);
+      ctx.globalAlpha = 0.95;
+      ctx.font = refFs + 'px ' + stack;
+      if ('letterSpacing' in ctx) ctx.letterSpacing = '2px';
+      setShadow(sh, 12, 2);
+      ctx.fillText(pcRef(), ax, y + 3 + 30 + refFs * 0.6);
+      if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+      ctx.globalAlpha = 1; setShadow(false);
+    }
+
+    // ---- 아래 문구·날짜 덩어리 ----
+    {
+      const o = pcPref.c, cst = FONTS.gowunD.stack, bw = Math.round(PC_PS * o.w / 100), LH = 1.35;
+      const cap = pcCaption.trim(), date = pcPref.showDate ? pcFmtDate(pcDateStr) : '';
+      if (cap || date) {
+        let cf = { fs: 0, lines: [] };
+        if (cap) {
+          if (o.pt) cf = pcFit2(ctx, cap, cst, bw, 4 * o.pt * PT * LH + 2, o.pt * PT, o.pt * PT, LH, 4);
+          else cf = pcFit2(ctx, cap, cst, bw, 140, 58, 34, LH, 2);
+        }
+        const capFs = cf.fs || (o.pt ? o.pt * PT : 58);
+        pcFs.c = capFs;
+        const dateFs = cap ? Math.round(Math.min(40, Math.max(26, capFs * 0.62))) : 36;
+        const dateH = date ? Math.round(dateFs * 1.4) : 0, gap = cap && date ? 14 : 0;
+        const capH = cf.lines.length * cf.fs * LH, tot = capH + gap + dateH;
+        pcDef.c = { cx: PC_W / 2, cy: PC_PY + PC_PS + (PC_H - PC_PY - PC_PS) / 2 - 4 };
+        pcBox.c = { x: 0, y: 0, w: bw, h: tot };
+        const lim = pcLimits('c');
+        pcEff.c.dx = Math.min(Math.max(pcPos.c.dx, lim.loX), lim.hiX);
+        pcEff.c.dy = Math.min(Math.max(pcPos.c.dy, lim.loY), lim.hiY);
+        const cx = pcDef.c.cx + pcEff.c.dx, cy = pcDef.c.cy + pcEff.c.dy;
+        const left = cx - bw / 2, top = cy - tot / 2;
+        pcBox.c = { x: left, y: top, w: bw, h: tot };
+        const onPhoto = pcOnPhoto(cx, cy), ink = onPhoto ? photoInk : fr.ink, sh = onPhoto && light;
+        const ax = o.al === 'l' ? left : o.al === 'r' ? left + bw : cx;
+        ctx.textAlign = TA[o.al]; ctx.textBaseline = 'middle'; ctx.fillStyle = ink;
+        setShadow(sh, 12, 2);
+        ctx.font = cf.fs + 'px ' + cst;
+        cf.lines.forEach((ln, i) => ctx.fillText(ln, ax, top + (i + 0.5) * cf.fs * LH));
+        if (date) {
+          ctx.globalAlpha = onPhoto ? 0.85 : 0.58;
+          ctx.font = dateFs + 'px ' + cst;
+          if ('letterSpacing' in ctx) ctx.letterSpacing = '3px';
+          ctx.fillText(date, ax, top + capH + gap + dateH / 2);
+          if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+          ctx.globalAlpha = 1;
+        }
+        setShadow(false);
+      } else {
+        pcBox.c = null; pcDef.c = null; pcFs.c = 0;
       }
     }
+
     // 종이 가장자리
     ctx.strokeStyle = 'rgba(0,0,0,.07)'; ctx.lineWidth = 2;
     ctx.strokeRect(1, 1, PC_W - 2, PC_H - 2);
+
+    // 글씨 배치 중에만 보이는 안내선(저장하는 사진에는 넣지 않는다)
+    if (guides) {
+      ctx.save();
+      Object.keys(PC_TXT).forEach((k) => {
+        const b = pcBox[k];
+        if (!b) return;
+        const on = k === pcTarget, pad = 14;
+        ctx.setLineDash([]); ctx.lineWidth = on ? 6 : 4; ctx.strokeStyle = on ? 'rgba(255,255,255,.95)' : 'rgba(255,255,255,.5)';
+        ctx.strokeRect(b.x - pad, b.y - pad, b.w + pad * 2, b.h + pad * 2);
+        ctx.setLineDash(on ? [16, 12] : [8, 12]); ctx.lineWidth = on ? 4 : 3; ctx.strokeStyle = on ? 'rgba(220,60,40,.95)' : 'rgba(220,60,40,.5)';
+        ctx.strokeRect(b.x - pad, b.y - pad, b.w + pad * 2, b.h + pad * 2);
+      });
+      ctx.setLineDash([]); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(40,140,255,.95)';
+      const d = pcDef[pcTarget];
+      if (pcGuide.x) { ctx.beginPath(); ctx.moveTo(PC_W / 2, 0); ctx.lineTo(PC_W / 2, PC_H); ctx.stroke(); }
+      if (pcGuide.y && d) { ctx.beginPath(); ctx.moveTo(0, d.cy); ctx.lineTo(PC_W, d.cy); ctx.stroke(); }
+      ctx.restore();
+    }
     return { over };
   }
 
@@ -3185,10 +3278,11 @@
       if (!pcIsOpen()) return;
       pcEnsureFonts();
       let r = { over: false };
-      try { r = pcDraw(); } catch (err) { showError(err); }
+      try { r = pcDraw(pcMode === 'text'); } catch (err) { showError(err); }
       const w = pcQ('#pc-warn');
       w.hidden = !r.over;
-      w.textContent = r.over ? "본문이 길어 카드에 다 들어가지 않아 끝이 줄어듭니다. 절 수를 줄이거나 글자 크기를 '작게'로 바꿔 보세요." : '';
+      w.textContent = r.over ? "본문이 길어 카드에 다 들어가지 않아 끝이 줄어듭니다. 절 수를 줄이거나 글자 크기(pt)를 줄이고, '자동'을 눌러 보세요." : '';
+      pcSyncPt();
     });
   }
 
@@ -3261,8 +3355,56 @@
     pcQ('#pc-zoom').disabled = !pcPhoto;
     pcQ('#pc-nophoto').disabled = !pcPhoto;
     pcQ('#pc-showdate').checked = pcPref.showDate;
-    pcQ('#pc-hint').textContent = pcPhoto ? '카드 위에서 사진을 끌어 위치를, 두 손가락으로 벌려 크기를 바꿀 수 있습니다.' : '';
-    pcQ('#pc-canvas').style.cursor = pcPhoto ? 'grab' : 'default';
+    pcSyncMode();
+    pcSyncTxt();
+  }
+  function pcSyncMode() {
+    pcEl.querySelectorAll('#pc-mode button').forEach((b) => b.classList.toggle('on', b.dataset.m === pcMode));
+    pcQ('#pc-hint').textContent = pcMode === 'text'
+      ? '카드 위에서 글씨를 끌어 옮기고, 두 손가락으로 벌려 크기를 바꿀 수 있습니다.'
+      : (pcPhoto ? '카드 위에서 사진을 끌어 위치를, 두 손가락으로 벌려 크기를 바꿀 수 있습니다.' : '사진을 고르면 여기서 위치와 크기를 맞출 수 있습니다.');
+    pcQ('#pc-canvas').style.cursor = pcMode === 'text' ? 'move' : (pcPhoto ? 'grab' : 'default');
+  }
+  function pcSetMode(m) {
+    if (pcMode === m) { pcSyncMode(); return; }
+    pcMode = m;
+    pcSyncMode();
+    pcRender();
+  }
+  // 글씨 조절 칸(대상·크기·정렬·너비)을 고른 대상의 값에 맞춘다. 크기가 '자동'이면 지금 그려진 크기를 보여 준다.
+  function pcShownPt(k) { return pcPref[k].pt || Math.round((pcFs[k] || 0) / PT); }
+  function pcSyncTxt() {
+    if (!pcEl) return;
+    const k = pcTarget, o = pcPref[k], m = PC_TXT[k];
+    pcEl.querySelectorAll('#pc-tg button').forEach((b) => b.classList.toggle('on', b.dataset.t === k));
+    pcEl.querySelectorAll('#pc-al button').forEach((b) => b.classList.toggle('on', b.dataset.v === o.al));
+    const r = pcQ('#pc-pt-r'), n = pcQ('#pc-pt');
+    r.min = m.min; r.max = m.max; n.min = m.min; n.max = m.max;
+    pcQ('#pc-pt-auto').classList.toggle('on', !o.pt);
+    pcQ('#pc-w').value = o.w;
+    pcQ('#pc-w-o').textContent = o.w + '%';
+    pcSyncPt();
+  }
+  function pcSyncPt() {   // 자동 크기는 다시 그릴 때마다 달라지므로 크기 칸만 따로 갱신한다
+    if (!pcEl) return;
+    const k = pcTarget, v = pcShownPt(k);
+    const r = pcQ('#pc-pt-r'), n = pcQ('#pc-pt');
+    if (v) { r.value = v; if (document.activeElement !== n) n.value = v; }
+    else if (document.activeElement !== n) n.value = '';
+    pcQ('#pc-pt-auto').classList.toggle('on', !pcPref[k].pt);
+    const none = k === 'c' && !pcBox.c;
+    pcQ('#pc-none').hidden = !none;
+  }
+  function pcSetPt(v) {   // 0 = 자동
+    const k = pcTarget, m = PC_TXT[k];
+    pcPref[k].pt = v ? Math.min(Math.max(Math.round(v), m.min), m.max) : 0;
+    pcSavePref(); pcSyncPt(); pcRender();
+  }
+  function pcSetTarget(k) {
+    if (!PC_TXT[k] || pcTarget === k) return;
+    pcTarget = k;
+    pcSyncTxt();
+    pcRender();
   }
   function pcShowZoom() {
     pcQ('#pc-zoom').value = Math.round(pcZoom * 100);
@@ -3302,6 +3444,7 @@
       pcZoom = 1; pcPanX = 0; pcPanY = 0;
       pcPref.ink = 'light';                       // 사진 위에서는 흰 글자 + 조금 어둡게가 기본
       pcPref.dim = Math.max(pcPref.dim, 25);
+      pcMode = 'photo';                           // 사진을 고른 직후에는 사진 위치부터 맞춘다
       pcSavePref();
     } catch (err) {
       showToastLine('사진을 불러오지 못했습니다. 다른 사진으로 다시 시도해 주세요.');
@@ -3310,28 +3453,76 @@
   }
   function pcClearPhoto() {
     pcPhoto = null; pcZoom = 1; pcPanX = 0; pcPanY = 0;
+    pcMode = 'text';
     pcApplyPreset(pcPref.bg);
     pcSavePref(); pcSync(); pcRender();
   }
 
-  // ----- 카드 위에서 끌기(위치) · 두 손가락 벌리기(크기) · 마우스 휠(크기) -----
+  // ----- 카드 위에서 끌기·두 손가락 벌리기 -----
+  //   사진 모드: 사진 위치(끌기)·크기(벌리기) · 마우스 휠(크기)
+  //   글씨 모드: 손가락이 닿은 글씨 덩어리를 끌어 옮기고(가운데·기본 위치 근처에서 달라붙음), 두 손가락 벌리기로 글자 크기(pt)를 바꾼다
+  const PC_SNAP = 14;
+  function pcHitText(p) {
+    const pad = 36, hit = [];
+    Object.keys(PC_TXT).forEach((k) => {
+      const b = pcBox[k];
+      if (b && p.x >= b.x - pad && p.x <= b.x + b.w + pad && p.y >= b.y - pad && p.y <= b.y + b.h + pad) hit.push(k);
+    });
+    if (!hit.length) return null;
+    return hit.indexOf(pcTarget) >= 0 ? pcTarget : hit[0];
+  }
   function pcBindGesture(cv) {
     const ptrs = new Map();
     let lastDist = 0, lastMid = null;
+    let drag = null;     // 글씨 끌기: { k, rx, ry }  (rx, ry = 달라붙기 전의 기본 위치에서 옮긴 양)
+    let pinch = null;    // 글씨 크기: { k, base, d0, changed }
     const scale = () => PC_W / Math.max(1, cv.clientWidth);
     const mid = () => { const a = Array.from(ptrs.values()); return { x: (a[0].x + a[1].x) / 2, y: (a[0].y + a[1].y) / 2, d: Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) }; };
+    const toCard = (e) => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * PC_W / Math.max(1, r.width), y: (e.clientY - r.top) * PC_H / Math.max(1, r.height) }; };
     cv.addEventListener('pointerdown', (e) => {
-      if (!pcPhoto) return;
+      if (pcMode === 'photo' && !pcPhoto) return;
       try { cv.setPointerCapture(e.pointerId); } catch (err) { /* 무시 */ }
       ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (ptrs.size === 2) { const m = mid(); lastDist = m.d; lastMid = m; } else { lastDist = 0; lastMid = null; }
+      if (pcMode === 'text') {
+        if (ptrs.size === 1) {
+          const k = pcHitText(toCard(e)) || pcTarget;
+          if (k !== pcTarget) pcSetTarget(k);
+          drag = pcBox[k] ? { k, rx: pcEff[k].dx, ry: pcEff[k].dy } : null;   // 보이는 위치에서 이어서 끈다
+        } else if (ptrs.size === 2) {
+          drag = null;
+          const k = pcTarget;
+          pinch = pcBox[k] ? { k, base: pcShownPt(k), d0: mid().d, changed: false } : null;
+        }
+      }
       e.preventDefault();
     });
     cv.addEventListener('pointermove', (e) => {
       const p = ptrs.get(e.pointerId);
-      if (!p || !pcPhoto) return;
+      if (!p) return;
       const dx = e.clientX - p.x, dy = e.clientY - p.y;
       p.x = e.clientX; p.y = e.clientY;
+      if (pcMode === 'text') {
+        if (drag && ptrs.size === 1) {
+          const k = drag.k, lim = pcLimits(k), sc = scale();
+          drag.rx = Math.min(Math.max(drag.rx + dx * sc, lim.loX), lim.hiX);
+          drag.ry = Math.min(Math.max(drag.ry + dy * sc, lim.loY), lim.hiY);
+          pcGuide.x = Math.abs(drag.rx) < PC_SNAP;
+          pcGuide.y = Math.abs(drag.ry) < PC_SNAP;
+          pcPos[k].dx = pcGuide.x ? 0 : drag.rx;
+          pcPos[k].dy = pcGuide.y ? 0 : drag.ry;
+        } else if (pinch && ptrs.size === 2) {
+          const m = mid(), mm = PC_TXT[pinch.k];
+          if (pinch.d0 > 0 && pinch.base > 0) {
+            const next = Math.min(Math.max(Math.round(pinch.base * (m.d / pinch.d0)), mm.min), mm.max);
+            if (next !== pcPref[pinch.k].pt) { pcPref[pinch.k].pt = next; pinch.changed = true; pcSyncTxt(); }
+          }
+        }
+        pcRender();
+        e.preventDefault();
+        return;
+      }
+      if (!pcPhoto) return;
       if (ptrs.size === 1) {
         pcPanX += dx * scale(); pcPanY += dy * scale();
       } else if (ptrs.size === 2) {
@@ -3344,11 +3535,20 @@
       pcRender();
       e.preventDefault();
     });
-    const up = (e) => { ptrs.delete(e.pointerId); lastDist = 0; lastMid = null; if (ptrs.size === 2) { const m = mid(); lastDist = m.d; lastMid = m; } };
+    const up = (e) => {
+      ptrs.delete(e.pointerId); lastDist = 0; lastMid = null;
+      if (ptrs.size === 2) { const m = mid(); lastDist = m.d; lastMid = m; }
+      if (pcMode === 'text') {
+        if (pinch && pinch.changed && ptrs.size < 2) pcSavePref();
+        if (ptrs.size < 2) pinch = null;
+        if (ptrs.size === 0) { drag = null; pcGuide.x = false; pcGuide.y = false; pcRender(); }
+        else drag = null;   // 두 손가락을 쓴 뒤 남은 한 손가락으로는 옮기지 않는다
+      }
+    };
     cv.addEventListener('pointerup', up);
     cv.addEventListener('pointercancel', up);
     cv.addEventListener('wheel', (e) => {
-      if (!pcPhoto) return;
+      if (pcMode !== 'photo' || !pcPhoto) return;
       e.preventDefault();
       pcZoom = Math.min(Math.max(pcZoom * Math.exp(-e.deltaY * 0.002), 1), 3);
       pcShowZoom();
@@ -3362,7 +3562,7 @@
     btn.disabled = true;
     try {
       await pcFontsReady();
-      pcDraw();                                   // 글꼴이 다 준비된 뒤 한 번 더 그려서 내보낸다
+      pcDraw(false);                              // 글꼴이 다 준비된 뒤 한 번 더(글씨 안내선 없이) 그려서 내보낸다
       const cv = pcQ('#pc-canvas');
       const name = 'photocard-' + (pcDateStr || pcToday()).replace(/-/g, '') + '.jpg';
       const bridge = NATIVE && window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.bf;
@@ -3388,6 +3588,7 @@
       showToastLine('저장하지 못했습니다: ' + (err && err.message ? err.message : err));
     } finally {
       btn.disabled = false;
+      pcRender();                                 // 화면에는 다시 안내선을 그린다
     }
   }
 
@@ -3425,15 +3626,31 @@
           '<input id="pc-cap" class="pc-in" type="text" maxlength="60" placeholder="카드 아래에 넣을 문구 (예: 오늘도 은혜로 걸어갑니다)" autocomplete="off" enterkeyhint="done">' +
           '<div class="pc-date"><input id="pc-date" class="pc-in" type="date" aria-label="날짜"><label class="chk"><input id="pc-showdate" type="checkbox">날짜 넣기</label></div>' +
         '</div>' +
+        '<div class="pc-sec"><h3>글씨 · 크기 · 정렬 · 위치</h3>' +
+          '<div class="seg pc-tg" id="pc-tg">' + Object.keys(PC_TXT).map((k) => '<button type="button" data-t="' + k + '">' + PC_TXT[k].label + '</button>').join('') + '</div>' +
+          '<p class="pc-msg" id="pc-none" hidden>추가 문구나 날짜를 넣으면 여기서 크기와 위치를 정할 수 있습니다.</p>' +
+          '<div class="pc-lbl">글자 크기 (pt)</div>' +
+          '<div class="pc-pt"><button type="button" class="pc-step" id="pc-pt-m" aria-label="글자 크기 줄이기">−</button>' +
+            '<input id="pc-pt" class="pc-in" type="number" inputmode="numeric" step="1" aria-label="글자 크기(pt)" placeholder="자동">' +
+            '<span class="pc-unit">pt</span>' +
+            '<button type="button" class="pc-step" id="pc-pt-p" aria-label="글자 크기 키우기">+</button>' +
+            '<button type="button" class="pc-chip" id="pc-pt-auto">자동</button></div>' +
+          '<input id="pc-pt-r" type="range" min="12" max="60" step="1" aria-label="글자 크기 조절">' +
+          '<div class="pc-lbl">정렬</div>' +
+          '<div class="seg pc-seg pc-al" id="pc-al">' + PC_AL.map((a) => '<button type="button" data-v="' + a[0] + '" aria-label="' + a[1] + ' 정렬"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="' +
+            (a[0] === 'l' ? 'M4 6h16M4 10h10M4 14h16M4 18h10' : a[0] === 'r' ? 'M4 6h16M10 10h10M4 14h16M10 18h10' : 'M4 6h16M7 10h10M4 14h16M7 18h10') + '"/></svg>' + a[1] + '</button>').join('') + '</div>' +
+          '<label class="pc-rng"><span>너비</span><input id="pc-w" type="range" min="30" max="100" step="1"><output id="pc-w-o">83%</output></label>' +
+          '<button type="button" class="pc-btn pc-mini" id="pc-pos-reset">위치 되돌리기</button>' +
+        '</div>' +
         '<div class="pc-sec"><h3>꾸미기</h3>' +
           '<div class="pc-lbl">글씨체</div>' + seg('font', PC_FONT_KEYS.map((k) => [k, FONTS[k].label])) +
-          '<div class="pc-lbl">글자색</div>' + seg('ink', [['light', '흰색'], ['dark', '진한 색']]) +
-          '<div class="pc-lbl">글자 크기</div>' + seg('size', PC_SIZES) +
+          '<div class="pc-lbl">글자색 (사진 위)</div>' + seg('ink', [['light', '흰색'], ['dark', '진한 색']]) +
           '<div class="pc-lbl">카드 틀</div>' + seg('frame', Object.keys(PC_FRAMES).map((k) => [k, PC_FRAMES[k].label])) +
         '</div>' +
       '</div></div>' +
       '<div class="pc-r">' +
         '<div class="pc-stage"><canvas id="pc-canvas" width="' + PC_W + '" height="' + PC_H + '" aria-label="포토카드 미리보기"></canvas></div>' +
+        '<div class="seg pc-mode" id="pc-mode"><button type="button" data-m="photo">사진 위치 · 크기</button><button type="button" data-m="text">글씨 배치</button></div>' +
         '<p class="pc-hint" id="pc-hint"></p>' +
         '<button type="button" class="pc-act" id="pc-save">사진으로 저장 · 공유</button>' +
       '</div>';
@@ -3484,14 +3701,43 @@
     pcQ('#pc-cap').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
     pcQ('#pc-date').addEventListener('input', (e) => { pcDateStr = e.target.value; pcRender(); });
     pcQ('#pc-showdate').addEventListener('change', (e) => { pcPref.showDate = e.target.checked; pcSavePref(); pcRender(); });
-    // 꾸미기(글씨체·글자색·크기·틀)
-    pcEl.querySelectorAll('.pc-seg').forEach((sg) => sg.addEventListener('click', (e) => {
+    // 꾸미기(글씨체·글자색·틀)
+    pcEl.querySelectorAll('.pc-seg[data-k]').forEach((sg) => sg.addEventListener('click', (e) => {
       const b = e.target.closest('button[data-v]');
       if (!b) return;
-      const k = sg.dataset.k;
-      pcPref[k] = (k === 'size') ? parseFloat(b.dataset.v) : b.dataset.v;
+      pcPref[sg.dataset.k] = b.dataset.v;
       pcSavePref(); pcSync(); pcRender();
     }));
+    // 글씨: 대상 · 크기(pt) · 정렬 · 너비 · 위치
+    pcQ('#pc-tg').addEventListener('click', (e) => { const b = e.target.closest('button[data-t]'); if (b) pcSetTarget(b.dataset.t); });
+    pcQ('#pc-pt-m').addEventListener('click', () => pcSetPt(pcShownPt(pcTarget) - 1));
+    pcQ('#pc-pt-p').addEventListener('click', () => pcSetPt(pcShownPt(pcTarget) + 1));
+    pcQ('#pc-pt-auto').addEventListener('click', () => pcSetPt(0));
+    pcQ('#pc-pt-r').addEventListener('input', (e) => pcSetPt(+e.target.value));
+    const ptIn = pcQ('#pc-pt');
+    ptIn.addEventListener('input', () => {   // 숫자를 치는 도중(예: 2 → 28)에는 범위에 맞는 값일 때만 적용한다
+      const v = parseFloat(ptIn.value), m = PC_TXT[pcTarget];
+      if (v >= m.min && v <= m.max) pcSetPt(v);
+    });
+    ptIn.addEventListener('change', () => {
+      const v = parseFloat(ptIn.value);
+      if (isFinite(v)) pcSetPt(v); else pcSetPt(pcPref[pcTarget].pt);
+      ptIn.value = pcShownPt(pcTarget) || '';
+    });
+    ptIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); ptIn.blur(); } });
+    pcQ('#pc-al').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-v]');
+      if (!b) return;
+      pcPref[pcTarget].al = b.dataset.v;
+      pcSavePref(); pcSyncTxt(); pcRender();
+    });
+    pcQ('#pc-w').addEventListener('input', (e) => {
+      pcPref[pcTarget].w = +e.target.value;
+      pcQ('#pc-w-o').textContent = pcPref[pcTarget].w + '%';
+      pcSavePref(); pcRender();
+    });
+    pcQ('#pc-pos-reset').addEventListener('click', () => { pcPos[pcTarget].dx = 0; pcPos[pcTarget].dy = 0; pcRender(); });
+    pcQ('#pc-mode').addEventListener('click', (e) => { const b = e.target.closest('button[data-m]'); if (b) pcSetMode(b.dataset.m); });
     pcQ('#pc-save').addEventListener('click', pcSave);
     if (window.ResizeObserver) new ResizeObserver(() => { if (pcIsOpen()) { layoutPc(); pcRender(); } }).observe(el);
   }
@@ -3509,6 +3755,7 @@
     pcQ('#pc-ref').value = '';
     pcQ('#pc-refmsg').hidden = true;
     pcFillVerseSelects();
+    if (pcMode === 'photo' && !pcPhoto) pcMode = 'text';
     pcEl.hidden = false;
     pcEl.dataset.tab = 'l';
     pcEl.querySelectorAll('.pc-tabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === 'l'));
