@@ -3,6 +3,7 @@
 # 사용: cd tests && npm install && bash runreg.sh   (결과: reg.log)  / 하나만: node map1.mjs 펼침
 # rot4(기기 168가지 조합)는 오래 걸려(약 5~8분) 목록에서 빼 두었습니다: timeout 900 node rot4.mjs
 cd "$(dirname "$0")"
+mkdir -p desk
 : > reg.log
 for t in map1 map2 pc1 pc2 pc3 pc4 pc5 kb1 native1 native2 native3 native5 native6 hd1 desk2 desk5 desk8 desk9 rot9 std3; do
   echo "=== $t" >> reg.log

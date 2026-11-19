@@ -3,6 +3,7 @@
 ```
 cd tests
 npm install            # puppeteer-core, @sparticuz/chromium (인터넷 필요)
+pip install pillow     # rot9가 화면 사진 비교(pixdiff.py)에 사용 (python3 필요)
 bash runreg.sh         # 전체(약 10분) → reg.log 에 기록, 끝에 요약 출력
 node map1.mjs 펼침     # 하나만 (기기 이름 일부: 펼침 / 접힘 / 세로)
 ROOT=/다른/폴더 node pc1.mjs   # 기본은 저장소의 www/
