@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v43';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v44';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const DESKS = { plain: '단색', linen: '린넨', wood: '나무결', leather: '가죽' };   // 책상(상단 배경) 질감
   const DESK_DEFAULT = 'linen';
@@ -1430,6 +1430,7 @@
   stage.addEventListener('pointerup', (e) => endPointer(e, false));
   stage.addEventListener('pointercancel', (e) => endPointer(e, true));
   window.addEventListener('keydown', (e) => {
+    if (pcIsOpen()) { if (e.key === 'Escape') closePc(); return; }   // 포토카드 화면이 열려 있으면 책장은 넘기지 않는다
     if (e.key === 'Escape' && spot.id) { closeSpot(); return; }
     if (!flip && !scroller) return;
     // 창이 열려 있거나 글을 입력하는 중(검색·노트)에는 띄어쓰기·방향키로 책장이 넘어가지 않게 한다
@@ -2924,11 +2925,586 @@
     btn.addEventListener('pointercancel', () => { downAt = null; });
     btn.addEventListener('click', run);
   }
+  // ---------- 성경구절 포토카드 ----------
+  // 왼쪽: 구절·사진/배경·문구 입력, 오른쪽: 폴라로이드 카드 미리보기(캔버스 1080×1320).
+  // 저장은 JPEG 사진 파일로 만들어 앱에서는 아이폰 공유 창(이미지 저장·메시지·카카오톡 …)으로, 웹에서는 공유/내려받기로 보낸다.
+  const PC_W = 1080, PC_H = 1320;                       // 카드 크기(픽셀)
+  const PC_PX = 60, PC_PY = 60, PC_PS = 960;            // 사진(배경) 영역: 정사각형의 위치와 한 변 — 아래 300px가 문구·날짜 띠
+  const PC_BG = [
+    { name: '새벽', c: ['#1d2b53', '#7e4c8f', '#f2a07b'], ink: 'light' },
+    { name: '노을', c: ['#4a2147', '#c4455a', '#f6a85f'], ink: 'light' },
+    { name: '바다', c: ['#0b3c4d', '#238a8d', '#9fd9d0'], ink: 'light' },
+    { name: '숲', c: ['#14301f', '#3b6b49', '#a9c08f'], ink: 'light' },
+    { name: '밤', c: ['#090d1c', '#1d2b53', '#42618f'], ink: 'light' },
+    { name: '포도', c: ['#241743', '#5b3d92', '#b9a2e3'], ink: 'light' },
+    { name: '모래', c: ['#d9c3a0', '#ecdcc0', '#f8efdc'], ink: 'dark' },
+    { name: '벚꽃', c: ['#f4c3d2', '#f8dce5', '#fdf0f4'], ink: 'dark' },
+  ];
+  const PC_FRAMES = {
+    white: { label: '흰색', bg: '#FBFAF7', ink: '#2B2A28' },
+    cream: { label: '크림', bg: '#F3E9D3', ink: '#3A3022' },
+    black: { label: '검정', bg: '#17181B', ink: '#EEEAE2' },
+  };
+  const PC_FONT_KEYS = ['nanumM', 'gowunB', 'gowunD', 'nanumG'];
+  const PC_SIZES = [[0.85, '작게'], [1, '보통'], [1.15, '크게']];
+  let pcEl = null;
+  function pcIsOpen() { return !!pcEl && !pcEl.hidden; }
+
+  // 꾸밈 값(글씨체·색·틀·배경·어둡기·크기·날짜 표시)만 기억한다. 구절·문구·사진은 카드를 만들 때마다 새로 고른다.
+  const pcPref = store.get('bf.pc', { font: 'nanumM', ink: 'light', frame: 'white', bg: 0, dim: 25, size: 1, showDate: true });
+  if (PC_FONT_KEYS.indexOf(pcPref.font) < 0) pcPref.font = 'nanumM';
+  if (!PC_FRAMES[pcPref.frame]) pcPref.frame = 'white';
+  if (!(pcPref.bg >= 0 && pcPref.bg < PC_BG.length)) pcPref.bg = 0;
+  pcPref.dim = Math.min(Math.max(+pcPref.dim || 0, 0), 70);
+  if (!PC_SIZES.some((s) => s[0] === pcPref.size)) pcPref.size = 1;
+  pcPref.ink = pcPref.ink === 'dark' ? 'dark' : 'light';
+  pcPref.showDate = pcPref.showDate !== false;
+  const pcSavePref = () => store.set('bf.pc', pcPref);
+
+  const pcv = { bi: 0, c: 1, v1: 1, v2: 1 };   // 고른 구절 (장은 1부터)
+  let pcKey = '';                               // 본문 칸을 마지막으로 채운 구절
+  let pcVerseText = '', pcCaption = '', pcDateStr = '';
+  let pcPhoto = null;                           // { img(줄여 둔 사진), w, h }
+  let pcZoom = 1, pcPanX = 0, pcPanY = 0;       // 확대 배율 · 끌어서 옮긴 양(카드 픽셀)
+  let pcRaf = 0;
+  const pcFontState = {};
+  const pcToday = () => {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  };
+  const pcFmtDate = (s) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || '');
+    return m ? m[1] + '. ' + (+m[2]) + '. ' + (+m[3]) + '.' : '';
+  };
+  const pcQ = (s) => pcEl.querySelector(s);
+
+  function pcGather() {
+    const vs = bible.books[pcv.bi].chapters[pcv.c - 1] || [];
+    // 시편 머리말('[다윗의 시] …')은 카드에 어색하므로 앞의 [ ] 부분을 뺀다. (절 전체가 [ ]이면 그대로 둔다)
+    const plain = (t) => { const r = t.replace(/^\[[^\]]*\]\s*/, ''); return r || t; };
+    return vs.filter((v) => v.n >= pcv.v1 && v.n <= pcv.v2).map((v) => plain(v.t)).join(' ');
+  }
+  function pcRef() {
+    return bible.books[pcv.bi].name + ' ' + pcv.c + ':' + pcv.v1 + (pcv.v2 > pcv.v1 ? '-' + pcv.v2 : '');
+  }
+
+  // ----- 글꼴: 캔버스는 글꼴을 미리 불러 둬야 하므로, 쓰는 글꼴을 한 번 불러오고 다 되면 다시 그린다 -----
+  function pcFaces() { return [FONTS[pcPref.font].face, 'KF Gowun Dodum']; }
+  function pcEnsureFonts() {
+    pcFaces().forEach((face) => {
+      if (pcFontState[face]) return;
+      pcFontState[face] = document.fonts && document.fonts.load
+        ? document.fonts.load('400 40px "' + face + '"', '가나다라 0123 ABC').then(() => 'ok', () => 'fail') : Promise.resolve('fail');
+      pcFontState[face].then(() => pcRender());
+    });
+  }
+  function pcFontsReady() { pcEnsureFonts(); return Promise.all(pcFaces().map((f) => pcFontState[f])); }
+
+  // ----- 글자 줄바꿈: 띄어쓰기 단위로 나누고, 한 낱말이 한 줄보다 길면 글자 단위로 자른다 -----
+  function pcWrap(ctx, text, maxW) {
+    const out = [];
+    String(text).split(/\n/).forEach((par) => {
+      const words = par.split(/\s+/).filter(Boolean);
+      let line = '';
+      words.forEach((w) => {
+        const t = line ? line + ' ' + w : w;
+        if (ctx.measureText(t).width <= maxW) { line = t; return; }
+        if (line) { out.push(line); line = ''; }
+        if (ctx.measureText(w).width <= maxW) { line = w; return; }
+        let cur = '';
+        Array.from(w).forEach((ch) => {
+          if (cur && ctx.measureText(cur + ch).width > maxW) { out.push(cur); cur = ''; }
+          cur += ch;
+        });
+        line = cur;
+      });
+      out.push(line);
+    });
+    while (out.length > 1 && out[out.length - 1] === '') out.pop();
+    return out;
+  }
+  // 글자 크기를 (시작 크기 → 최소 크기) 줄여 가며 maxH 안에 들어가는 첫 크기를 찾는다. 최소 크기에도 넘치면 마지막 줄을 …으로 줄인다.
+  function pcFit2(ctx, text, stack, maxW, maxH, start, min, lh, maxLines) {
+    let fs = start, lines = [];
+    for (; fs >= min; fs -= 2) {
+      ctx.font = fs + 'px ' + stack;
+      lines = pcWrap(ctx, text, maxW);
+      if (lines.length * fs * lh <= maxH && (!maxLines || lines.length <= maxLines)) return { fs, lines, over: false };
+    }
+    fs = min;
+    ctx.font = fs + 'px ' + stack;
+    lines = pcWrap(ctx, text, maxW);
+    const cap = Math.max(1, Math.min(maxLines || 99, Math.floor(maxH / (fs * lh))));
+    if (lines.length <= cap) return { fs, lines, over: false };
+    lines = lines.slice(0, cap);
+    let last = lines[cap - 1];
+    while (last.length > 1 && ctx.measureText(last + '…').width > maxW) last = last.slice(0, -1);
+    lines[cap - 1] = last.replace(/\s+$/, '') + '…';
+    return { fs, lines, over: true };
+  }
+
+  function pcPhotoRect() {   // 사진이 그려질 위치·크기(카드 픽셀). 사진은 영역을 항상 가득 덮고, 끌어 옮긴 양은 그 안으로 제한한다.
+    const A = PC_PS, s = Math.max(A / pcPhoto.w, A / pcPhoto.h) * pcZoom;
+    const w = pcPhoto.w * s, h = pcPhoto.h * s;
+    const mx = Math.max(0, (w - A) / 2), my = Math.max(0, (h - A) / 2);
+    pcPanX = Math.min(Math.max(pcPanX, -mx), mx);
+    pcPanY = Math.min(Math.max(pcPanY, -my), my);
+    return { x: PC_PX + (A - w) / 2 + pcPanX, y: PC_PY + (A - h) / 2 + pcPanY, w, h };
+  }
+
+  function pcDraw() {
+    const cv = pcQ('#pc-canvas'), ctx = cv.getContext('2d');
+    const fr = PC_FRAMES[pcPref.frame], font = FONTS[pcPref.font];
+    const light = pcPref.ink === 'light';
+    // 카드 틀(종이)
+    ctx.clearRect(0, 0, PC_W, PC_H);
+    ctx.fillStyle = fr.bg;
+    ctx.fillRect(0, 0, PC_W, PC_H);
+    // 사진 또는 배경
+    ctx.save();
+    ctx.beginPath(); ctx.rect(PC_PX, PC_PY, PC_PS, PC_PS); ctx.clip();
+    if (pcPhoto) {
+      const r = pcPhotoRect();
+      ctx.drawImage(pcPhoto.img, r.x, r.y, r.w, r.h);
+    } else {
+      const bg = PC_BG[pcPref.bg];
+      const g = ctx.createLinearGradient(PC_PX, PC_PY, PC_PX + PC_PS * 0.72, PC_PY + PC_PS);
+      bg.c.forEach((c, i) => g.addColorStop(i / (bg.c.length - 1), c));
+      ctx.fillStyle = g;
+      ctx.fillRect(PC_PX, PC_PY, PC_PS, PC_PS);
+      const gl = ctx.createRadialGradient(PC_PX + PC_PS * 0.3, PC_PY + PC_PS * 0.22, 0, PC_PX + PC_PS * 0.3, PC_PY + PC_PS * 0.22, PC_PS * 0.75);
+      gl.addColorStop(0, 'rgba(255,255,255,.24)'); gl.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = gl;
+      ctx.fillRect(PC_PX, PC_PY, PC_PS, PC_PS);
+    }
+    if (pcPref.dim > 0) {   // 글자가 잘 읽히도록 어둡게
+      ctx.fillStyle = 'rgba(0,0,0,' + (pcPref.dim / 100) + ')';
+      ctx.fillRect(PC_PX, PC_PY, PC_PS, PC_PS);
+    }
+    const vg = ctx.createRadialGradient(PC_PX + PC_PS / 2, PC_PY + PC_PS / 2, PC_PS * 0.42, PC_PX + PC_PS / 2, PC_PY + PC_PS / 2, PC_PS * 0.78);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.22)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(PC_PX, PC_PY, PC_PS, PC_PS);
+
+    // 성경 구절
+    const stack = font.stack;
+    const ink = light ? '#FFFFFF' : '#2B2A28';
+    const text = (pcVerseText || '').trim();
+    const IN = 84, bx = PC_PX + IN, by = PC_PY + IN, bw = PC_PS - IN * 2, bh = PC_PS - IN * 2;
+    const refFs = 40, refBlock = 44 + 3 + 30 + Math.round(refFs * 1.2);   // 본문과 출처 사이 간격 + 짧은 줄 + 출처 글자
+    let over = false;
+    if (light) { ctx.shadowColor = 'rgba(0,0,0,.42)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 3; }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = ink;
+    let body = { fs: 0, lines: [] };
+    const lhR = 1.62;
+    if (text) {
+      body = pcFit2(ctx, text, stack, bw, bh - refBlock, Math.round(72 * pcPref.size), Math.round(30 * pcPref.size), lhR);
+      over = body.over;
+    }
+    const bodyH = body.lines.length * body.fs * lhR;
+    const total = bodyH + (text ? refBlock : refBlock - 44);
+    let y = by + (bh - total) / 2;
+    ctx.font = body.fs + 'px ' + stack;
+    body.lines.forEach((ln, i) => { ctx.fillText(ln, PC_PX + PC_PS / 2, y + (i + 0.5) * body.fs * lhR); });
+    y += bodyH + (text ? 44 : 0);
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.globalAlpha = 0.75; ctx.fillStyle = ink;
+    ctx.fillRect(PC_PX + PC_PS / 2 - 32, y, 64, 3);
+    ctx.globalAlpha = 0.95;
+    ctx.font = refFs + 'px ' + stack;
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '2px';
+    if (light) { ctx.shadowColor = 'rgba(0,0,0,.42)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 2; }
+    ctx.fillText(pcRef(), PC_PX + PC_PS / 2, y + 3 + 30 + refFs * 0.6);
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+    ctx.globalAlpha = 1; ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.restore();
+
+    // 사진 테두리
+    ctx.strokeStyle = 'rgba(0,0,0,.10)'; ctx.lineWidth = 2;
+    ctx.strokeRect(PC_PX - 1, PC_PY - 1, PC_PS + 2, PC_PS + 2);
+
+    // 아래 문구·날짜
+    const cap = pcCaption.trim(), date = pcPref.showDate ? pcFmtDate(pcDateStr) : '';
+    if (cap || date) {
+      const cst = FONTS.gowunD.stack, top = PC_PY + PC_PS, bandH = PC_H - top;
+      const dateFs = 36, dateH = date ? Math.round(dateFs * 1.4) : 0, gap = cap && date ? 14 : 0;
+      let cf = { fs: 0, lines: [] };
+      if (cap) cf = pcFit2(ctx, cap, cst, PC_W - 220, 140, 58, 34, 1.35, 2);
+      const capH = cf.lines.length * cf.fs * 1.35;
+      const tot = capH + gap + dateH;
+      let cy = top + (bandH - tot) / 2 - 4;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = fr.ink;
+      ctx.font = cf.fs + 'px ' + cst;
+      cf.lines.forEach((ln, i) => ctx.fillText(ln, PC_W / 2, cy + (i + 0.5) * cf.fs * 1.35));
+      cy += capH + gap;
+      if (date) {
+        ctx.globalAlpha = 0.58;
+        ctx.font = dateFs + 'px ' + cst;
+        if ('letterSpacing' in ctx) ctx.letterSpacing = '3px';
+        ctx.fillText(date, PC_W / 2, cy + dateH / 2);
+        if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+        ctx.globalAlpha = 1;
+      }
+    }
+    // 종이 가장자리
+    ctx.strokeStyle = 'rgba(0,0,0,.07)'; ctx.lineWidth = 2;
+    ctx.strokeRect(1, 1, PC_W - 2, PC_H - 2);
+    return { over };
+  }
+
+  function pcRender() {
+    if (pcRaf || !pcIsOpen()) return;
+    pcRaf = requestAnimationFrame(() => {
+      pcRaf = 0;
+      if (!pcIsOpen()) return;
+      pcEnsureFonts();
+      let r = { over: false };
+      try { r = pcDraw(); } catch (err) { showError(err); }
+      const w = pcQ('#pc-warn');
+      w.hidden = !r.over;
+      w.textContent = r.over ? "본문이 길어 카드에 다 들어가지 않아 끝이 줄어듭니다. 절 수를 줄이거나 글자 크기를 '작게'로 바꿔 보세요." : '';
+    });
+  }
+
+  // ----- 화면 배치: 펼침(넓은 화면)은 왼쪽 입력 / 오른쪽 카드, 좁은 화면은 '입력 | 카드' 탭으로 한 화면씩 -----
+  function layoutPc() {
+    if (!pcEl) return;
+    const g = geometry(), W = g.W, H = g.H, si = g.si;
+    const two = W >= 680 && W >= H * 1.1;
+    pcEl.classList.toggle('two', two);
+    pcEl.classList.toggle('narrow', !two);
+    // 듀오 펼침: 오른쪽 안전영역(약 84px)은 맨 위의 상태 알약 자리만 비우면 되므로, 카드를 알약 아래(118px)로 내린다.
+    const rail = NATIVE && two && si.left < 8 && si.right >= 60;
+    const top = Math.max(Math.round(si.top), 0) + 12;
+    const set = (k, v) => pcEl.style.setProperty(k, v + 'px');
+    set('--pc-top', top);
+    set('--pc-topr', two ? (rail ? Math.max(top, NATIVE_PILL_BOTTOM + 6) : top) : 12);
+    set('--pc-bot', Math.max(Math.round(si.bottom), 0) + 14);
+    set('--pc-l', Math.max(rail || si.left < 8 ? 22 : 0, Math.round(si.left) + 10));
+    set('--pc-r', Math.max(rail || si.right < 8 ? 22 : 0, rail ? 22 : Math.round(si.right) + 10));
+    pcFitCanvas();
+  }
+  function pcFitCanvas() {
+    const st = pcQ('.pc-stage'), cv = pcQ('#pc-canvas');
+    const w = st.clientWidth, h = st.clientHeight;
+    if (w < 20 || h < 20) return;
+    const k = Math.min(w / PC_W, h / PC_H);
+    cv.style.width = Math.floor(PC_W * k) + 'px';
+    cv.style.height = Math.floor(PC_H * k) + 'px';
+  }
+  function pcTab(t) {
+    pcEl.dataset.tab = t;
+    pcEl.querySelectorAll('.pc-tabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === t));
+    pcFitCanvas();
+    pcRender();
+  }
+
+  // ----- 입력 칸 ↔ 값 맞추기 -----
+  function pcFillVerseSelects() {
+    const book = bible.books[pcv.bi], unit = book.id === 'psa' ? '편' : '장';
+    const bs = pcQ('#pc-book');
+    if (!bs.options.length) bs.innerHTML = bible.books.map((b, i) => '<option value="' + i + '">' + esc(b.name) + '</option>').join('');
+    bs.value = String(pcv.bi);
+    const cs = pcQ('#pc-ch');
+    cs.innerHTML = book.chapters.map((_, i) => '<option value="' + (i + 1) + '">' + (i + 1) + unit + '</option>').join('');
+    cs.value = String(pcv.c);
+    const nums = verseNums(pcv.bi, pcv.c);
+    pcv.v1 = nearVerse(nums, pcv.v1);
+    if (pcv.v2 < pcv.v1 || nums.indexOf(pcv.v2) < 0) pcv.v2 = pcv.v1;
+    pcQ('#pc-v1').innerHTML = nums.map((n) => '<option value="' + n + '">' + n + '절</option>').join('');
+    pcQ('#pc-v1').value = String(pcv.v1);
+    pcQ('#pc-v2').innerHTML = nums.filter((n) => n >= pcv.v1).map((n) => '<option value="' + n + '">' + n + '절</option>').join('');
+    pcQ('#pc-v2').value = String(pcv.v2);
+  }
+  function pcRefill() {   // 고른 구절의 본문을 본문 칸에 넣는다 (직접 고친 글은 다른 구절을 고르면 새 본문으로 바뀐다)
+    pcKey = pcv.bi + '.' + pcv.c + '.' + pcv.v1 + '.' + pcv.v2;
+    pcVerseText = pcGather();
+    pcQ('#pc-verse').value = pcVerseText;
+    pcRender();
+  }
+  function pcSync() {
+    pcEl.querySelectorAll('.pc-seg').forEach((sg) => {
+      const k = sg.dataset.k;
+      sg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', String(pcPref[k]) === b.dataset.v));
+    });
+    pcEl.querySelectorAll('.pc-sw button').forEach((b, i) => b.classList.toggle('on', i === pcPref.bg));
+    pcQ('#pc-sw').classList.toggle('off', !!pcPhoto);
+    pcQ('#pc-dim').value = pcPref.dim;
+    pcQ('#pc-dim-o').textContent = pcPref.dim + '%';
+    pcShowZoom();
+    pcQ('#pc-zoom').disabled = !pcPhoto;
+    pcQ('#pc-nophoto').disabled = !pcPhoto;
+    pcQ('#pc-showdate').checked = pcPref.showDate;
+    pcQ('#pc-hint').textContent = pcPhoto ? '카드 위에서 사진을 끌어 위치를, 두 손가락으로 벌려 크기를 바꿀 수 있습니다.' : '';
+    pcQ('#pc-canvas').style.cursor = pcPhoto ? 'grab' : 'default';
+  }
+  function pcShowZoom() {
+    pcQ('#pc-zoom').value = Math.round(pcZoom * 100);
+    pcQ('#pc-zoom-o').textContent = pcPhoto ? Math.round(pcZoom * 100) + '%' : '';
+  }
+  function pcApplyPreset(i) {
+    pcPref.bg = i;
+    pcPref.ink = PC_BG[i].ink;
+    if (PC_BG[i].ink === 'dark') pcPref.dim = 0;
+    else if (pcPref.dim === 0) pcPref.dim = 20;
+  }
+
+  // ----- 사진 -----
+  async function pcLoadPhoto(file) {
+    if (!file) return;
+    try {
+      let src = null;
+      if (window.createImageBitmap) { try { src = await createImageBitmap(file, { imageOrientation: 'from-image' }); } catch (e) { src = null; } }
+      if (!src) {
+        const url = URL.createObjectURL(file);
+        src = await new Promise((res, rej) => {
+          const im = new Image();
+          im.onload = () => res(im);
+          im.onerror = () => rej(new Error('이미지를 읽지 못했습니다'));
+          im.src = url;
+        });
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+      }
+      const iw = src.width || src.naturalWidth, ih = src.height || src.naturalHeight;
+      if (!iw || !ih) throw new Error('빈 이미지');
+      const k = Math.min(1, 2400 / Math.max(iw, ih));   // 휴대폰 사진은 크므로 카드에 필요한 만큼만 줄여 둔다
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(iw * k)); cv.height = Math.max(1, Math.round(ih * k));
+      cv.getContext('2d').drawImage(src, 0, 0, cv.width, cv.height);
+      if (src.close) src.close();
+      pcPhoto = { img: cv, w: cv.width, h: cv.height };
+      pcZoom = 1; pcPanX = 0; pcPanY = 0;
+      pcPref.ink = 'light';                       // 사진 위에서는 흰 글자 + 조금 어둡게가 기본
+      pcPref.dim = Math.max(pcPref.dim, 25);
+      pcSavePref();
+    } catch (err) {
+      showToastLine('사진을 불러오지 못했습니다. 다른 사진으로 다시 시도해 주세요.');
+    }
+    pcSync(); pcRender();
+  }
+  function pcClearPhoto() {
+    pcPhoto = null; pcZoom = 1; pcPanX = 0; pcPanY = 0;
+    pcApplyPreset(pcPref.bg);
+    pcSavePref(); pcSync(); pcRender();
+  }
+
+  // ----- 카드 위에서 끌기(위치) · 두 손가락 벌리기(크기) · 마우스 휠(크기) -----
+  function pcBindGesture(cv) {
+    const ptrs = new Map();
+    let lastDist = 0, lastMid = null;
+    const scale = () => PC_W / Math.max(1, cv.clientWidth);
+    const mid = () => { const a = Array.from(ptrs.values()); return { x: (a[0].x + a[1].x) / 2, y: (a[0].y + a[1].y) / 2, d: Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) }; };
+    cv.addEventListener('pointerdown', (e) => {
+      if (!pcPhoto) return;
+      try { cv.setPointerCapture(e.pointerId); } catch (err) { /* 무시 */ }
+      ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (ptrs.size === 2) { const m = mid(); lastDist = m.d; lastMid = m; } else { lastDist = 0; lastMid = null; }
+      e.preventDefault();
+    });
+    cv.addEventListener('pointermove', (e) => {
+      const p = ptrs.get(e.pointerId);
+      if (!p || !pcPhoto) return;
+      const dx = e.clientX - p.x, dy = e.clientY - p.y;
+      p.x = e.clientX; p.y = e.clientY;
+      if (ptrs.size === 1) {
+        pcPanX += dx * scale(); pcPanY += dy * scale();
+      } else if (ptrs.size === 2) {
+        const m = mid();
+        if (lastDist > 0) pcZoom = Math.min(Math.max(pcZoom * (m.d / lastDist), 1), 3);
+        if (lastMid) { pcPanX += (m.x - lastMid.x) * scale(); pcPanY += (m.y - lastMid.y) * scale(); }
+        lastDist = m.d; lastMid = m;
+        pcShowZoom();
+      }
+      pcRender();
+      e.preventDefault();
+    });
+    const up = (e) => { ptrs.delete(e.pointerId); lastDist = 0; lastMid = null; if (ptrs.size === 2) { const m = mid(); lastDist = m.d; lastMid = m; } };
+    cv.addEventListener('pointerup', up);
+    cv.addEventListener('pointercancel', up);
+    cv.addEventListener('wheel', (e) => {
+      if (!pcPhoto) return;
+      e.preventDefault();
+      pcZoom = Math.min(Math.max(pcZoom * Math.exp(-e.deltaY * 0.002), 1), 3);
+      pcShowZoom();
+      pcRender();
+    }, { passive: false });
+  }
+
+  // ----- 저장·공유 -----
+  async function pcSave() {
+    const btn = pcQ('#pc-save');
+    btn.disabled = true;
+    try {
+      await pcFontsReady();
+      pcDraw();                                   // 글꼴이 다 준비된 뒤 한 번 더 그려서 내보낸다
+      const cv = pcQ('#pc-canvas');
+      const name = 'photocard-' + (pcDateStr || pcToday()).replace(/-/g, '') + '.jpg';
+      const bridge = NATIVE && window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.bf;
+      if (bridge) {
+        const url = cv.toDataURL('image/jpeg', 0.93);
+        bridge.postMessage({ share: url.slice(url.indexOf(',') + 1), name });
+        showToastLine("공유 창에서 '이미지 저장'을 누르면 사진 앱에 보관됩니다.");
+        return;
+      }
+      const blob = await new Promise((res) => cv.toBlob(res, 'image/jpeg', 0.93));
+      if (!blob) throw new Error('이미지를 만들지 못했습니다');
+      const file = new File([blob], name, { type: 'image/jpeg' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file] }); } catch (e) { if (!e || e.name !== 'AbortError') throw e; }
+        return;
+      }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      showToastLine('사진 파일로 저장했습니다.');
+    } catch (err) {
+      showToastLine('저장하지 못했습니다: ' + (err && err.message ? err.message : err));
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function buildPc() {
+    const el = document.createElement('div');
+    el.id = 'pc'; el.hidden = true;
+    el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', '성경구절 포토카드');
+    const seg = (k, items) => '<div class="seg pc-seg" data-k="' + k + '">' +
+      items.map((it) => '<button type="button" data-v="' + it[0] + '">' + it[1] + '</button>').join('') + '</div>';
+    el.innerHTML =
+      '<div class="pc-bar">' +
+        '<button type="button" class="link-btn pc-x" id="pc-close">‹ 닫기</button>' +
+        '<strong>포토카드</strong>' +
+        '<div class="pc-tabs"><button type="button" data-t="l">입력</button><button type="button" data-t="r">카드</button></div>' +
+      '</div>' +
+      '<div class="pc-l"><div class="pc-form" id="pc-form">' +
+        '<div class="pc-sec"><h3>성경 구절</h3>' +
+          '<input id="pc-ref" class="pc-in" type="text" placeholder="직접 입력 (예: 요 3:16-18)" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done">' +
+          '<p class="pc-msg" id="pc-refmsg" hidden></p>' +
+          '<div class="pc-sel"><select id="pc-book" aria-label="책"></select><select id="pc-ch" aria-label="장"></select>' +
+            '<select id="pc-v1" aria-label="시작 절"></select><span>~</span><select id="pc-v2" aria-label="끝 절"></select></div>' +
+          '<textarea id="pc-verse" class="pc-in pc-verse" rows="5" placeholder="구절을 고르면 본문이 들어갑니다. 직접 고쳐 쓸 수도 있습니다."></textarea>' +
+          '<p class="pc-msg warn" id="pc-warn" hidden></p>' +
+        '</div>' +
+        '<div class="pc-sec"><h3>사진 · 배경</h3>' +
+          '<div class="pc-btns"><label class="pc-btn main">사진 고르기<input id="pc-file" type="file" accept="image/*"></label>' +
+            '<button type="button" class="pc-btn" id="pc-nophoto">사진 빼기</button></div>' +
+          '<div class="pc-lbl">사진이 없으면 이 배경을 씁니다</div>' +
+          '<div class="pc-sw" id="pc-sw">' + PC_BG.map((b, i) => '<button type="button" data-i="' + i + '" title="' + b.name + '" aria-label="배경 ' + b.name +
+            '" style="background:linear-gradient(135deg,' + b.c.join(',') + ')"></button>').join('') + '</div>' +
+          '<label class="pc-rng"><span>확대</span><input id="pc-zoom" type="range" min="100" max="300" value="100"><output id="pc-zoom-o">100%</output></label>' +
+          '<label class="pc-rng"><span>어둡게</span><input id="pc-dim" type="range" min="0" max="70" value="25"><output id="pc-dim-o">25%</output></label>' +
+        '</div>' +
+        '<div class="pc-sec"><h3>추가 문구 · 날짜</h3>' +
+          '<input id="pc-cap" class="pc-in" type="text" maxlength="60" placeholder="카드 아래에 넣을 문구 (예: 오늘도 은혜로 걸어갑니다)" autocomplete="off" enterkeyhint="done">' +
+          '<div class="pc-date"><input id="pc-date" class="pc-in" type="date" aria-label="날짜"><label class="chk"><input id="pc-showdate" type="checkbox">날짜 넣기</label></div>' +
+        '</div>' +
+        '<div class="pc-sec"><h3>꾸미기</h3>' +
+          '<div class="pc-lbl">글씨체</div>' + seg('font', PC_FONT_KEYS.map((k) => [k, FONTS[k].label])) +
+          '<div class="pc-lbl">글자색</div>' + seg('ink', [['light', '흰색'], ['dark', '진한 색']]) +
+          '<div class="pc-lbl">글자 크기</div>' + seg('size', PC_SIZES) +
+          '<div class="pc-lbl">카드 틀</div>' + seg('frame', Object.keys(PC_FRAMES).map((k) => [k, PC_FRAMES[k].label])) +
+        '</div>' +
+      '</div></div>' +
+      '<div class="pc-r">' +
+        '<div class="pc-stage"><canvas id="pc-canvas" width="' + PC_W + '" height="' + PC_H + '" aria-label="포토카드 미리보기"></canvas></div>' +
+        '<p class="pc-hint" id="pc-hint"></p>' +
+        '<button type="button" class="pc-act" id="pc-save">사진으로 저장 · 공유</button>' +
+      '</div>';
+    document.body.appendChild(el);
+    pcEl = el;
+
+    // 닫기·탭
+    pcQ('#pc-close').addEventListener('click', closePc);
+    pcEl.querySelectorAll('.pc-tabs button').forEach((b) => b.addEventListener('click', () => pcTab(b.dataset.t)));
+    // 구절 고르기
+    const num = (s) => parseInt(pcQ(s).value, 10);
+    pcQ('#pc-book').addEventListener('change', () => { pcv.bi = num('#pc-book'); pcv.c = 1; pcv.v1 = pcv.v2 = 1; pcFillVerseSelects(); pcRefill(); });
+    pcQ('#pc-ch').addEventListener('change', () => { pcv.c = num('#pc-ch'); pcv.v1 = pcv.v2 = 1; pcFillVerseSelects(); pcRefill(); });
+    pcQ('#pc-v1').addEventListener('change', () => { pcv.v1 = num('#pc-v1'); if (pcv.v2 < pcv.v1) pcv.v2 = pcv.v1; pcFillVerseSelects(); pcRefill(); });
+    pcQ('#pc-v2').addEventListener('change', () => { pcv.v2 = num('#pc-v2'); pcRefill(); });
+    const refIn = pcQ('#pc-ref'), refMsg = pcQ('#pc-refmsg');
+    const readRef = (final) => {
+      const q = refIn.value.trim();
+      refMsg.hidden = true;
+      if (!q) return;
+      const r = parseRange(q);
+      if (r && r.c1 === r.c2) {
+        pcv.bi = r.bi; pcv.c = r.c1; pcv.v1 = r.v1; pcv.v2 = r.v2;
+        pcFillVerseSelects(); pcRefill();
+      } else if (final) {
+        refMsg.textContent = r ? '한 장 안에서 고른 구절만 넣을 수 있습니다. (예: 요 3:16-18)' : '구절을 찾지 못했습니다. 예: 요 3:16, 시 23:1-3, 창세기 1:1-5';
+        refMsg.hidden = false;
+      }
+    };
+    refIn.addEventListener('input', () => readRef(false));
+    refIn.addEventListener('change', () => readRef(true));
+    refIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); readRef(true); refIn.blur(); } });
+    pcQ('#pc-verse').addEventListener('input', (e) => { pcVerseText = e.target.value; pcRender(); });
+    // 사진·배경
+    pcQ('#pc-file').addEventListener('change', (e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; pcLoadPhoto(f); });
+    pcQ('#pc-nophoto').addEventListener('click', pcClearPhoto);
+    pcQ('#pc-sw').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-i]');
+      if (!b) return;
+      pcApplyPreset(+b.dataset.i);
+      pcSavePref(); pcSync(); pcRender();
+    });
+    pcQ('#pc-zoom').addEventListener('input', (e) => { pcZoom = Math.min(Math.max(+e.target.value / 100, 1), 3); pcShowZoom(); pcRender(); });
+    pcQ('#pc-dim').addEventListener('input', (e) => { pcPref.dim = +e.target.value; pcQ('#pc-dim-o').textContent = pcPref.dim + '%'; pcSavePref(); pcRender(); });
+    pcBindGesture(pcQ('#pc-canvas'));
+    // 문구·날짜
+    pcQ('#pc-cap').addEventListener('input', (e) => { pcCaption = e.target.value; pcRender(); });
+    pcQ('#pc-cap').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
+    pcQ('#pc-date').addEventListener('input', (e) => { pcDateStr = e.target.value; pcRender(); });
+    pcQ('#pc-showdate').addEventListener('change', (e) => { pcPref.showDate = e.target.checked; pcSavePref(); pcRender(); });
+    // 꾸미기(글씨체·글자색·크기·틀)
+    pcEl.querySelectorAll('.pc-seg').forEach((sg) => sg.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-v]');
+      if (!b) return;
+      const k = sg.dataset.k;
+      pcPref[k] = (k === 'size') ? parseFloat(b.dataset.v) : b.dataset.v;
+      pcSavePref(); pcSync(); pcRender();
+    }));
+    pcQ('#pc-save').addEventListener('click', pcSave);
+    if (window.ResizeObserver) new ResizeObserver(() => { if (pcIsOpen()) { layoutPc(); pcRender(); } }).observe(el);
+  }
+
+  function openPc() {
+    if (!bible) return;
+    closeSpot();
+    if (!pcEl) buildPc();
+    // 지금 읽는 곳의 구절로 시작한다. 같은 구절이면 직접 고쳐 쓴 본문을 그대로 둔다.
+    const r = hereRange();
+    pcv.bi = r.bi; pcv.c = r.c1; pcv.v1 = r.v1; pcv.v2 = r.v1;
+    if (!pcDateStr) pcDateStr = pcToday();
+    pcQ('#pc-date').value = pcDateStr;
+    pcQ('#pc-cap').value = pcCaption;
+    pcQ('#pc-ref').value = '';
+    pcQ('#pc-refmsg').hidden = true;
+    pcFillVerseSelects();
+    pcEl.hidden = false;
+    pcEl.dataset.tab = 'l';
+    pcEl.querySelectorAll('.pc-tabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === 'l'));
+    if (pcKey !== pcv.bi + '.' + pcv.c + '.' + pcv.v1 + '.' + pcv.v2) pcRefill(); else pcQ('#pc-verse').value = pcVerseText;
+    pcSync();
+    layoutPc();
+    pcEnsureFonts();
+    pcRender();
+    setTimeout(() => { layoutPc(); pcRender(); }, 120);
+  }
+  function closePc() {
+    if (!pcEl) return;
+    pcEl.hidden = true;
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  }
+
   onMenu($('#btn-pick'), () => { showBooks(pos.book >= 39 ? 'nt' : 'ot'); openSheet(false); });
   onMenu($('#btn-easy'), () => { showTranslations(); openSheet(false); });
   onMenu($('#btn-settings'), () => { showSettings(); openSheet(false); });
   onMenu($('#btn-hl'), () => { showHighlights(); openSheet(false); });
   onMenu($('#btn-notes'), () => { showNotes(); openSheet(true); });
+  onMenu($('#btn-card'), () => { openPc(); });
   onMenu($('#btn-search'), () => {
     const input = showSearch();
     openSheet(true);
