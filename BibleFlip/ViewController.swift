@@ -65,7 +65,37 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        // 키보드: 웹뷰는 키보드가 올라와도 보이는 영역이 줄지 않으므로, 키보드가 화면을 덮는 높이를 웹에 알려 창이 키보드 위쪽에 맞춰지게 한다
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardFrameChanged(_:)),
+                                               name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillHide(_:)),
+                                               name: UIResponder.keyboardWillHideNotification, object: nil)
         load()
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc private func keyboardFrameChanged(_ n: Notification) {
+        guard let value = n.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue else { return }
+        let end = value.cgRectValue
+        let local: CGRect
+        if let space = view.window?.screen.coordinateSpace {
+            local = view.convert(end, from: space)
+        } else {
+            local = view.convert(end, from: nil)
+        }
+        sendKeyboardHeight(max(0, view.bounds.maxY - local.minY))
+    }
+
+    @objc private func keyboardWillHide(_ n: Notification) {
+        sendKeyboardHeight(0)
+    }
+
+    private func sendKeyboardHeight(_ h: CGFloat) {
+        let px = Int(h.rounded())
+        webView.evaluateJavaScript("window.bfKeyboard && window.bfKeyboard(\(px))", completionHandler: nil)
     }
 
     private func load() {

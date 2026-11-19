@@ -138,16 +138,17 @@ html.full #stage .page.pr .txt { padding-left: var(--padin); padding-right: var(
 #topbar button { pointer-events: auto; touch-action: manipulation; }
 .head-row {
   position: absolute; top: var(--head-top); left: var(--headx, calc(env(safe-area-inset-left) + 14px)); right: var(--headr, 14px); pointer-events: none;
-  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 14px;   /* 책 이름은 왼쪽, 메뉴는 오른쪽 */
 }
-body.is-spread .head-row { flex-direction: row; align-items: center; justify-content: space-between; gap: 18px; }
+body.is-spread .head-row { gap: 18px; }
 .title-btn { display: flex; align-items: baseline; gap: 8px; min-width: 0; max-width: 100%; text-align: left; flex: 0 1 auto; }
 .title-btn b { font-size: var(--title-fs); font-weight: 800; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .title-btn span { font-size: calc(var(--title-fs) * .4); color: var(--muted); white-space: nowrap; }
-.menu-row { display: flex; gap: 7px; flex: none; margin-left: auto; }   /* 메뉴 5개는 오른쪽 끝 */
+.menu-row { display: flex; gap: 7px; flex: none; margin-left: auto; }   /* 펼친 화면: 메뉴는 한 줄로 오른쪽 끝 */
+body:not(.is-spread) .menu-row { display: grid; grid-template-columns: repeat(var(--menu-cols, 3), auto); gap: 6px 7px; }   /* 한 쪽 화면: 3개씩 2줄 */
 /* 낮은 화면(가로로 돌린 폰): 머리줄을 작게 */
 body.is-compact .head-row { gap: 12px; }
-body.is-compact .menu-row { gap: 5px; }
+body.is-compact .menu-row, body.is-compact:not(.is-spread) .menu-row { gap: 5px; }
 body.is-compact .mini-btn { height: 32px; }
 body.is-compact .icon-btn { width: 38px; height: 32px; }
 .mini-btn { font-size: 13px; color: var(--muted); white-space: nowrap; height: 34px; padding: 0 12px; border-radius: 9px; background: var(--chip); }
@@ -188,11 +189,14 @@ body.is-compact .icon-btn { width: 38px; height: 32px; }
 
 /* ---------- 시트(책 고르기·검색·설정) ---------- */
 #sheet {
-  position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 30; background: rgba(0, 0, 0, .4);
+  position: fixed; top: 0; right: 0; bottom: var(--kb, 0px); left: 0; z-index: 30; background: rgba(0, 0, 0, .4);   /* --kb: 키보드가 올라온 높이(앱이 알려 줌) */
   display: flex; align-items: center; justify-content: center;
   padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
 }
 #sheet[hidden], #hint[hidden], #loading[hidden] { display: none; }
+html.kb #sheet { padding-bottom: 10px; }   /* 키보드가 홈 막대 자리까지 덮으므로 아래 여유는 조금만 */
+html.kb .panel { max-height: 100%; }
+html.kb #sheet.tall .panel { height: 100%; }
 .panel {
   width: 100%; max-width: 560px; max-height: 84%; display: flex; flex-direction: column;
   background: var(--bg); border-radius: 18px; overflow: hidden;
@@ -450,7 +454,7 @@ body.is-compact .icon-btn { width: 38px; height: 32px; }
 
 /* ---------- 성경구절 포토카드 (펼침: 왼쪽 입력 · 오른쪽 폴라로이드 미리보기 / 좁은 화면: 입력·카드 탭) ---------- */
 #pc {
-  position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 36; background: var(--bg); color: var(--fg);
+  position: fixed; top: 0; right: 0; bottom: var(--kb, 0px); left: 0; z-index: 36; background: var(--bg); color: var(--fg);
   display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto minmax(0, 1fr); --pc-gap: 18px;
 }
 #pc[hidden] { display: none; }
@@ -521,3 +525,5 @@ body.theme-night .pc-r { background: rgba(255, 255, 255, .05); }
 .pc-act:active { opacity: .85; }
 .pc-act:disabled { opacity: .5; }
 body.theme-night .pc-btn.main, body.theme-night .pc-act, body.theme-night .pc-tabs button.on, body.theme-night .pc-seg button.on { color: #14161A; }   /* 야간: 밝은 강조색 위에는 어두운 글자 */
+html.kb .pc-form { padding-bottom: 24px; }   /* 키보드가 올라오면 화면 자체가 키보드 위로 줄어들므로 아래 여유는 조금만 */
+html.kb #pc.two .pc-hint, html.kb #pc.two .pc-act { display: none; }   /* 펼침: 키보드가 올라오면 카드를 조금이라도 크게 보이도록 안내·저장 단추는 잠시 숨김 */

@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v44';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v45';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const DESKS = { plain: '단색', linen: '린넨', wood: '나무결', leather: '가죽' };   // 책상(상단 배경) 질감
   const DESK_DEFAULT = 'linen';
@@ -137,11 +137,15 @@
   const HEAD_BODY_GAP = 8;   // 머리줄 아래에서 본문 첫 줄까지 (최소)
   const TXT_GAP = 10;        // 펼친 화면: 책(무대) 맨 위에서 본문 첫 줄까지. 책이 머리줄 아래에서 시작하므로 넘김 효과가 머리줄을 덮지 않는다
   const HEAD_STAGE_GAP = 6;  // 펼친 화면: 머리줄 아래에서 책 위쪽 가장자리까지
-  const MENU_H = 36, MENU_H_COMPACT = 32, HEAD_INNER_GAP = 4;
+  const MENU_H = 36, MENU_H_COMPACT = 32;
+  // 한 쪽(접힘·세로) 화면의 메뉴 단추: 책 이름 오른쪽에 MENU_COLS개씩 줄을 나눠 놓는다 (6개 → 3개씩 2줄). 펼친 화면은 한 줄.
+  const MENU_COUNT = 6, MENU_COLS = 3;
+  const MENU_ROWS = Math.ceil(MENU_COUNT / MENU_COLS);
   function headBox(spread, compact) {
     const titleFs = compact ? 30 : 44, titleH = Math.ceil(titleFs * 1.2);
     const menuH = compact ? MENU_H_COMPACT : MENU_H;
-    return { titleFs, titleH, menuH, rowH: spread ? Math.max(titleH, menuH) : titleH + HEAD_INNER_GAP + menuH };
+    const gridH = MENU_ROWS * menuH + (MENU_ROWS - 1) * (compact ? 5 : 6);   // 메뉴 덩어리의 높이 (CSS의 줄 간격과 같은 값)
+    return { titleFs, titleH, menuH, rowH: spread ? Math.max(titleH, menuH) : Math.max(titleH, gridH) };
   }
 
   // 기기마다 다른 값(윗 여백·가로 위치·아래 여백)은 설정에 저장된 값이 있으면 그것을, 없으면 화면에 맞춘 자동값을 쓴다.
@@ -218,7 +222,7 @@
     const base = lastTitleFs || 44;
     let fs = base;
     root.setProperty('--title-fs', fs + 'px');
-    while (fs > 24 && b.scrollWidth > b.clientWidth + 1) { fs -= 2; root.setProperty('--title-fs', fs + 'px'); }
+    while (fs > 18 && b.scrollWidth > b.clientWidth + 1) { fs -= 2; root.setProperty('--title-fs', fs + 'px'); }
   }
   let lastTitleFs = 44;
 
@@ -279,6 +283,7 @@
     const hb = headBox(g.spread, g.compact), titleFs = hb.titleFs, rowH = hb.rowH;
     lastTitleFs = titleFs;
     root.setProperty('--title-fs', titleFs + 'px');
+    root.setProperty('--menu-cols', MENU_COLS);
     root.setProperty('--head-top', Math.max(g.si.top + HEAD_TOP_GAP, (g.spread ? g.stageTop - (NATIVE ? NATIVE_HEAD_STAGE_GAP : HEAD_STAGE_GAP) : g.padTop - 12) - rowH) + 'px');
     applyDesk();
     stage.style.width = g.bookW + 'px';
@@ -1834,7 +1839,28 @@
     window.visualViewport.addEventListener('resize', fitSheet);
     window.visualViewport.addEventListener('scroll', fitSheet);
   }
-  document.addEventListener('focusin', () => setTimeout(fitSheet, 50));
+  // 키보드: 아이폰 앱의 웹뷰는 키보드가 올라와도 보이는 영역이 줄지 않아(위의 visualViewport 방식이 통하지 않음), 앱이 키보드 높이를 직접 알려 준다.
+  // → --kb(px)와 html.kb 클래스로 창(#sheet)·포토카드 화면(#pc)을 키보드 위쪽 영역에 맞추고, 입력 중인 칸이 보이도록 스크롤한다.
+  let kbH = 0;
+  function revealFocused() {
+    const a = document.activeElement;
+    if (!a || !/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
+    [60, 340].forEach((ms) => setTimeout(() => {
+      if (document.activeElement !== a) return;
+      try { a.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) { /* 무시 */ }
+    }, ms));
+  }
+  window.bfKeyboard = (h) => {
+    const next = Math.max(0, Math.min(Math.round(+h || 0), Math.round(window.innerHeight * 0.7)));
+    if (next === kbH) return;
+    kbH = next;
+    document.documentElement.style.setProperty('--kb', kbH + 'px');
+    document.documentElement.classList.toggle('kb', kbH > 0);
+    fitSheet();
+    if (pcIsOpen()) { layoutPc(); pcRender(); }
+    if (kbH > 0) revealFocused();
+  };
+  document.addEventListener('focusin', () => { setTimeout(fitSheet, 50); if (kbH > 0) revealFocused(); });
   document.addEventListener('focusout', () => setTimeout(fitSheet, 50));
   let openedAt = 0;
   function openSheet(tall) {
@@ -3179,7 +3205,7 @@
     const set = (k, v) => pcEl.style.setProperty(k, v + 'px');
     set('--pc-top', top);
     set('--pc-topr', two ? (rail ? Math.max(top, NATIVE_PILL_BOTTOM + 6) : top) : 12);
-    set('--pc-bot', Math.max(Math.round(si.bottom), 0) + 14);
+    set('--pc-bot', (kbH > 0 ? 0 : Math.max(Math.round(si.bottom), 0)) + 14);   // 키보드가 올라와 있으면 홈 막대 자리는 키보드가 덮는다
     set('--pc-l', Math.max(rail || si.left < 8 ? 22 : 0, Math.round(si.left) + 10));
     set('--pc-r', Math.max(rail || si.right < 8 ? 22 : 0, rail ? 22 : Math.round(si.right) + 10));
     pcFitCanvas();
