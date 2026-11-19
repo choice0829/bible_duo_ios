@@ -292,6 +292,7 @@ html.kb #sheet.tall .panel { height: 100%; }
 .mk-btns { display: flex; gap: 8px; margin: 8px 0 2px; }
 .mk-btns .seg-btn { flex: 1 1 auto; }
 .seg-btn:disabled { opacity: .45; }
+.seg-btn.on { background: var(--accent); color: var(--bg); font-weight: 700; }
 .bk-text {
   display: block; width: 100%; margin-top: 8px; padding: 10px 12px; border-radius: 10px; resize: none;
   border: 1px solid var(--line); background: var(--chip); color: var(--fg); outline: none;

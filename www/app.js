@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v50';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v51';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const DESKS = { plain: '단색', linen: '린넨', wood: '나무결', leather: '가죽' };   // 책상(상단 배경) 질감
   const DESK_DEFAULT = 'linen';
@@ -2076,8 +2076,13 @@
       '<p class="note">기본값은 기기와 화면에 맞춰 자동으로 정해집니다(듀오 펼침: 윗 ' + TOP_DEFAULT.topSpread + ' · 가로 위치 ' + SHIFT_DEFAULT + ' · 아래 ' + BOTTOM_SPREAD_DEFAULT + ', 한 쪽 윗 ' + TOP_DEFAULT.topSingle + '). 가로로 돌린 아이폰은 머리줄이 작아지고 노치 쪽이 비워집니다.' +
       '<br>값을 바꾸면 본문이 잠시 뒤에 새로 정렬됩니다. 읽던 위치는 그대로 유지됩니다.</p>' +
       '<div class="adv-head">모임 장소 지도 그림</div>' +
-      '<p class="adv-desc">지도 그림을 앱 테마(종이·세피아·야간)에 맞춘 CARTO 지도로 바꾸려면 무료 열쇠(API 키)가 필요합니다. 아래 단추로 받는 곳을 열어 이메일로 받은 열쇠를 붙여 넣어 주세요. ' +
-        '열쇠는 <b>이 기기에만</b> 저장되며 데이터 백업에는 들어가지 않습니다. 열쇠가 없으면 OpenStreetMap 지도에 테마 색조만 입혀 보여 줍니다.</p>' +
+      '<p class="adv-desc">지도를 그리는 방식을 고릅니다. <b>래스터(A)</b>는 그림 조각을 받아 보여 주는 지금까지의 방식이고, <b>벡터(B)</b>는 도로·건물·글자를 앱이 직접 그려 테마 색이 더 정확하며 열쇠가 필요 없습니다(시험 중). ' +
+        '두 방식을 바꿔 가며 비교해 보세요. 벡터가 이 기기에서 안 되면 자동으로 래스터로 돌아옵니다. 선택은 <b>이 기기에만</b> 저장되며 데이터 백업에는 들어가지 않습니다.</p>' +
+      '<div class="mk-btns"><button class="seg-btn" id="me-raster" type="button">래스터 (A)</button><button class="seg-btn" id="me-vector" type="button">벡터 (B)</button></div>' +
+      '<p class="note tight" id="me-state"></p>' +
+      '<div class="adv-head">래스터(A) 지도 열쇠</div>' +
+      '<p class="adv-desc">래스터 방식에서 테마(종이·세피아·야간)에 맞춘 CARTO 지도를 쓰려면 무료 열쇠(API 키)가 필요합니다. 아래 단추로 받는 곳을 열어 이메일로 받은 열쇠를 붙여 넣어 주세요. ' +
+        '열쇠는 <b>이 기기에만</b> 저장되며 데이터 백업에는 들어가지 않습니다. 열쇠가 없으면 OpenStreetMap 지도에 테마 색조만 입혀 보여 줍니다. (벡터 방식에서는 쓰이지 않습니다)</p>' +
       '<p class="note tight" id="mk-state"></p>' +
       '<input id="mk-in" class="bk-text mk-in" type="text" inputmode="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="여기에 열쇠 붙여 넣기" aria-label="지도 열쇠">' +
       '<div class="mk-btns"><button class="seg-btn" id="mk-open" type="button">받는 곳 열기</button><button class="seg-btn" id="mk-save" type="button">저장</button><button class="seg-btn" id="mk-clear" type="button">지우기</button></div>' +
@@ -2096,6 +2101,25 @@
       if (next !== cur) changeSettings({ [key]: next }, showAdvanced);
     }));
     $('#go-bk').addEventListener('click', () => { showBackup(); sheetBody.scrollTop = 0; });
+    // 지도 방식(A 래스터 / B 벡터): 고르면 바로 저장하고, 지도가 열려 있든 아니든 바탕을 다시 맞춘다. 다시 고르면 '벡터 실패' 기록도 지워 한 번 더 시도한다.
+    const meState = () => {
+      const vec = mpEngGet() === 'vector';
+      $('#me-raster').classList.toggle('on', !vec); $('#me-vector').classList.toggle('on', vec);
+      $('#me-raster').setAttribute('aria-pressed', String(!vec)); $('#me-vector').setAttribute('aria-pressed', String(vec));
+      $('#me-state').innerHTML = !vec
+        ? '<b>래스터(A) 사용 중</b> · 아래 열쇠가 있으면 테마별 CARTO 지도, 없으면 OpenStreetMap에 색조를 입혀 보입니다.'
+        : (mpVecFail
+          ? '<b>벡터(B) 선택됨</b> · ' + MP_VEC_WHY[mpVecFail] + ' 이번에는 래스터로 보입니다. 다시 눌러 한 번 더 시도할 수 있습니다.' + (mpVecInfo ? '<br><small>진단: ' + esc(mpVecInfo) + '</small>' : '')
+          : '<b>벡터(B) 사용 중</b> · 키 없는 공개 지도 서버(OpenFreeMap)에서 자료를 받아 테마 색으로 그립니다. (인터넷 연결 필요)');
+    };
+    const meSet = (v) => {
+      try { localStorage.setItem(MP_ENG_LS, v); } catch (e) { $('#me-state').textContent = '저장하지 못했습니다.'; return; }
+      mpVecFail = ''; mpVecInfo = '';
+      mpApplyTile(); meState();
+    };
+    meState();
+    $('#me-raster').addEventListener('click', () => meSet('raster'));
+    $('#me-vector').addEventListener('click', () => meSet('vector'));
     // 지도 열쇠: 입력·저장·지우기. 저장한 열쇠는 화면에 다시 보여 주지 않는다. 바뀌면 지도가 열려 있든 아니든 바탕을 다시 맞춘다.
     const mkMsg = (t) => { $('#mk-msg').textContent = t; };
     const mkState = () => {
@@ -3838,7 +3862,22 @@
   const MP_NOTE = {
     osm: '지도 바탕을 불러오지 못했습니다. 인터넷 연결을 확인해 주세요. 목록과 핀 위치는 그대로 쓸 수 있습니다.',
     carto: '지도 바탕을 불러오지 못했습니다. 인터넷 연결과, 설정 → 고급설정에 입력한 지도 열쇠를 확인해 주세요. 목록과 핀 위치는 그대로 쓸 수 있습니다.',
+    vec: '지도 자료를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요. 목록과 핀 위치는 그대로 쓸 수 있습니다.',
   };
+  // 지도 방식: 'raster'(A, 기본 — 위의 그림 조각 타일) / 'vector'(B — 도로·건물·글자를 MapLibre가 직접 그림. 키 없는 OpenFreeMap 자료).
+  // B가 안 되면(이 기기에서 WebGL이 안 됨·부품/자료를 못 받음·제때 안 그려짐) 그 실행 동안은 자동으로 A로 돌아간다. 선택값(bf.mapeng)은 이 기기에만 저장하고 데이터 백업에는 넣지 않는다.
+  const MP_ENG_LS = 'bf.mapeng';
+  const mpEngGet = () => { try { return localStorage.getItem(MP_ENG_LS) === 'vector' ? 'vector' : 'raster'; } catch (e) { return 'raster'; } };
+  const MP_VEC_ATTR = '<a href="https://openfreemap.org">OpenFreeMap</a> <a href="https://www.openmaptiles.org/">© OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+  const MP_VEC_WAIT = 15000;   // 이 시간 안에 첫 그림이 안 나오면 실패로 본다(ms)
+  const MP_VEC_WHY = {
+    gl: '이 기기의 웹뷰에서 벡터 지도(WebGL)를 쓸 수 없어',
+    lib: '벡터 지도 부품을 불러오지 못해',
+    net: '벡터 지도 자료를 받지 못해',
+    time: '벡터 지도가 제때 그려지지 않아',
+  };
+  let mpVecFail = '', mpVecInfo = '';   // 벡터가 안 된 이유(MP_VEC_WHY의 키)와 진단 한 줄. 값이 있으면 이번 실행에서는 A로 보여 준다. 설정에서 방식을 다시 고르면 비운다.
+  const mpWantVec = () => mpEngGet() === 'vector' && !mpVecFail;
   const MP_PIN = '<svg viewBox="0 0 36 44" aria-hidden="true"><path class="pn" d="M18 43C18 43 3 27.6 3 17.4 3 8.9 9.7 2.5 18 2.5s15 6.4 15 14.9C33 27.6 18 43 18 43z"/>' +
     '<g class="cup"><path d="M11 13.2h12v5.4a4.8 4.8 0 0 1-4.8 4.8h-2.4a4.8 4.8 0 0 1-4.8-4.8z"/><path d="M23 14.6h1a2.3 2.3 0 0 1 0 4.6h-1.2"/><path d="M14 9.6v1.6M17 9.6v1.6M20 9.6v1.6"/></g></svg>';
 
@@ -3943,7 +3982,7 @@
     : '현재 위치를 가져오지 못했습니다. 잠시 뒤 다시 눌러 보세요. (실내·지하에서는 늦을 수 있습니다)');
 
   // ----- 화면 상태 -----
-  let mpEl = null, mpMap = null, mpTile = null, mpTileSig = '', mpPinLayer = null, mpMeLayer = null, mpDraftMk = null, mpLeafP = null, mpZoomCtl = null, mpPlacedTwo = null;
+  let mpEl = null, mpMap = null, mpTile = null, mpVec = null, mpVecP = null, mpNoteHold = 0, mpTileSig = '', mpPinLayer = null, mpMeLayer = null, mpDraftMk = null, mpLeafP = null, mpZoomCtl = null, mpPlacedTwo = null;
   const mpMk = {};                        // 장소 id → 지도 핀
   let mpMe = null;                        // 내 위치 { lat, lng, acc }
   let mpLocState = 'idle';                // idle | busy | ok | denied | fail
@@ -3993,18 +4032,82 @@
   // 바탕 주소가 그대로면 지도를 건드리지 않는다. 바뀌면(테마 변경·열쇠 입력·삭제) 바탕 층만 새로 만든다.
   function mpApplyTile() {
     if (!mpEl) return;
+    const vec = mpWantVec();
     const c = mpTileCfg();
-    mpEl.classList.toggle('mp-src-carto', c.src === 'carto');
-    mpEl.classList.toggle('mp-src-osm', c.src === 'osm');
+    mpEl.classList.toggle('mp-src-vec', vec);
+    mpEl.classList.toggle('mp-src-carto', !vec && c.src === 'carto');
+    mpEl.classList.toggle('mp-src-osm', !vec && c.src === 'osm');
     if (!mpMap || !window.L) return;
-    if (mpTile && mpTileSig === c.url) return;
-    if (mpTile) mpMap.removeLayer(mpTile);
-    mpTileSig = c.url; mpTileErr = 0;
-    const note = mpS('#mp-note'); note.textContent = MP_NOTE[c.src]; note.hidden = true;
+    const sig = vec ? 'vec|' + settings.theme : c.url;
+    if ((mpTile || mpVec) && mpTileSig === sig) return;
+    if (vec && !mpVecReady()) {   // 벡터 부품은 처음 쓸 때 받는다. 받는 동안은 지금 보이는 바탕을 그대로 둔다.
+      mpLoadVector().then(() => { if (mpWantVec()) mpApplyTile(); }, (e) => (e && e.message === 'webgl' ? mpVecFailed('gl', '이 웹뷰에서 WebGL2를 쓸 수 없음') : mpVecFailed('lib', '받지 못한 파일: ' + String(e && e.message || '').replace(/^.*\//, ''))));
+      return;
+    }
+    if (mpTile) { mpMap.removeLayer(mpTile); mpTile = null; }
+    if (mpVec) { const old = mpVec; mpVec = null; try { mpMap.removeLayer(old); } catch (e) { /* 무시 */ } }
+    mpTileSig = sig; mpTileErr = 0;
+    const note = mpS('#mp-note');
+    if (Date.now() >= mpNoteHold) { note.textContent = MP_NOTE[vec ? 'vec' : c.src]; note.hidden = true; }
+    if (vec) { mpAddVector(); return; }
     mpTile = L.tileLayer(c.url, { maxZoom: 19, maxNativeZoom: c.nz, attribution: c.attr });
-    mpTile.on('tileerror', () => { if (++mpTileErr >= 2) mpS('#mp-note').hidden = false; });
-    mpTile.on('tileload', () => { mpTileErr = 0; mpS('#mp-note').hidden = true; });
+    mpTile.on('tileerror', () => { if (++mpTileErr >= 2 && Date.now() >= mpNoteHold) mpS('#mp-note').hidden = false; });
+    mpTile.on('tileload', () => { mpTileErr = 0; if (Date.now() >= mpNoteHold) mpS('#mp-note').hidden = true; });
     mpTile.addTo(mpMap);
+  }
+  // ----- 벡터 지도(B): maplibre-gl + 플러그인 + 테마 스타일(mapstyle.js)을 '벡터'를 골랐을 때만 불러온다 -----
+  const mpVecReady = () => !!(window.maplibregl && window.L && L.MaplibreGL && window.bfMapStyle);
+  function mpLoadVector() {
+    if (mpVecReady()) return Promise.resolve();
+    if (mpVecP) return mpVecP;
+    // WebGL2가 없으면 부품을 받을 필요도 없이 바로 실패로 본다.
+    let gl = null; try { gl = document.createElement('canvas').getContext('webgl2'); } catch (e) { gl = null; }
+    if (!gl) return Promise.reject(new Error('webgl'));
+    const js = (src) => new Promise((resolve, reject) => { const el = document.createElement('script'); el.src = src; el.onload = () => resolve(); el.onerror = () => reject(new Error(src)); document.head.appendChild(el); });
+    const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'lib/maplibre-gl.css'; document.head.appendChild(css);
+    mpVecP = js('lib/maplibre-gl.js').then(() => js('lib/leaflet-maplibre-gl.js')).then(() => js('mapstyle.js'))
+      .then(() => { if (!mpVecReady()) throw new Error('init'); }, (e) => { mpVecP = null; throw e; });
+    return mpVecP;
+  }
+  // 벡터를 못 쓰는 이유를 기억하고 A(래스터)로 돌아간다. 안내 글은 몇 초 동안 띄운다.
+  function mpVecFailed(why, info) {
+    if (mpVecFail) return;   // 처음 실패한 이유만 기억한다
+    mpVecFail = why; mpVecInfo = info || '';
+    mpNoteHold = 0;
+    mpApplyTile();
+    if (!mpEl) return;
+    const n = mpS('#mp-note');
+    n.textContent = (MP_VEC_WHY[why] || MP_VEC_WHY.time) + ' 기본(래스터) 지도로 보여 드립니다. 설정 → 고급설정에서 방식을 다시 고를 수 있습니다.';
+    n.hidden = false;
+    mpNoteHold = Date.now() + 9000;
+    setTimeout(() => { if (mpEl && Date.now() >= mpNoteHold) mpS('#mp-note').hidden = true; }, 9100);
+  }
+  function mpAddVector() {
+    const Layer = L.MaplibreGL.extend({ getAttribution() { return this.options.attribution; } });   // 출처 표시는 우리가 정한 글(MP_VEC_ATTR)로 고정
+    let layer = null;
+    try {
+      layer = new Layer({ style: window.bfMapStyle.build(settings.theme), attribution: MP_VEC_ATTR, fadeDuration: 0, maxPitch: 0 });
+      mpVec = layer;
+      layer.addTo(mpMap);
+    } catch (e) { mpVec = null; mpVecFailed('gl', String(e && e.message || e).slice(0, 120)); return; }
+    const gl = layer.getMaplibreMap();
+    let loaded = false, errs = 0;
+    const st = { style: false, src: false, tiles: 0, err: '' };   // 어디까지 진행됐는지(실패했을 때 진단 문구로 쓴다)
+    const diag = () => '스타일 ' + (st.style ? '○' : '×') + ' · 자료 주소 ' + (st.src ? '○' : '×') + ' · 타일 ' + st.tiles + '개' + (st.err ? ' · 마지막 오류: ' + st.err : '');
+    const alive = () => mpVec === layer && !!layer.getMaplibreMap();
+    const timer = setTimeout(() => { if (alive() && !loaded) mpVecFailed('time', diag()); }, MP_VEC_WAIT);
+    if (!gl) { clearTimeout(timer); mpVecFailed('gl', '지도 객체를 만들지 못함'); return; }
+    gl.on('load', () => { loaded = true; clearTimeout(timer); });
+    gl.on('styledata', () => { st.style = true; });
+    gl.on('sourcedata', (ev) => { if (ev && ev.sourceDataType === 'metadata') st.src = true; if (ev && ev.tile) st.tiles++; });
+    gl.on('error', (ev) => {
+      if (!alive()) return;
+      { const er = ev && ev.error; st.err = String((er && (er.status ? er.status + ' ' : '') + (er.message || '')) || (ev && ev.message) || '').slice(0, 90); }
+      // 첫 그림 전: 지도 자료 주소(TileJSON)·스타일 자체의 오류는 바로, 타일 몇 개의 오류는 4번째에 실패로 본다
+      if (!loaded) { if (!(ev && ev.tile) || ++errs >= 4) { clearTimeout(timer); mpVecFailed('net', diag()); } return; }
+      if (++mpTileErr >= 3 && Date.now() >= mpNoteHold) mpS('#mp-note').hidden = false;
+    });
+    gl.on('idle', () => { if (!alive()) return; mpTileErr = 0; if (Date.now() >= mpNoteHold) mpS('#mp-note').hidden = true; });
   }
   themeHooks.push(() => { if (mpMap) { mpApplyTile(); mpDrawMe(); } });   // 테마를 바꾸면 바탕(밝은/어두운)과 내 위치 점 색도 바꾼다
   function mpEnsureMap() {
