@@ -1,0 +1,13 @@
+{
+  "name": "bibleflip-tests",
+  "private": true,
+  "type": "module",
+  "description": "책장성경 화면 시험(헤드리스 크롬 모의, 실기기 아님)",
+  "scripts": {
+    "test": "bash runreg.sh"
+  },
+  "dependencies": {
+    "@sparticuz/chromium": "^153.0.0",
+    "puppeteer-core": "^25.16.0"
+  }
+}

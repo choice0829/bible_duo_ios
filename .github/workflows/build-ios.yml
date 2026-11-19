@@ -3,7 +3,7 @@ name: Build iOS (서명 전 IPA)
 on:
   push:
     branches: [main]
-    paths-ignore: ['NOTES.md', 'README.md']
+    paths-ignore: ['NOTES.md', 'README.md', 'CLAUDE.md', 'docs/**', 'tests/**']
   workflow_dispatch:
 
 permissions:

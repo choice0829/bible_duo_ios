@@ -1,0 +1,27 @@
+import {serve,launch,sleep,openDevice} from './devlib.mjs';
+serve(8905); const b=await launch(); let fails=0; const ok=(n,c,x='')=>{console.log((c?'ok  ':'FAIL')+' '+n+' '+x); if(!c) fails++;};
+const seed={fn:()=>{ if(!sessionStorage.getItem('s')){sessionStorage.setItem('s','1'); localStorage.clear(); localStorage.setItem('bf.pos',JSON.stringify({book:1,chapter:1,verse:7}));}}, arg:null};
+const SPREAD=['Duo 펼침',867,609,{top:0,right:84,bottom:0,left:0}];
+const {p,errs}=await openDevice(b,SPREAD,{seed,port:8905}); await sleep(500);
+const cls=()=>p.evaluate(()=>document.body.className);
+ok('default desk-linen', /desk-linen/.test(await cls()), await cls());
+const meta0=await p.evaluate(()=>document.querySelector('meta[name=theme-color]').content);
+await p.evaluate(()=>document.querySelector('#btn-settings, #btn-set, [aria-label="설정"]').click()); await sleep(400);
+const labels=await p.evaluate(()=>[...document.querySelectorAll('#sheet-body .row span')].map(e=>e.textContent));
+ok('settings has 책상 질감 row', labels.includes('책상 질감'), labels.join('|'));
+const rebuilds0=await p.evaluate(()=>document.querySelectorAll('#stage .page').length);
+await p.evaluate(()=>[...document.querySelectorAll('#sheet-body button[data-k="desk"]')].find(b=>b.dataset.v==='wood').click()); await sleep(600);
+ok('class becomes desk-wood', /desk-wood/.test(await cls()) && !/desk-linen/.test(await cls()), await cls());
+const on=await p.evaluate(()=>document.querySelector('#sheet-body button[data-k="desk"].on')?.dataset.v);
+ok('seg highlights wood', on==='wood', on);
+const st=JSON.parse(await p.evaluate(()=>localStorage.getItem('bf.settings')));
+ok('saved in settings', st.desk==='wood', JSON.stringify(st));
+// 테마 바꿔도 책상 클래스 유지
+await p.evaluate(()=>[...document.querySelectorAll('#sheet-body button[data-k="theme"]')].find(b=>b.dataset.v==='night').click()); await sleep(900);
+ok('theme night keeps desk-wood', /theme-night/.test(await cls()) && /desk-wood/.test(await cls()), await cls());
+const meta1=await p.evaluate(()=>document.querySelector('meta[name=theme-color]').content);
+ok('theme-color follows desk', meta1.toLowerCase()==='#0a0b0d', meta0+' -> '+meta1);
+await p.reload(); await sleep(1500);
+ok('persists after reload', /desk-wood/.test(await cls()) && /theme-night/.test(await cls()), await cls());
+ok('no page errors', errs.length===0, JSON.stringify(errs));
+console.log(fails? 'FAILS '+fails : 'ALL PASS'); await b.close(); process.exit(0);

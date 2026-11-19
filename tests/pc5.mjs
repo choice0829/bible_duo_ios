@@ -1,0 +1,13 @@
+import {fileURLToPath} from 'node:url';
+import {serve,launch,sleep,openDevice} from './devlib.mjs';
+serve(8963); const b=await launch();
+const DIR=fileURLToPath(new URL('./', import.meta.url)), FIX=DIR+'fixtures/';
+const seed={fn:()=>{ window.__msgs=[]; window.webkit={messageHandlers:{bf:{postMessage:(m)=>{window.__msgs.push(m)}}}}; if(!sessionStorage.getItem('s')){sessionStorage.setItem('s','1'); localStorage.clear(); localStorage.setItem('bf.pos',JSON.stringify({book:18,chapter:22,verse:1})); localStorage.setItem('bf.settings',JSON.stringify({fontSize:18,theme:'night',layout:'auto',font:'myeongjo',std:false,desk:'plain'})); }}, arg:null};
+const {p,errs}=await openDevice(b,['Duo 접힘 앱',466,678,{top:0,right:0,bottom:0,left:0}],{seed,port:8963,query:'?native=1'}); await sleep(500);
+console.log('theme', await p.evaluate(()=>document.body.className));
+await p.click('#btn-card'); await sleep(1000);
+await p.evaluate(()=>document.querySelector('#pc-pt-r').scrollIntoView({block:'center'})); await sleep(200);
+await p.screenshot({path:DIR+'pc5-night-l.png'});
+await p.click('.pc-tabs button[data-t=r]'); await sleep(500);
+await p.screenshot({path:DIR+'pc5-night-r.png'});
+console.log('errs',errs.length); process.exit(0);
