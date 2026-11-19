@@ -20,12 +20,13 @@
   const SPREAD_MIN_SHIFT = 28;     // 그 밖의 기기: 책 왼쪽에 최소로 남기는 폭 (노트 탭이 붙는 자리)
   const BOTTOM_SPREAD_DEFAULT = 20;
   // 아이폰 앱(껍데기) 전용 — 펼친 화면의 책을 '카드'로 둔다: 좌우 여백을 같게, 아래도 화면 끝에서 띄운다.
-  const NATIVE_SHIFT = 36;              // 듀오 펼침: 카드 좌우 여백(px). 왼쪽·오른쪽이 같다 (v39까지 52)
-  const NATIVE_BOTTOM_GAP = 12;         // 카드 아래 끝과 화면 맨 아래 사이(px). 낮은 화면(가로로 돌린 아이폰)은 10 (v39까지 20)
+  const NATIVE_TEXT_OUT = 30;           // 앱 펼침: 화면 바깥쪽 가장자리에서 본문 글자까지(px). 책 카드 없이 화면 전체를 책장으로 쓴다 (v41)
+  const NATIVE_TEXT_IN = 22;            // 앱 펼침: 가운데(책등) 쪽 글자 여백(px). 두 쪽 사이 간격은 이 값의 두 배
+  const NATIVE_BOTTOM_GAP = 12;         // 앱 펼침: 본문 아래 끝과 화면 맨 아래 사이(px, 안전영역이 더 크면 그만큼). 낮은 화면(가로로 돌린 아이폰)은 10
   const NATIVE_HEAD_STAGE_GAP = 16;     // 머리줄(책 이름·메뉴) 아래에서 카드 윗면까지(px). 웹앱은 6 (v40: 책 이름을 10px 위로)
   const NATIVE_BOTTOM_GAP_COMPACT = 10;
-  const NATIVE_PAD_BOTTOM = 14;         // 카드 안에서 본문 아래 여백(px). 카드 밖에 따로 띄우므로 기본값(20)보다 줄인다
-  const NATIVE_PILL_BOTTOM = 118;       // 듀오 오른쪽 열의 상태 알약(시계·배터리)이 끝나는 높이(실기기 화면에서 잰 약 114px + 4px). 카드가 알약 쪽까지 올 때 카드 윗면은 이 아래에서 시작한다
+  const NATIVE_PAD_BOTTOM = 14;         // 앱 펼침: 위 간격에 더하는 본문 아래 여백(px)
+  const NATIVE_PILL_BOTTOM = 118;       // 듀오 오른쪽 열의 상태 알약(시계·배터리)이 끝나는 높이(실기기 화면에서 잰 약 114px + 4px). 글자가 알약 쪽까지 올 때 본문·책장 넘김 영역은 이 아래에서 시작한다
   const NATIVE_PILL_LEFT = 10;          // 알약이 오른쪽 열(안전영역) 왼쪽 끝에서 안쪽으로 들어온 만큼(px)
   // 여백 기본값을 바꿀 때 이 번호를 올리면, 기기에 저장돼 있던 펼침 여백 값이 새 기본값으로 한 번 바뀐다.
   const MARGIN_REV = 19;
@@ -33,7 +34,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v40';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v41';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const DESKS = { plain: '단색', linen: '린넨', wood: '나무결', leather: '가죽' };   // 책상(상단 배경) 질감
   const DESK_DEFAULT = 'linen';
@@ -75,7 +76,7 @@
   }
   // 아이폰 앱: 카드 여백 기본값이 바뀐 버전(NATIVE_REV)에서는 저장돼 있던 여백 값(윗·가로 위치·아래)을 한 번 지워 새 기본값을 쓴다.
   // 그 뒤 고급설정에서 바꾼 값은 그대로 유지된다. (글자 크기·테마·글씨체는 건드리지 않는다)
-  const NATIVE_REV = 2;
+  const NATIVE_REV = 3;
   if (NATIVE && settings.nativeRev !== NATIVE_REV) {
     settings = Object.assign({}, settings, { nativeRev: NATIVE_REV });
     delete settings.topSpread; delete settings.shiftX; delete settings.bottomSpread;
@@ -158,26 +159,30 @@
     const auto = {
       topSpread: compact ? TOP_COMPACT.topSpread : TOP_DEFAULT.topSpread,
       topSingle: compact ? TOP_COMPACT.topSingle : TOP_DEFAULT.topSingle,
-      shiftX: duo ? (NATIVE ? NATIVE_SHIFT : SHIFT_DEFAULT) : Math.max(Math.round(si.left), SPREAD_MIN_SHIFT),
-      bottomSpread: NATIVE && spread ? NATIVE_PAD_BOTTOM : duo ? BOTTOM_SPREAD_DEFAULT : Math.max(Math.round(si.bottom), compact ? 10 : BOTTOM_SPREAD_DEFAULT),
+      shiftX: duo ? SHIFT_DEFAULT : Math.max(Math.round(si.left), SPREAD_MIN_SHIFT),
+      bottomSpread: NATIVE && spread ? NATIVE_PAD_BOTTOM + Math.max(compact ? NATIVE_BOTTOM_GAP_COMPACT : NATIVE_BOTTOM_GAP, Math.round(si.bottom)) : duo ? BOTTOM_SPREAD_DEFAULT : Math.max(Math.round(si.bottom), compact ? 10 : BOTTOM_SPREAD_DEFAULT),
     };
     const eff = {};
     Object.keys(auto).forEach((k) => { eff[k] = typeof settings[k] === 'number' ? settings[k] : auto[k]; });
     // 펼친 화면: 오른쪽으로 옮긴 만큼 쪽 폭을 줄여, 오른쪽 끝이 화면 밖으로 잘리지 않게 한다
-    const shiftX = spread ? eff.shiftX : 0;
-    // 아이폰 앱: 오른쪽 안전영역이 왼쪽과 다르게(듀오 약 84px) 알려 와도, 오른쪽 여백을 왼쪽(shiftX)과 똑같이 둔다.
-    // (웹앱은 오른쪽 열에 글자를 못 쓰게 막히므로 그대로 둔다)
-    const rightReserve = spread && sym ? Math.round(si.right) : (NATIVE && spread ? shiftX : 0);
+    // 아이폰 앱(펼침)은 책 카드 없이 화면 전체를 책장으로 쓴다(full): 책을 옮기지 않고(shiftX 0), 글자 여백만 둔다.
+    const full = NATIVE && spread;
+    const shiftX = spread && !full ? eff.shiftX : 0;
+    const rightReserve = spread && sym && !full ? Math.round(si.right) : 0;
     const pageW = spread ? Math.floor((W - shiftX - rightReserve) / 2) : W;
     // 좌우 안전영역: 듀오는 오른쪽 상태 아이콘 때문에 오른쪽만 84px로 알리는데 아이콘은 맨 위에만 있고 윗부분은 따로 비워 두므로
     // 본문 좌우는 끝까지 쓴다. 노치 아이폰 가로 화면(좌우가 같음)은 한 쪽 보기일 때 그만큼 비운다. (펼침은 책 자체를 안쪽으로 둔다)
     const padX = !spread && sym ? Math.max(SIDE_PAD, Math.round(Math.max(si.left, si.right))) : SIDE_PAD;
+    // 앱 펼침: 바깥쪽(화면 가장자리 쪽)·안쪽(책등 쪽) 글자 여백을 따로 둔다. 노치·왼쪽 열 같은 안전영역은 글자가 피한다(듀오 오른쪽 열은 알약이 맨 위에만 있어 쓴다).
+    const sideSafe = duo ? 0 : Math.round(Math.max(si.left, si.right));
+    const padOut = full ? Math.max(NATIVE_TEXT_OUT, sideSafe + SIDE_PAD) : padX;
+    const padIn = full ? NATIVE_TEXT_IN : padX;
     // 윗부분: 머리줄(책 이름·버튼)과 상태 아이콘 자리. 아랫부분 여백은 최소로 줄여 이쪽으로 옮겼다.
     // 머리줄(책 이름·메뉴)이 실제로 차지하는 높이를 계산해, 본문이 언제나 그 아래에서 시작하게 한다.
     // (상태 표시줄 자리가 큰 기기의 세로 화면에서 메뉴 단추가 본문 첫 줄을 덮던 문제)
     const hb = headBox(spread, compact);
     const topSetting = spread ? eff.topSpread : eff.topSingle;
-    // 아이폰 앱(듀오): 카드가 오른쪽 열 쪽까지 들어와 상태 알약(약 x 877~930, y 22~114)과 겹치면, 카드 윗면을 알약 아래로 내린다.
+    // 아이폰 앱(듀오): 글자가 오른쪽 열 쪽까지 들어와 상태 알약(약 x 877~930, y 22~114)과 겹치면, 본문과 책장 넘김 영역의 윗면을 알약 아래로 내린다.
     const cardRight = shiftX + pageW * 2;
     const intoPill = NATIVE && spread && !sym && si.right >= 60 && cardRight > W - si.right + NATIVE_PILL_LEFT;
     const padTop = Math.max(
@@ -190,17 +195,16 @@
     // 펼친 화면: 책 자체를 머리줄 아래(본문 첫 줄 위 TXT_GAP)에서 시작시킨다. 본문 글자가 놓이는 화면 위치와 쪽 나누기(textH)는 그대로다.
     // 한 쪽(접힘) 화면은 본문 스크롤 영역이 이미 머리줄 아래(--padtop)에서 시작한다.
     const stageTop = spread ? Math.max(0, padTop - TXT_GAP) : 0;
-    // 아이폰 앱(펼침): 카드 아래를 화면 끝에서 띄운다. 안전영역(아래)이 더 크면 그만큼.
-    const bottomGap = NATIVE && spread ? Math.max(compact ? NATIVE_BOTTOM_GAP_COMPACT : NATIVE_BOTTOM_GAP, Math.round(si.bottom)) : 0;
-    const pageH = H - stageTop - bottomGap;
+    const pageH = H - stageTop;
     const txtTop = padTop - stageTop;
     // 머리줄(책 이름·메뉴)의 오른쪽 끝: 책의 오른쪽 본문 끝에 맞추되, 오른쪽 안전영역(상태 아이콘 자리)은 피한다
     const bookRight = spread ? shiftX + pageW * 2 : W;
-    const headR = Math.max(Math.round(W - bookRight + padX), Math.round(si.right) + (spread ? 8 : 14), 14);
+    const headR = Math.max(Math.round(W - bookRight + padOut), Math.round(si.right) + (spread ? 8 : 14), 14);
     return {
       W, H, spread, compact, duo, sym, pageW, pageH, bookW: spread ? pageW * 2 : pageW,
-      padX, padTop, padBottom, si, shiftX, eff, stageTop, txtTop, headR, bottomGap, intoPill,
-      textW: pageW - padX * 2, textH: pageH - txtTop - padBottom,
+      padX: full ? padOut : padX, padOut, padIn, full, tabEdge: full ? Math.max(padOut - 6, 0) : shiftX,
+      padTop, padBottom, si, shiftX, eff, stageTop, txtTop, headR, intoPill,
+      textW: pageW - padOut - padIn, textH: pageH - txtTop - padBottom,
     };
   }
 
@@ -262,6 +266,8 @@
     root.setProperty('--serif', fstack);
     root.setProperty('--sans', fstack);   // 상단 메뉴·굵은 글씨·창도 같은 글씨체
     root.setProperty('--padx', g.padX + 'px');
+    root.setProperty('--padout', g.padOut + 'px');   // 펼침 쪽의 바깥쪽·안쪽 글자 여백 (앱 펼침에서만 서로 다름)
+    root.setProperty('--padin', g.padIn + 'px');
     root.setProperty('--padtop', g.padTop + 'px');
     root.setProperty('--txttop', g.txtTop + 'px');   // 쪽 안에서 본문이 시작하는 높이 (펼침: 책 위쪽 가장자리 기준)
     root.setProperty('--headh', (g.spread ? g.stageTop : g.padTop) + 'px');   // 머리줄 영역의 높이 (책·본문이 시작하기 전까지)
@@ -280,9 +286,10 @@
     stage.style.marginLeft = g.shiftX ? g.shiftX + 'px' : '';   // 펼친 화면 가운데 맞춤
     root.setProperty('--shiftx', g.shiftX + 'px');
     // 머리줄(책 이름·메뉴)의 왼쪽 끝: 펼침은 책 왼쪽 가장자리 + 14, 한 쪽은 안전영역 + 14. (좌우가 같은 아이폰은 책 자체가 이미 안쪽이다)
-    root.setProperty('--headx', ((g.spread ? (g.sym ? 0 : g.si.left) + g.shiftX : g.si.left) + 14) + 'px');
+    root.setProperty('--headx', (g.full ? g.padOut : (g.spread ? (g.sym ? 0 : g.si.left) + g.shiftX : g.si.left) + 14) + 'px');
     stage.classList.toggle('spread', g.spread);
     document.body.classList.toggle('is-spread', g.spread);
+    document.documentElement.classList.toggle('full', !!g.full);   // 앱 펼침: 책 카드 없이 한 색 바탕
     document.body.classList.toggle('is-compact', g.compact);
     fitTitle();
   }
@@ -2026,8 +2033,8 @@
       '<div class="adv-head">펼친 화면 (두 쪽)</div>' +
       item('윗 여백', '(펼침)', 'topSpread', 4, topSp, '줄이기', '늘리기',
         '화면 맨 위에서 본문이 시작되는 곳까지의 높이입니다. 이 안에 책 이름·메뉴 아이콘과 오른쪽 위 상태 아이콘이 들어갑니다. 줄이면 본문이 더 위로 올라와 한 쪽에 들어가는 줄 수가 늘어납니다.' + topNote) +
-      item('가로 위치', '(오른쪽으로)', 'shiftX', 4, shift, '왼쪽으로', '오른쪽으로',
-        '두 쪽 전체를 오른쪽으로 옮기는 양입니다. 아이폰 듀오를 펼치면 앱이 실제 화면보다 좁은 영역만 알려 받아 두 쪽이 왼쪽으로 쏠려 보입니다. 값을 키우면 가운데로 오지만, 옮긴 만큼 한 쪽의 폭이 좁아져 한 줄에 들어가는 글자가 줄어듭니다.') +
+      (NATIVE ? '' : item('가로 위치', '(오른쪽으로)', 'shiftX', 4, shift, '왼쪽으로', '오른쪽으로',
+        '두 쪽 전체를 오른쪽으로 옮기는 양입니다. 아이폰 듀오를 펼치면 앱이 실제 화면보다 좁은 영역만 알려 받아 두 쪽이 왼쪽으로 쏠려 보입니다. 값을 키우면 가운데로 오지만, 옮긴 만큼 한 쪽의 폭이 좁아져 한 줄에 들어가는 글자가 줄어듭니다.')) +
       item('아래 여백', '(펼침)', 'bottomSpread', 4, bot, '줄이기', '늘리기',
         '본문 맨 아래에 비워 두는 높이입니다. 화면 맨 아래 일부는 앱이 그릴 수 없는 영역이라, 0으로 해도 그만큼은 비어 보입니다.') +
       '<div class="adv-head">접은 화면 (한 쪽)</div>' +
@@ -2344,7 +2351,8 @@
     tabsEl.innerHTML = '';
     tabsEl.classList.remove('moving');
     if (!bible || !pg || scroller || !flip || !pg.g || !pg.g.spread) return;
-    const tw = Math.min(23, pg.g.shiftX - 4);
+    const edge = pg.g.tabEdge != null ? pg.g.tabEdge : pg.g.shiftX;   // 노트 탭의 오른쪽 끝(책 왼쪽 가장자리, 앱 펼침은 본문 왼쪽 끝 6px 앞)
+    const tw = Math.min(23, edge - 4);
     if (tw < 16) return;   // 왼쪽 여백이 너무 좁으면 탭은 생략하고 본문의 절 번호 배지만 보인다
     // 지금 펼쳐진 두 쪽(왼쪽 L, 오른쪽 L+1)만 읽는 순서대로 본다. 그 노트 본문이 처음 나오는 줄의 높이를 잡는다.
     const W = window.innerWidth, top = {};
@@ -2380,7 +2388,7 @@
       if (keep < items.length) list.push({ more: items.length - keep, label: '+' + (items.length - keep), title: '설교노트 목록', y0: botLim, h: 34 });
       if (stack(list)) break;
     }
-    const left = pg.g.shiftX - tw;   // 탭의 오른쪽 끝이 책 왼쪽 가장자리에 붙는다
+    const left = edge - tw;   // 탭의 오른쪽 끝이 책 왼쪽 가장자리에 붙는다
     tabsEl.innerHTML = list.map((it) =>
       '<button type="button" class="nt-tab" ' + (it.more ? 'data-more="1"' : 'data-note="' + it.id + '"') +
       ' aria-label="' + (it.more ? '설교노트 더 보기: ' : '설교노트: ') + esc(it.title).replace(/"/g, '&quot;') + '" ' +

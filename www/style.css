@@ -74,10 +74,15 @@ html.native .desk-edge { display: none; }   /* 아이폰 앱: 화면 전체를 �
   background: var(--bg); border-radius: 16px 16px 0 0;
   box-shadow: 0 -3px 18px var(--lift), 0 0 0 1px var(--line);
 }
-/* 아이폰 앱: 펼친 책은 사방이 화면에서 떨어진 카드(네 모서리 둥글게, 그림자는 사방으로) */
-html.native #stage:not(.scroll) { border-radius: 16px; }
-/* v40: 그림자 없이 얇은 윤곽선만 (펼침·접힘 모두) */
-html.native #stage:not(.scroll), html.native #book.scroll { box-shadow: 0 0 0 1px var(--line); }
+/* v40: 접힌 화면(위아래로 읽는 장 영역)의 카드는 그림자 없이 얇은 윤곽선만 */
+html.native #book.scroll { box-shadow: 0 0 0 1px var(--line); }
+/* v41 — 아이폰 앱 펼침(html.full): 책 카드를 없애고 화면 전체를 책장으로 쓴다. 바탕을 종이색 한 가지로 맞추고(상자 윤곽·그림자·책상 질감 없음),
+   책장이 넘어가는 효과는 #stage(머리줄 아래부터 화면 맨 아래까지, 좌우는 화면 끝까지) 안에서만 보인다 — 맨 위 머리줄(책 이름·메뉴) 위로는 넘어가지 않는다.
+   본문 글자 여백은 바깥쪽(화면 가장자리)과 안쪽(책등)을 따로 둔다. */
+html.full, html.full body { background-color: var(--bg) !important; background-image: none !important; }
+html.full #stage:not(.scroll) { background: transparent; border-radius: 0; box-shadow: none; }
+html.full #stage .page.pl .txt { padding-left: var(--padout); padding-right: var(--padin); }
+html.full #stage .page.pr .txt { padding-left: var(--padin); padding-right: var(--padout); }
 
 /* ---------- 책 ---------- */
 #stage {
