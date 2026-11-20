@@ -104,16 +104,19 @@ def iter_sources(paths):
             for root, _, files in os.walk(p):
                 for f in sorted(files):
                     fp = os.path.join(root, f)
+                    if f.lower() == 'brandcafes-check.csv':   # 이 스크립트가 만든 확인용 파일은 입력에서 제외
+                        continue
                     if f.lower().endswith('.csv'):
                         out.append((fp, (lambda fp=fp: open(fp, 'rb'))))
                     elif f.lower().endswith('.zip'):
                         add_zip(fp, fp)
-        elif p.lower().endswith('.zip'):
+        elif p.lower().endswith('.zip') and os.path.isfile(p):
             add_zip(p, p)
         elif os.path.isfile(p):
             out.append((p, (lambda p=p: open(p, 'rb'))))
         else:
             print('! 찾을 수 없습니다:', p, file=sys.stderr)
+            print('  → 파일 이름을 실제 이름으로 바꿔 쓰거나, 받은 파일이 든 폴더 이름(현재 폴더는 점 하나 .)을 쓰세요.', file=sys.stderr)
     return out
 
 
