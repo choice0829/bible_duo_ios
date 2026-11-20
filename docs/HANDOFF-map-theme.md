@@ -53,3 +53,50 @@
 - 확대·축소·이동이 부드러운지, 처음 로딩 시간, 인터넷이 약할 때의 모습.
 - 듀오 펼침(951×669)·접힘·아이폰 세로에서 단추·핀·카드 색과 위치.
 - 저작권·출처 표기가 화면에 남아 있는지(이용 조건 필수).
+
+## 7. 진행 상태 (v50, 2026-11-19)
+**사용자와 정한 것(§5):** 방법 = **A 먼저, 부족하면 B** · 오프라인 불필요(인터넷 연결 전제, 앱 용량 증가 없음) · 범위 = 한국 전체 · 테마별 분위기 = 제안대로(종이=따뜻한 베이지·옅은 도로 / 세피아=갈색 톤 / 야간=어두운 회청색, 핀·단추·카드는 테마 강조색으로 통일) · 무료 서비스만.
+
+**한 일(v50):**
+- CARTO 래스터 타일 적용. 종이·세피아 = Positron(`light_all`) + 색조 필터, 야간 = Dark Matter(`dark_all`) + 청회색 필터. 타일 주소는 `https://basemaps.cartocdn.com/rastertiles/{light_all|dark_all}/{z}/{x}/{y}.png?key=열쇠`, 표기 '© OpenStreetMap contributors, © CARTO'(이용 조건), 18단계까지.
+- **새로 알게 된 것(§3 A의 '이용 조건'):** CARTO 래스터 타일은 현재 **무료 API 키가 필요**하다(비상업 월 500만 요청까지 무료, 계정 불필요·이메일로 발급). 키를 소스에 넣으면 공개 저장소에 노출되므로 **고급설정에서 사용자가 앱 안에 입력**하게 했다(`bf.mapkey`, 백업 제외). 키가 없으면 OSM + 색조 필터로 계속 동작한다(`mpTileCfg`, `mpApplyTile`).
+- 지도 주변 UI 테마화: 확대·축소·내 위치 단추, 출처 링크, 핀 테두리·컵, 내 위치 점(`--mp-me`), 로딩 전 바탕(`--mp-land`). 테마 변경 시 바탕 자동 교체(`themeHooks`).
+- 시험: `tests/map4.mjs`(테마 3 × 열쇠 유무, 확대 한계, 테마 전환, 열쇠 입력·백업 제외, 오류 안내문). 필터 값은 근사 타일 색으로 계산(Filter Effects 행렬)해 정함.
+
+**아직 모르는 것·남은 일:**
+- 실기기 확인 전이다: 실제 타일 색이 근사값과 다르면 `style.css`의 `.mp-src-carto`·`.mp-src-osm` 필터 값을 조정한다. 필터로 도로·글자 색을 개별로 바꿀 수는 없으므로, 그래도 어울리지 않으면 **B(MapLibre 벡터 + 자체 스타일)** 로 넘어간다(§3 B의 한글 글자체 파일·WebGL·Leaflet 호출 교체 문제는 그대로).
+- **한글 지명:** ~~확인하지 못했다~~ → **v50 실기기에서 확인됨**(사용자 스크린샷, 종이 테마, 한글 지명 표시).
+
+- **고해상도(@2x) 타일:** CARTO 문서에 @2x 파일 이름이 명시돼 있지 않아 적용하지 않았다. 아이폰에서 글자가 흐리게 보이면 문서를 다시 확인해 `detectRetina`/`{r}` 적용을 검토한다.
+- 키 발급 화면에 '사용할 사이트·앱 제한' 옵션이 있으면 처음에는 걸지 않는다(앱 화면 주소가 `bibleflip://`). 사용량이 월 500만 요청을 넘길 일은 사실상 없다.
+
+## 8. 진행 상태 (v51, 2026-11-20) — B(벡터) 비교용 구현
+**요청:** v50(A)이 괜찮아 보이지만, B 방식을 실제로 구현해 실기기에서 A와 비교해 보고 싶다.
+
+**한 일(v51):**
+- 방식 전환: 고급설정 '모임 장소 지도 그림'의 **래스터(A)/벡터(B)** 단추(`bf.mapeng`, 기본 A, 백업 제외). 코드는 `mpApplyTile`(바탕 층 선택)·`mpLoadVector`(부품 지연 로딩)·`mpAddVector`(MapLibre 층 생성·감시)·`mpVecFailed`(자동 복귀) — `www/app.js`.
+- 구성: Leaflet은 그대로 두고 바탕 층만 `L.maplibreGL`(plugin 0.1.4)로 교체. maplibre-gl 5.24.1(최신 6.x도 plugin이 허용하나 보수적으로 5.x). MapLibre 줌 = Leaflet 줌 − 1이라 스타일의 줌 값은 MapLibre 기준(`www/mapstyle.js` 머리 주석).
+- 스타일: `www/mapstyle.js`가 테마별(`PAL`) OpenMapTiles 스키마 층 37개를 만든다(땅·물·공원·건물·도로 5등급(케이싱 포함)·철길·샛길·경계·도로명·지명·물이름·POI·번지). `name:ko`가 있으면 우선, 없으면 `name`. 글꼴은 OpenFreeMap이 가진 `Noto Sans Regular/Bold/Italic`만. 스프라이트(아이콘)는 쓰지 않고 POI는 점+이름.
+- 자료: OpenFreeMap 공개 인스턴스(`https://tiles.openfreemap.org/planet` TileJSON). 키·가입 없음, 상업 이용 가능, 출처 표기 필수('OpenFreeMap © OpenMapTiles Data from OpenStreetMap'). 이용 조건은 `https://openfreemap.org/tos/`.
+- 한글: MapLibre 기본값(`localIdeographFontFamily: sans-serif`)이 한글 자모·음절·CJK를 **글자 파일 없이 기기 글꼴로** 그린다(`maplibre-gl.js` 안 범위표 확인). 영문·숫자만 글자 파일 요청(서버 실패해도 같은 방식으로 기기 글꼴 대체).
+- 자동 복귀: WebGL2 없음(부품도 받지 않음)·부품 실패·TileJSON/스타일 오류·15초(`MP_VEC_WAIT`) 무응답 → `mpVecFail`에 이유를 기억하고(그 실행 동안) 래스터로 복귀 + 안내문 9초. 방식 단추를 다시 누르면 기록을 지우고 재시도. 복귀했을 때 **고급설정 상태 줄에 '진단:' 한 줄**(스타일 ○/× · 자료 주소 ○/× · 타일 N개 · 마지막 오류, 또는 받지 못한 파일 이름·WebGL2 없음)이 남으므로, 실기기에서 안 될 때 그 줄을 스크린샷으로 받으면 원인(Blob 워커·CORS·서버 등)을 좁힐 수 있다. 워커가 원인이면 `maplibre-gl-csp.js`+`setWorkerUrl`(파일 워커)로 바꾸는 것을 검토한다.
+- 시험: `tests/map5.mjs` 89개 항목(스타일 규격·세 테마 렌더·확대·테마 전환·방식 단추·복귀 4종). 가짜 타일은 `tests/vtscene.mjs`(geojson-vt + vt-pbf).
+
+**샌드박스에서 확인하지 못한 것(실기기 필요):** 실제 OpenFreeMap 응답(TileJSON·타일·글자 파일 주소·CORS), 아이폰 WKWebView의 WebGL2·Blob 워커(MapLibre는 인라인 워커를 Blob URL로 띄움)·커스텀 스킴(`bibleflip://app`) 출처에서의 fetch(CORS), 실제 한글 글꼴 모양·세로 도로명, 속도·배터리, 실제 색감.
+
+**비교 후 선택지:**
+1. B가 낫다 → 기본값을 B로 바꾸고(`mpEngGet` 기본) A는 비상용으로 남기거나 제거. 열쇠 UI 정리.
+2. A가 낫다 → B 부품(약 1.1MB)과 `mapstyle.js`를 제거해 앱 용량을 줄인다(`lib/maplibre-gl.*`, `lib/leaflet-maplibre-gl.js`, `lib/MAPLIBRE-*`).
+3. B의 색·글자 크기·도로 폭은 `mapstyle.js`의 `PAL`·`Z`/`ZE` 값만 고치면 된다(스크린샷을 받아 조정).
+
+## 9. 진행 상태 (v52, 2026-11-20) — B(벡터) 기본값 고정
+**결정(사용자):** v51 실기기 비교 결과 B가 마음에 들어 **B를 기본으로 고정**한다. 아이폰 듀오 펼침·종이 테마에서 실제 OpenFreeMap 자료·한글 지명·색·출처 표기가 정상임을 스크린샷으로 확인(→ §8의 '샌드박스에서 확인 못 한 것' 중 WebGL2·Blob 워커·CORS·한글 글꼴은 **해소**).
+
+**한 일:** `mpEngGet` 기본값을 vector로 바꾸고(저장값 `bf.mapeng`='raster'일 때만 A) 고급설정 문구를 '기본/비상용'으로 정리. A는 자동 복귀·비상용으로 남김. 시험은 map1~4를 raster 시작으로, map5를 기본=벡터 기준으로 수정.
+
+**아직 남은 것(선택):**
+- 실기기 미확인: 세피아·야간 테마 색, 접힘·세로 화면, 확대·이동 부드러움·배터리, 오프라인 안내문.
+- **A 코드 정리 여부:** 안전망으로 남겼다. 지우려면 `mpTileCfg`, `MP_CARTO*`, 열쇠 입력 UI(`#mk-*`), `.mp-src-carto/.mp-src-osm` CSS, map1~4 시험의 타일 가로채기를 정리한다(단, WebGL2가 없는 기기에서는 안내문만 남고 지도 바탕이 빈다 — 그래서 일단 유지).
+- 스타일 다듬기 후보: 세로 도로명의 글자 세워 쓰기(현재 MapLibre 기본), POI 아이콘(스프라이트 `https://tiles.openfreemap.org/sprites/ofm_f384/ofm`는 미사용), 글자 크기·도로 폭(`mapstyle.js`의 `Z`/`ZE`·`PAL`).
+- 문서: `main`에 합친 뒤에는 이 파일의 §1~§9 중 끝난 부분을 요약해 줄이는 것을 권장.
+
