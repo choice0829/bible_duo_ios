@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v52';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v53';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const DESKS = { plain: '단색', linen: '린넨', wood: '나무결', leather: '가죽' };   // 책상(상단 배경) 질감
   const DESK_DEFAULT = 'linen';
@@ -4471,11 +4471,17 @@
     mpPlace(two);
     if (mpZoomCtl) mpZoomCtl.setPosition(two ? 'topright' : 'topleft');
     const rail = NATIVE && two && si.left < 8 && si.right >= 60;   // 듀오 펼침: 오른쪽 안전영역 맨 위의 상태 알약 자리만 비운다
-    const top = Math.max(Math.round(si.top), 0) + 12;
+    // 위·아래 여백을 같게: 위는 안전영역 + 12, 아래는 안전영역(홈 막대) + 14 다. 듀오처럼 위 안전영역은 없고 아래만 있으면 화면이 위로 쏠려 보이므로,
+    // 아래 여백이 더 클 때만 그 차이의 절반만큼 화면 전체를 아래로 내린다(위 여백 +drop, 아래 여백 −drop. 두 여백의 합은 그대로).
+    // 위 안전영역(노치·상태 표시줄)이 더 큰 기기는 위로 올릴 수 없으므로 그대로 둔다.
+    const top0 = Math.max(Math.round(si.top), 0) + 12;
+    const bot0 = (kbH > 0 && !two ? 0 : Math.max(Math.round(si.bottom), 0)) + 14;
+    const drop = Math.max(0, Math.round((bot0 - top0) / 2));
+    const top = top0 + drop;
     const set = (k, v) => mpEl.style.setProperty(k, v + 'px');
     set('--mp-top', top);
     set('--mp-topr', two ? (rail ? Math.max(top, NATIVE_PILL_BOTTOM + 6) : top) : 12);
-    set('--mp-bot', (kbH > 0 && !two ? 0 : Math.max(Math.round(si.bottom), 0)) + 14);
+    set('--mp-bot', bot0 - drop);
     set('--mp-l', Math.max(rail || si.left < 8 ? 22 : 0, Math.round(si.left) + 10));
     const mr = Math.max(rail || si.right < 8 ? 22 : 0, rail ? 22 : Math.round(si.right) + 10);
     set('--mp-r', mr);
