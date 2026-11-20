@@ -39,6 +39,7 @@ async function openDev(dev) {
 }
 const dots = (p) => p.evaluate(() => { const o = { dot: 0, c: {} }; window.__mpMap.eachLayer((l) => { if (!l.options || l.options.renderer === undefined || !l._latlng) return; if (l.options.radius === 6.5) { o.dot++; o.c[l.options.fillColor] = (o.c[l.options.fillColor] || 0) + 1; } }); return o; });
 const expectIn = (p) => p.evaluate((rows) => { const b = window.__mpMap.getBounds().pad(0.4); return rows.filter((r) => b.contains([r[3], r[4]])).length; }, DATA.r);
+const hint_is_zoom_msg = (t) => t === '지도를 확대하면 장소가 보입니다';
 const hint = (p) => p.evaluate(() => { const e = document.querySelector('#mp-bhint'); return e && !e.hidden && e.getBoundingClientRect().width > 0 ? e.textContent.trim() : ''; });
 const view = async (p, lat, lng, z) => { await p.evaluate((la, lo, zz) => { window.__mpMap.setView([la, lo], zz, { animate: false }); }, lat, lng, z); await sleep(500); };
 
@@ -65,7 +66,7 @@ console.log('===== 실제 자료 · 듀오 펼침');
   }
   await view(p, 37.4979, 127.0276, 15); await p.screenshot({ path: '/tmp/map8shots/duo-gangnam15.png' });
   await view(p, 37.5663, 126.9779, 13); await p.screenshot({ path: '/tmp/map8shots/duo-seoul13.png' });
-  await view(p, 37.5663, 126.9779, 12); d = await dots(p); ok('줌12(너무 멀리): 점이 없고 확대 안내가 보인다', d.dot === 0 && /확대/.test(await hint(p)), `점 ${d.dot} · ${await hint(p)}`);
+  await view(p, 37.5663, 126.9779, 12); d = await dots(p); ok('줌12(너무 멀리): 점이 없고 확대 안내가 보인다', d.dot === 0 && hint_is_zoom_msg(await hint(p)), `점 ${d.dot} · ${await hint(p)}`);
 
   // 처리 시간 — 가장 빽빽한 곳(서울 도심 줌13)에서 지도를 30번 옮기며 그리기
   await view(p, 37.5663, 126.9779, 13);

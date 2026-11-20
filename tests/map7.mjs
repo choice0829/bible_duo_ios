@@ -130,7 +130,7 @@ const DUO = ['Duo 펼침', 951, 669, { top: 0, right: 84, bottom: 34, left: 0 }]
   ok('다른 점을 누르면 카드가 그 매장으로 바뀐다', (await cardName(p)) === SB[3][1], String(await cardName(p)));
   await p.evaluate(() => window.__mpMap.setZoom(11, { animate: false })); await sleep(500);
   ok('확대 수준 11(기준 13 미만)에서는 점이 하나도 안 그려진다', (await dots(p)).dot === 0);
-  ok('멀리 보면(확대 수준 11) 카드가 그대로이고 안내 문구가 뜬다(확대하면 보입니다)', (await shown(p, '#mp-bhint')) && (await txt(p, '#mp-bhint')).includes('확대하면'), await txt(p, '#mp-bhint'));
+  ok('멀리 보면(확대 수준 11) 카드가 그대로이고 안내 문구가 뜬다(확대하면 보입니다)', (await shown(p, '#mp-bhint')) && (await txt(p, '#mp-bhint')).trim() === '지도를 확대하면 장소가 보입니다', await txt(p, '#mp-bhint'));
   await p.evaluate(() => window.__mpMap.setZoom(14, { animate: false })); await sleep(500);
   ok('확대 수준 14에서는 안내 문구가 사라지고 점이 다시 그려진다', !(await shown(p, '#mp-bhint')) && (await dots(p)).dot === (await expectIn(p, small)) && (await dots(p)).dot > 0);
   { const d = await dots(p), eb = await p.evaluate((rows) => { const bb = window.__mpMap.getBounds().pad(0.4), c = [0, 0]; rows.forEach((r) => { if (bb.contains([r[3], r[4]])) c[r[0]]++; }); return c; }, small.r);
