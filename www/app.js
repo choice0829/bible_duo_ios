@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v52';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v55';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const DESKS = { plain: '단색', linen: '린넨', wood: '나무결', leather: '가죽' };   // 책상(상단 배경) 질감
   const DESK_DEFAULT = 'linen';
@@ -3996,6 +3996,13 @@
   let mpFormInit = '';
   let mpPicking = false;
   let mpUserMoved = false, mpTileErr = 0, mpDelArm = 0, mpDelTimer = 0;
+  // 스타벅스·투썸플레이스 매장 층(공공데이터 상가정보에서 걸러 앱에 넣은 data/brandcafes.json). 내 카페 목록과 따로 지도 위 점으로만 보인다.
+  const MP_BR_LS = 'bf.mapbrand';          // 'off' 이면 끔(기본은 켬). 이 기기만 · 백업 제외
+  const MP_BR_MINZ = 13;                   // 이 확대 수준보다 멀리서 보면 점을 그리지 않는다(한 화면에 너무 많아짐)
+  const MP_BR_MAX = 900;                   // 한 번에 그리는 점의 최대 수(넘으면 화면 가운데에서 가까운 순)
+  const MP_BR_CELL = 0.05;                 // 위치 찾기용 격자 크기(도). 약 4~5km
+  let mpBrDB = null, mpBrIdx = null, mpBrState = 'idle', mpBrP = null, mpBrLayer = null, mpBrRend = null, mpBrSel = -1, mpBrSelMk = null, mpBrCapped = false;   // 상태: idle | loading | ok | none(파일 없음) | err
+  const mpBrOn = () => { try { return localStorage.getItem(MP_BR_LS) !== 'off'; } catch (e) { return true; } };
   const mpIsOpen = () => !!mpEl && !mpEl.hidden;
   const mpS = (s) => mpEl.querySelector(s);
   const mpNarrow = () => !!mpEl && mpEl.classList.contains('narrow');
@@ -4109,22 +4116,27 @@
     });
     gl.on('idle', () => { if (!alive()) return; mpTileErr = 0; if (Date.now() >= mpNoteHold) mpS('#mp-note').hidden = true; });
   }
-  themeHooks.push(() => { if (mpMap) { mpApplyTile(); mpDrawMe(); } });   // 테마를 바꾸면 바탕(밝은/어두운)과 내 위치 점 색도 바꾼다
+  themeHooks.push(() => { if (mpMap) { mpApplyTile(); mpDrawMe(); mpBrDraw(); } });   // 테마를 바꾸면 바탕(밝은/어두운)과 내 위치 점 색도 바꾼다
   function mpEnsureMap() {
     if (!mpEl || !window.L) return;
     if (mpMap) { mpMap.invalidateSize(); mpApplyTile(); return; }
     mpMap = L.map(mpS('#mp-map'), { zoomControl: false, zoomSnap: 1, minZoom: 3, maxZoom: 19 });
     mpZoomCtl = L.control.zoom({ position: mpNarrow() ? 'topleft' : 'topright', zoomInTitle: '확대', zoomOutTitle: '축소' }).addTo(mpMap);
     mpApplyTile();
+    mpMap.createPane('mpBr').style.zIndex = 395;   // 매장 점은 내 위치 점(400)·핀(600)보다 아래
+    mpBrRend = L.canvas({ pane: 'mpBr', padding: 0.4, tolerance: 8 });
+    mpBrLayer = L.layerGroup().addTo(mpMap);
     mpPinLayer = L.layerGroup().addTo(mpMap);
     mpMeLayer = L.layerGroup().addTo(mpMap);
     mpMap.on('dragstart', () => { mpUserMoved = true; });
+    mpMap.on('moveend', mpBrDraw);
     mpMap.on('click', () => { if (!mpPicking) mpSelect(null); });
     mpMap.setView([MP_VIEW0.lat, MP_VIEW0.lng], MP_VIEW0.z);
     mpRenderMarkers();
     mpDrawMe();
     mpDraftMarker();
     mpFitInitial();
+    mpBrLoad();
   }
   // 첫 화면: 내 위치가 있으면 그 주변, 없으면 등록한 장소가 모두 보이게, 둘 다 없으면 서울
   function mpFitInitial() {
@@ -4147,6 +4159,112 @@
     if (!ok) { if (mpDraftMk) { mpMap.removeLayer(mpDraftMk); mpDraftMk = null; } return; }
     if (mpDraftMk) mpDraftMk.setLatLng([mpDraft.lat, mpDraft.lng]);
     else mpDraftMk = L.marker([mpDraft.lat, mpDraft.lng], { icon: mpIcon('draft'), interactive: false, keyboard: false }).addTo(mpMap);
+  }
+
+  // ----- 스타벅스·투썸 매장 층 -----
+  // 자료: data/brandcafes.json = { v, src, asof, b: ['스타벅스','투썸플레이스'], r: [[브랜드번호, 매장명, 주소, 위도, 경도], …] }  (scripts/filter-brand-cafes.py 가 만든다)
+  function mpBrLoad() {
+    if (mpBrDB || mpBrP) return mpBrP;
+    mpBrState = 'loading';
+    mpBrP = fetch('data/brandcafes.json').then((r) => { if (!r.ok) { const e = new Error('http'); e.none = true; throw e; } return r.json(); }).then((j) => {
+      if (!j || !Array.isArray(j.r) || !Array.isArray(j.b)) throw new Error('shape');
+      const rows = [];
+      j.r.forEach((x) => {
+        if (!Array.isArray(x)) return;
+        const bi = +x[0], la = +x[3], lo = +x[4];
+        if (!(bi >= 0 && bi < j.b.length) || !Number.isFinite(la) || !Number.isFinite(lo)) return;
+        rows.push([bi, String(x[1] || j.b[bi]).slice(0, 60), String(x[2] || '').slice(0, 120), la, lo]);
+      });
+      const idx = new Map();
+      rows.forEach((x, i) => { const k = Math.max(0, Math.floor(x[3] / MP_BR_CELL)) * 10000 + Math.max(0, Math.floor(x[4] / MP_BR_CELL)); const a = idx.get(k); if (a) a.push(i); else idx.set(k, [i]); });
+      mpBrDB = { src: String(j.src || '').slice(0, 80), asof: String(j.asof || '').slice(0, 20), b: j.b.map((n) => String(n).slice(0, 20)), r: rows };
+      mpBrIdx = idx; mpBrState = 'ok';
+    }).catch((e) => { mpBrState = e && e.none ? 'none' : 'err'; }).then(() => { mpBrP = null; if (mpIsOpen() && mpMap) mpBrDraw(); });
+    return mpBrP;
+  }
+  // 점 색: 브랜드별(스타벅스 초록 · 투썸 빨강 계열), 테마에 맞춰 밝기만 바꾼다
+  function mpBrPal() {
+    const night = document.body.classList.contains('theme-night'), sepia = document.body.classList.contains('theme-sepia');
+    return night ? { c: ['#3ecf8e', '#ff7a66'], ring: '#16171a' } : sepia ? { c: ['#0a6e49', '#c2412c'], ring: '#f4ead6' } : { c: ['#0a7a50', '#d23a2a'], ring: '#ffffff' };
+  }
+  function mpBrDraw() {
+    if (!mpMap || !mpBrLayer) return;
+    mpBrLayer.clearLayers(); mpBrSelMk = null; mpBrCapped = false;
+    const btn = mpS('#mp-br'); if (btn) { btn.classList.toggle('on', mpBrOn()); btn.setAttribute('aria-pressed', mpBrOn() ? 'true' : 'false'); }
+    if (mpBrOn() && mpBrDB && mpBrIdx && mpMap.getZoom() >= MP_BR_MINZ) {
+      const b = mpMap.getBounds().pad(0.4), c = mpMap.getCenter(), S = MP_BR_CELL, rows = mpBrDB.r;
+      let out = [];
+      for (let a = Math.max(0, Math.floor(b.getSouth() / S)); a <= Math.floor(b.getNorth() / S); a++) {
+        for (let o = Math.max(0, Math.floor(b.getWest() / S)); o <= Math.floor(b.getEast() / S); o++) {
+          const ix = mpBrIdx.get(a * 10000 + o);
+          if (ix) for (let k = 0; k < ix.length; k++) { const r = rows[ix[k]]; if (r[3] >= b.getSouth() && r[3] <= b.getNorth() && r[4] >= b.getWest() && r[4] <= b.getEast()) out.push(ix[k]); }
+        }
+      }
+      if (out.length > MP_BR_MAX) {
+        mpBrCapped = true;
+        const d2 = (i) => { const r = rows[i]; return (r[3] - c.lat) * (r[3] - c.lat) + (r[4] - c.lng) * (r[4] - c.lng); };
+        out = out.sort((x, y) => d2(x) - d2(y)).slice(0, MP_BR_MAX);
+      }
+      const pal = mpBrPal();
+      out.forEach((i) => {
+        const r = rows[i];
+        L.circleMarker([r[3], r[4]], { renderer: mpBrRend, radius: 6.5, weight: 2, color: pal.ring, fillColor: pal.c[r[0] % 2], fillOpacity: 1, bubblingMouseEvents: false })
+          .on('click', () => mpBrSelect(i)).addTo(mpBrLayer);
+      });
+      if (mpBrSel >= 0 && rows[mpBrSel]) mpBrMarkSel();
+    }
+    mpBrHintSync();
+  }
+  function mpBrMarkSel() {
+    if (mpBrSelMk) { mpBrLayer.removeLayer(mpBrSelMk); mpBrSelMk = null; }
+    const r = mpBrDB && mpBrDB.r[mpBrSel]; if (!r || !mpBrLayer) return;
+    const acc = (mpEl && getComputedStyle(mpEl).getPropertyValue('--accent').trim()) || '#9a3b2e';
+    mpBrSelMk = L.circleMarker([r[3], r[4]], { renderer: mpBrRend, radius: 12, weight: 3, color: acc, fillOpacity: 0, interactive: false }).addTo(mpBrLayer);
+  }
+  function mpBrHintSync() {
+    const h = mpS('#mp-bhint'); if (!h) return;
+    let msg = '';
+    if (mpBrOn()) {
+      if (mpBrState === 'none' || mpBrState === 'err') msg = '스타벅스·투썸 매장 자료를 불러오지 못했습니다.';
+      else if (mpBrState === 'ok' && mpMap && mpMap.getZoom() < MP_BR_MINZ) msg = '지도를 확대하면 장소가 보입니다';
+      else if (mpBrState === 'ok' && mpBrCapped) msg = '매장이 많아 가운데에서 가까운 ' + MP_BR_MAX + '곳만 보입니다. 더 확대해 보세요';
+    }
+    h.textContent = msg; h.hidden = !msg;
+  }
+  function mpBrClearSel() {
+    if (mpBrSel < 0) return;
+    mpBrSel = -1;
+    if (mpBrSelMk && mpBrLayer) mpBrLayer.removeLayer(mpBrSelMk);
+    mpBrSelMk = null;
+  }
+  // 이미 내 목록에 있는 매장인가(같은 이름 계열이 40m 안에 있으면 같은 곳으로 본다)
+  function mpBrHave(r, brand) {
+    return mpDB.items.some((p) => mpDist(p, { lat: r[3], lng: r[4] }) < 40 && p.name.replace(/\s/g, '').indexOf(brand.replace(/\s/g, '').slice(0, 3)) >= 0);
+  }
+  function mpBrSelect(i) {
+    if (mpPicking || mpView === 'form' || !mpBrDB || !mpBrDB.r[i]) return;
+    mpSelect(null);                       // 내 장소 선택·카드를 먼저 닫는다(여기서 매장 선택도 풀린다)
+    mpBrSel = i; mpBrMarkSel();
+    const r = mpBrDB.r[i], brand = mpBrDB.b[r[0]] || '', pt = { name: r[1], lat: r[3], lng: r[4] };
+    const d = mpMe ? mpDist(mpMe, pt) : null, lk = mpLinks(pt), kr = mpInKorea(pt), have = mpBrHave(r, brand);
+    const c = mpS('#mp-card');
+    c.innerHTML =
+      '<div class="mp-c-top"><i class="mp-bd" style="background:' + mpBrPal().c[r[0] % 2] + '"></i><strong>' + esc(r[1]) + '</strong>' + (d !== null ? '<span class="mp-it-d">' + mpFmtDist(d) + '</span>' : '') +
+        '<button type="button" class="mp-c-x" id="mp-c-x" aria-label="닫기">✕</button></div>' +
+      (r[2] ? '<div class="mp-c-l">' + esc(r[2]) + '</div>' : '') +
+      '<div class="mp-c-l mp-c-src">' + esc(brand) + ' 매장 · 공공데이터(상가정보)' + (mpBrDB.asof ? ' ' + esc(mpBrDB.asof) + ' 기준' : '') + ' · 영업 여부·시간은 지도 앱에서 확인하세요</div>' +
+      '<div class="mp-c-b">' +
+        '<button type="button" class="mp-lk" data-o="naver"' + (kr ? '' : ' disabled') + '>네이버 지도</button>' +
+        '<button type="button" class="mp-lk" data-o="apple">애플 지도</button>' +
+        '<button type="button" class="mp-lk" data-o="google">구글 지도</button>' +
+        '<button type="button" class="mp-lk edit" data-o="add"' + (have ? ' disabled' : '') + '>' + (have ? '내 장소에 있음' : '내 장소로 추가') + '</button></div>';
+    c.hidden = false;
+    mpS('#mp-c-x').addEventListener('click', () => { mpBrClearSel(); mpRenderCard(null); });
+    c.querySelectorAll('.mp-lk').forEach((b) => b.addEventListener('click', () => {
+      const o = b.dataset.o;
+      if (o === 'add') { mpOpenForm({ name: r[1], addr: r[2], tel: '', hours: '', cap: 0, memo: '', amen: [], lat: r[3], lng: r[4] }, true); return; }
+      mpOpen(lk[o][0], lk[o][1]);
+    }));
   }
 
   // ----- 목록 · 핀 -----
@@ -4227,6 +4345,7 @@
   }
   function mpRenderCard(p) {
     const c = mpS('#mp-card');
+    mpBrClearSel();   // 어떤 카드로 바뀌든 매장 선택(고리 표시)은 풀린다. 매장 카드는 mpBrSelect 가 이 뒤에 직접 그린다.
     if (!p || mpPicking) { c.hidden = true; c.innerHTML = ''; return; }
     const d = mpDistOf(p), lk = mpLinks(p), kr = mpInKorea(p);
     c.innerHTML =
@@ -4302,9 +4421,9 @@
     mpS(v === 'form' ? '#mp-form' : '#mp-list').scrollTop = 0;
     mpDraftMarker();
   }
-  function mpOpenForm(p) {
+  function mpOpenForm(p, asNew) {   // asNew: p 는 미리 채워 둘 값일 뿐 새 장소로 저장한다(매장 층의 '내 장소로 추가')
     if (mpPicking) mpPickEnd(false);
-    mpEditId = p ? p.id : null;
+    mpEditId = p && !asNew ? p.id : null;
     mpS('#mp-f-name').value = p ? p.name : '';
     mpS('#mp-f-addr').value = p ? p.addr : '';
     mpS('#mp-f-tel').value = p ? p.tel : '';
@@ -4313,8 +4432,8 @@
     mpS('#mp-f-memo').value = p ? p.memo : '';
     mpDraft.lat = p ? p.lat : NaN; mpDraft.lng = p ? p.lng : NaN;
     mpFormAmen = new Set(p ? p.amen : []);
-    mpS('#mp-ftitle').textContent = p ? '카페 정보 수정' : '카페 추가';
-    mpS('#mp-f-del').hidden = !p;
+    mpS('#mp-ftitle').textContent = p && !asNew ? '카페 정보 수정' : '카페 추가';
+    mpS('#mp-f-del').hidden = !p || !!asNew;
     mpDisarmDel();
     mpS('#mp-f-res').hidden = true; mpS('#mp-f-res').innerHTML = '';
     mpFormMsg('');
@@ -4471,11 +4590,17 @@
     mpPlace(two);
     if (mpZoomCtl) mpZoomCtl.setPosition(two ? 'topright' : 'topleft');
     const rail = NATIVE && two && si.left < 8 && si.right >= 60;   // 듀오 펼침: 오른쪽 안전영역 맨 위의 상태 알약 자리만 비운다
-    const top = Math.max(Math.round(si.top), 0) + 12;
+    // 위·아래 여백을 같게: 위는 안전영역 + 12, 아래는 안전영역(홈 막대) + 14 다. 듀오처럼 위 안전영역은 없고 아래만 있으면 화면이 위로 쏠려 보이므로,
+    // 아래 여백이 더 클 때만 그 차이의 절반만큼 화면 전체를 아래로 내린다(위 여백 +drop, 아래 여백 −drop. 두 여백의 합은 그대로).
+    // 위 안전영역(노치·상태 표시줄)이 더 큰 기기는 위로 올릴 수 없으므로 그대로 둔다.
+    const top0 = Math.max(Math.round(si.top), 0) + 12;
+    const bot0 = (kbH > 0 && !two ? 0 : Math.max(Math.round(si.bottom), 0)) + 14;
+    const drop = Math.max(0, Math.round((bot0 - top0) / 2));
+    const top = top0 + drop;
     const set = (k, v) => mpEl.style.setProperty(k, v + 'px');
     set('--mp-top', top);
     set('--mp-topr', two ? (rail ? Math.max(top, NATIVE_PILL_BOTTOM + 6) : top) : 12);
-    set('--mp-bot', (kbH > 0 && !two ? 0 : Math.max(Math.round(si.bottom), 0)) + 14);
+    set('--mp-bot', bot0 - drop);
     set('--mp-l', Math.max(rail || si.left < 8 ? 22 : 0, Math.round(si.left) + 10));
     const mr = Math.max(rail || si.right < 8 ? 22 : 0, rail ? 22 : Math.round(si.right) + 10);
     set('--mp-r', mr);
@@ -4532,8 +4657,11 @@
       '<div class="mp-r"><div class="mp-mapwrap">' +
         '<div id="mp-map"></div>' +
         '<div class="mp-note" id="mp-note" hidden>지도 바탕을 불러오지 못했습니다. 인터넷 연결을 확인해 주세요. 목록과 핀 위치는 그대로 쓸 수 있습니다.</div>' +
+        '<div class="mp-bhint" id="mp-bhint" hidden></div>' +
         '<button type="button" class="mp-me" id="mp-me" aria-label="내 위치로 이동">' +
           '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>' +
+        '<button type="button" class="mp-br" id="mp-br" aria-label="스타벅스·투썸 매장 표시" aria-pressed="true">' +
+          '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 10h11v4.5a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V10z"/><path d="M16 11h1.4a2.4 2.4 0 0 1 0 4.8H16"/><path d="M8.5 3.5v3M12.5 3.5v3"/></svg></button>' +
         '<div class="mp-card" id="mp-card" hidden></div>' +
         '<div class="mp-cross" id="mp-cross" hidden><i></i></div>' +
         '<div class="mp-pick" id="mp-pick" hidden><span>지도를 끌어 가운데 십자(+)를 카페 위치에 맞춘 뒤 눌러 주세요.</span>' +
@@ -4585,6 +4713,13 @@
     mpS('#mp-f-cancel').addEventListener('click', mpCloseForm);
     mpS('#mp-f-del').addEventListener('click', mpFormDelete);
     // 지도 위 단추
+    mpS('#mp-br').addEventListener('click', () => {
+      const on = !mpBrOn();
+      try { localStorage.setItem(MP_BR_LS, on ? 'on' : 'off'); } catch (e) { /* 저장 못 해도 이번에는 바뀜 */ }
+      if (on) { mpBrLoad(); showToastLine('스타벅스·투썸 매장을 켰습니다. 지도를 확대하면 점으로 보입니다.', true); }
+      else { mpBrClearSel(); mpRenderCard(mpSel ? mpFind(mpSel) : null); showToastLine('스타벅스·투썸 매장을 껐습니다.', true); }
+      mpBrDraw();
+    });
     mpS('#mp-me').addEventListener('click', () => {
       if (mpMe && mpMap) { mpGo(mpMe.lat, mpMe.lng, Math.max(mpMap.getZoom(), 15)); mpRefreshLoc(false); }
       else mpRefreshLoc(true);
