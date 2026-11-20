@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v56';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v57';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const DESKS = { plain: '단색', linen: '린넨', wood: '나무결', leather: '가죽' };   // 책상(상단 배경) 질감
   const DESK_DEFAULT = 'linen';
@@ -3888,6 +3888,7 @@
   };
   let mpVecFail = '', mpVecInfo = '';   // 벡터가 안 된 이유(MP_VEC_WHY의 키)와 진단 한 줄. 값이 있으면 이번 실행에서는 A로 보여 준다. 설정에서 방식을 다시 고르면 비운다.
   const mpWantVec = () => mpEngGet() === 'vector' && !mpVecFail;
+  const MP_COLOR_NAME = ['기본', '빨강', '주황', '노랑', '초록', '청록', '파랑', '보라', '분홍'];   // 내 장소 핀 색(0 = 테마 강조색). 실제 색은 style.css 의 --pc1~8 (테마별)
   const MP_PIN = '<svg viewBox="0 0 36 44" aria-hidden="true"><path class="pn" d="M18 43C18 43 3 27.6 3 17.4 3 8.9 9.7 2.5 18 2.5s15 6.4 15 14.9C33 27.6 18 43 18 43z"/>' +
     '<g class="cup"><path d="M11 13.2h12v5.4a4.8 4.8 0 0 1-4.8 4.8h-2.4a4.8 4.8 0 0 1-4.8-4.8z"/><path d="M23 14.6h1a2.3 2.3 0 0 1 0 4.6h-1.2"/><path d="M14 9.6v1.6M17 9.6v1.6M20 9.6v1.6"/></g></svg>';
 
@@ -3909,6 +3910,7 @@
         cap: cap > 0 && cap <= 999 ? cap : 0,
         amen: Array.isArray(p.amen) ? MP_AMEN.map((a) => a[0]).filter((k) => p.amen.indexOf(k) >= 0) : [],
         memo: str(p.memo, 1000),
+        col: Number.isInteger(p.col) && p.col >= 1 && p.col < MP_COLOR_NAME.length ? p.col : 0,   // 예전 저장·백업에는 없다 → 0(기본)
         ts: Number.isFinite(+p.ts) && +p.ts > 0 ? +p.ts : Date.now(),
       });
     });
@@ -4003,16 +4005,23 @@
   let mpEditId = null;                    // 수정 중인 장소 id (null이면 새로 추가)
   const mpDraft = { lat: NaN, lng: NaN }; // 입력 중인 장소의 위치
   let mpFormAmen = new Set();
+  let mpFormCol = 0;                      // 입력 중인 장소의 핀 색(0 = 기본)
   let mpFormInit = '';
   let mpPicking = false;
   let mpUserMoved = false, mpTileErr = 0, mpDelArm = 0, mpDelTimer = 0;
-  // 스타벅스·투썸플레이스 매장 층(공공데이터 상가정보에서 걸러 앱에 넣은 data/brandcafes.json). 내 카페 목록과 따로 지도 위 점으로만 보인다.
+  // 카페 층(공공데이터 상가정보에서 걸러 앱에 넣은 data/cafes.json: 서울은 모든 카페, 서울 밖은 스타벅스·투썸). 내 장소 목록과 따로 지도 위 점으로만 보인다.
+  // 점은 모두 같은 색이고, '프랜차이즈'(목록에 있는 체인) / '개인'(그 밖의 카페)으로 걸러 볼 수 있다. 내 장소(저장한 곳)는 핀으로, 고른 색으로 보인다.
   const MP_BR_LS = 'bf.mapbrand';          // 'off' 이면 끔(기본은 켬). 이 기기만 · 백업 제외
-  const MP_BR_MINZ = 13;                   // 이 확대 수준보다 멀리서 보면 점을 그리지 않는다(한 화면에 너무 많아짐)
+  const MP_BRF_LS = 'bf.mapbrandf';        // 카페 종류 보기: 'all'(기본) | 'fr'(프랜차이즈) | 'ind'(개인). 이 기기만 · 백업 제외
+  const MP_BR_FILES = ['data/cafes.json', 'data/brandcafes.json'];   // 앞에서부터 찾는다(없으면 다음 것). 뒤의 것은 옛 형식(스타벅스·투썸만)
+  const MP_BR_MINZ = 15;                   // 이 확대 수준보다 멀리서 보면 점을 그리지 않는다(한 화면에 너무 많아짐)
   const MP_BR_MAX = 900;                   // 한 번에 그리는 점의 최대 수(넘으면 화면 가운데에서 가까운 순)
   const MP_BR_CELL = 0.05;                 // 위치 찾기용 격자 크기(도). 약 4~5km
   let mpBrDB = null, mpBrIdx = null, mpBrState = 'idle', mpBrP = null, mpBrLayer = null, mpBrRend = null, mpBrSel = -1, mpBrSelMk = null, mpBrCapped = false;   // 상태: idle | loading | ok | none(파일 없음) | err
   const mpBrOn = () => { try { return localStorage.getItem(MP_BR_LS) !== 'off'; } catch (e) { return true; } };
+  const mpBrFiltRaw = () => { try { const v = localStorage.getItem(MP_BRF_LS); return v === 'fr' || v === 'ind' ? v : 'all'; } catch (e) { return 'all'; } };
+  // 개인 카페가 든 자료일 때만 종류 걸러 보기를 쓴다(옛 형식 자료는 늘 '전체')
+  const mpBrFilt = () => (mpBrDB && mpBrDB.hasInd ? mpBrFiltRaw() : 'all');
   const mpIsOpen = () => !!mpEl && !mpEl.hidden;
   const mpS = (s) => mpEl.querySelector(s);
   const mpNarrow = () => !!mpEl && mpEl.classList.contains('narrow');
@@ -4026,7 +4035,7 @@
     mpLeafP = Promise.all([load(css, 'leaflet.css'), load(js, 'leaflet.js')]).then(() => {}, (e) => { mpLeafP = null; throw e; });
     return mpLeafP;
   }
-  const mpIcon = (kind) => L.divIcon({ className: 'mp-pin' + (kind ? ' ' + kind : ''), html: MP_PIN, iconSize: [36, 44], iconAnchor: [18, 42] });
+  const mpIcon = (kind, col) => L.divIcon({ className: 'mp-pin' + (kind ? ' ' + kind : '') + (col ? ' c' + col : ''), html: MP_PIN, iconSize: [36, 44], iconAnchor: [18, 42] });
 
   // 펼침 화면: 왼쪽에 떠 있는 목록·입력 창이 지도를 덮는다. 그 창의 오른쪽 끝까지의 폭(px). 창이 없거나 접혀 있으면 0.
   function mpPanelW() {
@@ -4171,43 +4180,62 @@
     else mpDraftMk = L.marker([mpDraft.lat, mpDraft.lng], { icon: mpIcon('draft'), interactive: false, keyboard: false }).addTo(mpMap);
   }
 
-  // ----- 스타벅스·투썸 매장 층 -----
-  // 자료: data/brandcafes.json = { v, src, asof, b: ['스타벅스','투썸플레이스'], r: [[브랜드번호, 매장명, 주소, 위도, 경도], …] }  (scripts/filter-brand-cafes.py 가 만든다)
+  // ----- 카페 층 -----
+  // 자료: data/cafes.json = { v:2, src, asof, b:['스타벅스',…], full:['서울'], bb:[남,서,북,동], r:[[브랜드번호(-1 이면 개인), 이름, 주소, 위도, 경도], …] }  (scripts/filter-cafes.py 가 만든다)
+  //  · 서울은 모든 카페(프랜차이즈 + 개인), 서울 밖은 스타벅스·투썸만 들어 있다. bb 는 '전부 담은 지역'의 위·경도 범위, full 은 그 지역 이름.
+  //  · 옛 data/brandcafes.json(v1: 스타벅스·투썸만, 개인 없음)도 읽는다 — 그때는 종류 걸러 보기가 나오지 않는다.
+  function mpBrFetch(i) {
+    return fetch(MP_BR_FILES[i]).then((r) => { if (!r.ok) { const e = new Error('http'); e.none = true; throw e; } return r.json(); })
+      .catch((e) => { if (e && e.none && i + 1 < MP_BR_FILES.length) return mpBrFetch(i + 1); throw e; });
+  }
   function mpBrLoad() {
     if (mpBrDB || mpBrP) return mpBrP;
     mpBrState = 'loading';
-    mpBrP = fetch('data/brandcafes.json').then((r) => { if (!r.ok) { const e = new Error('http'); e.none = true; throw e; } return r.json(); }).then((j) => {
+    mpBrP = mpBrFetch(0).then((j) => {
       if (!j || !Array.isArray(j.r) || !Array.isArray(j.b)) throw new Error('shape');
       const rows = [];
       j.r.forEach((x) => {
         if (!Array.isArray(x)) return;
         const bi = +x[0], la = +x[3], lo = +x[4];
-        if (!(bi >= 0 && bi < j.b.length) || !Number.isFinite(la) || !Number.isFinite(lo)) return;
-        rows.push([bi, String(x[1] || j.b[bi]).slice(0, 60), String(x[2] || '').slice(0, 120), la, lo]);
+        if (!(Number.isInteger(bi) && bi >= -1 && bi < j.b.length) || !Number.isFinite(la) || !Number.isFinite(lo)) return;
+        rows.push([bi, String(x[1] || (bi >= 0 ? j.b[bi] : '카페')).slice(0, 60), String(x[2] || '').slice(0, 120), la, lo]);
       });
       const idx = new Map();
       rows.forEach((x, i) => { const k = Math.max(0, Math.floor(x[3] / MP_BR_CELL)) * 10000 + Math.max(0, Math.floor(x[4] / MP_BR_CELL)); const a = idx.get(k); if (a) a.push(i); else idx.set(k, [i]); });
-      mpBrDB = { src: String(j.src || '').slice(0, 80), asof: String(j.asof || '').slice(0, 20), b: j.b.map((n) => String(n).slice(0, 20)), r: rows };
-      mpBrIdx = idx; mpBrState = 'ok';
+      const b = j.b.map((n) => String(n).slice(0, 20));
+      const bb = Array.isArray(j.bb) && j.bb.length === 4 && j.bb.every((v) => Number.isFinite(+v)) ? j.bb.map(Number) : null;
+      const db = { src: String(j.src || '').slice(0, 80), asof: String(j.asof || '').slice(0, 20), b, r: rows, bb, hasInd: rows.some((x) => x[0] < 0),
+        full: (Array.isArray(j.full) ? j.full : []).slice(0, 4).map((n) => String(n).slice(0, 10)), outB: [] };
+      if (bb) { const o = new Set(); rows.forEach((x) => { if (x[0] >= 0 && !mpBrInBB(db, x[3], x[4])) o.add(x[0]); }); db.outB = [...o].map((i) => b[i]); }
+      mpBrDB = db; mpBrIdx = idx; mpBrState = 'ok';
     }).catch((e) => { mpBrState = e && e.none ? 'none' : 'err'; }).then(() => { mpBrP = null; if (mpIsOpen() && mpMap) mpBrDraw(); });
     return mpBrP;
   }
-  // 점 색: 브랜드별(스타벅스 초록 · 투썸 빨강 계열), 테마에 맞춰 밝기만 바꾼다
+  // 전부 담은 지역(서울) 안인가 — 가장자리는 0.02도(약 2km) 넉넉하게 본다
+  const mpBrInBB = (db, la, lo) => !!db.bb && la >= db.bb[0] - 0.02 && la <= db.bb[2] + 0.02 && lo >= db.bb[1] - 0.02 && lo <= db.bb[3] + 0.02;
+  // 점 색: 모든 카페가 같은 색(커피색). 테마에 맞춰 밝기만 바꾼다. (내 장소 핀의 색은 style.css 의 --pc1~8)
   function mpBrPal() {
     const night = document.body.classList.contains('theme-night'), sepia = document.body.classList.contains('theme-sepia');
-    return night ? { c: ['#3ecf8e', '#ff7a66'], ring: '#16171a' } : sepia ? { c: ['#0a6e49', '#c2412c'], ring: '#f4ead6' } : { c: ['#0a7a50', '#d23a2a'], ring: '#ffffff' };
+    return night ? { c: '#d9a577', ring: '#16171a' } : sepia ? { c: '#7a4f33', ring: '#f4ead6' } : { c: '#8a5a3c', ring: '#ffffff' };
   }
   function mpBrDraw() {
     if (!mpMap || !mpBrLayer) return;
     mpBrLayer.clearLayers(); mpBrSelMk = null; mpBrCapped = false;
-    const btn = mpS('#mp-br'); if (btn) { btn.classList.toggle('on', mpBrOn()); btn.setAttribute('aria-pressed', mpBrOn() ? 'true' : 'false'); }
-    if (mpBrOn() && mpBrDB && mpBrIdx && mpMap.getZoom() >= MP_BR_MINZ) {
+    const on = mpBrOn(), f = mpBrFilt();
+    const btn = mpS('#mp-br'); if (btn) { btn.classList.toggle('on', on); btn.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+    const bf = mpS('#mp-bf');
+    if (bf) { bf.hidden = !(on && mpBrDB && mpBrDB.hasInd); bf.querySelectorAll('button').forEach((b) => { const sel = b.dataset.f === f; b.classList.toggle('on', sel); b.setAttribute('aria-pressed', sel ? 'true' : 'false'); }); }
+    if (on && mpBrDB && mpBrIdx && mpMap.getZoom() >= MP_BR_MINZ) {
       const b = mpMap.getBounds().pad(0.4), c = mpMap.getCenter(), S = MP_BR_CELL, rows = mpBrDB.r;
       let out = [];
       for (let a = Math.max(0, Math.floor(b.getSouth() / S)); a <= Math.floor(b.getNorth() / S); a++) {
         for (let o = Math.max(0, Math.floor(b.getWest() / S)); o <= Math.floor(b.getEast() / S); o++) {
           const ix = mpBrIdx.get(a * 10000 + o);
-          if (ix) for (let k = 0; k < ix.length; k++) { const r = rows[ix[k]]; if (r[3] >= b.getSouth() && r[3] <= b.getNorth() && r[4] >= b.getWest() && r[4] <= b.getEast()) out.push(ix[k]); }
+          if (ix) for (let k = 0; k < ix.length; k++) {
+            const r = rows[ix[k]];
+            if (f === 'fr' ? r[0] < 0 : f === 'ind' ? r[0] >= 0 : false) continue;
+            if (r[3] >= b.getSouth() && r[3] <= b.getNorth() && r[4] >= b.getWest() && r[4] <= b.getEast()) out.push(ix[k]);
+          }
         }
       }
       if (out.length > MP_BR_MAX) {
@@ -4218,7 +4246,7 @@
       const pal = mpBrPal();
       out.forEach((i) => {
         const r = rows[i];
-        L.circleMarker([r[3], r[4]], { renderer: mpBrRend, radius: 6.5, weight: 2, color: pal.ring, fillColor: pal.c[r[0] % 2], fillOpacity: 1, bubblingMouseEvents: false })
+        L.circleMarker([r[3], r[4]], { renderer: mpBrRend, radius: 6.5, weight: 2, color: pal.ring, fillColor: pal.c, fillOpacity: 1, bubblingMouseEvents: false })
           .on('click', () => mpBrSelect(i)).addTo(mpBrLayer);
       });
       if (mpBrSel >= 0 && rows[mpBrSel]) mpBrMarkSel();
@@ -4235,9 +4263,19 @@
     const h = mpS('#mp-bhint'); if (!h) return;
     let msg = '';
     if (mpBrOn()) {
-      if (mpBrState === 'none' || mpBrState === 'err') msg = '스타벅스·투썸 매장 자료를 불러오지 못했습니다.';
+      const f = mpBrFilt();
+      if (mpBrState === 'none' || mpBrState === 'err') msg = '카페 자료를 불러오지 못했습니다.';
       else if (mpBrState === 'ok' && mpMap && mpMap.getZoom() < MP_BR_MINZ) msg = '지도를 확대하면 장소가 보입니다';
-      else if (mpBrState === 'ok' && mpBrCapped) msg = '매장이 많아 가운데에서 가까운 ' + MP_BR_MAX + '곳만 보입니다. 더 확대해 보세요';
+      else if (mpBrState === 'ok' && mpBrCapped) msg = '카페가 많아 가운데에서 가까운 ' + MP_BR_MAX + '곳만 보입니다. 더 확대해 보세요';
+      else if (mpBrState === 'ok' && mpMap && mpBrDB.bb && f !== 'fr') {
+        const c = mpMap.getCenter();
+        if (!mpBrInBB(mpBrDB, c.lat, c.lng)) {
+          const region = mpBrDB.full.join('·') || '서울', o = mpBrDB.outB;
+          msg = f === 'ind' ? '개인 카페는 ' + region + '만 담겨 있습니다'
+            : o.length && o.length <= 3 ? region + ' 밖에서는 ' + o.join('·') + ' 매장만 보입니다 (개인 카페는 ' + region + '만)'
+            : o.length ? region + ' 밖에서는 일부 프랜차이즈 매장만 보입니다 (개인 카페는 ' + region + '만)' : '카페 자료는 ' + region + '만 담겨 있습니다';
+        }
+      }
     }
     h.textContent = msg; h.hidden = !msg;
   }
@@ -4247,22 +4285,41 @@
     if (mpBrSelMk && mpBrLayer) mpBrLayer.removeLayer(mpBrSelMk);
     mpBrSelMk = null;
   }
-  // 이미 내 목록에 있는 매장인가(같은 이름 계열이 40m 안에 있으면 같은 곳으로 본다)
+  // 이미 내 장소에 있는 카페인가(이름이 비슷한 장소가 40m 안에 있으면 같은 곳으로 본다. 프랜차이즈는 브랜드 이름, 개인 카페는 자기 이름의 앞 세 글자로 견준다)
   function mpBrHave(r, brand) {
-    return mpDB.items.some((p) => mpDist(p, { lat: r[3], lng: r[4] }) < 40 && p.name.replace(/\s/g, '').indexOf(brand.replace(/\s/g, '').slice(0, 3)) >= 0);
+    const key = (brand || r[1]).replace(/\s/g, '').slice(0, 3);
+    return mpDB.items.some((p) => mpDist(p, { lat: r[3], lng: r[4] }) < 40 && p.name.replace(/\s/g, '').indexOf(key) >= 0);
+  }
+  // 같은 자리(15m 안, 같은 건물)에 겹쳐 있는 다른 카페 — 점이 겹쳐 맨 위 한 곳만 눌리므로 카드에서 고를 수 있게 한다. 지금 보는 종류(전체/프랜차이즈/개인)에 맞는 것만, 가까운 순 최대 40곳(실제 자료에서 한 건물에 30곳 넘게 겹친 곳이 있다).
+  function mpBrNear(i) {
+    const rows = mpBrDB.r, r = rows[i], f = mpBrFilt(), S = MP_BR_CELL, a0 = Math.floor(r[3] / S), o0 = Math.floor(r[4] / S), out = [];
+    for (let a = a0 - 1; a <= a0 + 1; a++) for (let o = o0 - 1; o <= o0 + 1; o++) {
+      const ix = mpBrIdx.get(Math.max(0, a) * 10000 + Math.max(0, o));
+      if (!ix) continue;
+      for (let k = 0; k < ix.length; k++) {
+        const j = ix[k], q = rows[j];
+        if (j === i || Math.abs(q[3] - r[3]) > 0.00025 || Math.abs(q[4] - r[4]) > 0.0004) continue;
+        if (f === 'fr' ? q[0] < 0 : f === 'ind' ? q[0] >= 0 : false) continue;
+        const d = mpDist({ lat: r[3], lng: r[4] }, { lat: q[3], lng: q[4] });
+        if (d <= 15) out.push([j, d]);
+      }
+    }
+    return out.sort((x, y) => x[1] - y[1] || x[0] - y[0]).map((x) => x[0]);
   }
   function mpBrSelect(i) {
     if (mpPicking || mpView === 'form' || !mpBrDB || !mpBrDB.r[i]) return;
     mpSelect(null);                       // 내 장소 선택·카드를 먼저 닫는다(여기서 매장 선택도 풀린다)
     mpBrSel = i; mpBrMarkSel();
-    const r = mpBrDB.r[i], brand = mpBrDB.b[r[0]] || '', pt = { name: r[1], lat: r[3], lng: r[4] };
+    const r = mpBrDB.r[i], brand = r[0] >= 0 ? mpBrDB.b[r[0]] || '' : '', pt = { name: r[1], lat: r[3], lng: r[4] };
     const d = mpMe ? mpDist(mpMe, pt) : null, lk = mpLinks(pt), kr = mpInKorea(pt), have = mpBrHave(r, brand);
+    const near = mpBrNear(i);
     const c = mpS('#mp-card');
     c.innerHTML =
-      '<div class="mp-c-top"><i class="mp-bd" style="background:' + mpBrPal().c[r[0] % 2] + '"></i><strong>' + esc(r[1]) + '</strong>' + (d !== null ? '<span class="mp-it-d">' + mpFmtDist(d) + '</span>' : '') +
+      '<div class="mp-c-top"><i class="mp-bd" style="background:' + mpBrPal().c + '"></i><strong>' + esc(r[1]) + '</strong>' + (d !== null ? '<span class="mp-it-d">' + mpFmtDist(d) + '</span>' : '') +
         '<button type="button" class="mp-c-x" id="mp-c-x" aria-label="닫기">✕</button></div>' +
       (r[2] ? '<div class="mp-c-l">' + esc(r[2]) + '</div>' : '') +
-      '<div class="mp-c-l mp-c-src">' + esc(brand) + ' 매장 · 공공데이터(상가정보)' + (mpBrDB.asof ? ' ' + esc(mpBrDB.asof) + ' 기준' : '') + ' · 영업 여부·시간은 지도 앱에서 확인하세요</div>' +
+      (near.length ? '<div class="mp-c-l mp-c-near">같은 자리 근처 카페 ' + near.length + '곳 ' + near.slice(0, 40).map((j) => '<button type="button" class="mp-nb" data-j="' + j + '">' + esc(mpBrDB.r[j][1]) + '</button>').join('') + (near.length > 40 ? ' 외 ' + (near.length - 40) + '곳' : '') + '</div>' : '') +
+      '<div class="mp-c-l mp-c-src">' + (brand ? esc(brand) + ' 매장' : '개인 카페') + ' · 공공데이터(상가정보)' + (mpBrDB.asof ? ' ' + esc(mpBrDB.asof) + ' 기준' : '') + ' · 영업 여부·시간은 지도 앱에서 확인하세요</div>' +
       '<div class="mp-c-b">' +
         '<button type="button" class="mp-lk" data-o="naver"' + (kr ? '' : ' disabled') + '>네이버 지도</button>' +
         '<button type="button" class="mp-lk" data-o="apple">애플 지도</button>' +
@@ -4270,9 +4327,10 @@
         '<button type="button" class="mp-lk edit" data-o="add"' + (have ? ' disabled' : '') + '>' + (have ? '내 장소에 있음' : '내 장소로 추가') + '</button></div>';
     c.hidden = false;
     mpS('#mp-c-x').addEventListener('click', () => { mpBrClearSel(); mpRenderCard(null); });
+    c.querySelectorAll('.mp-nb').forEach((b) => b.addEventListener('click', () => mpBrSelect(+b.dataset.j)));
     c.querySelectorAll('.mp-lk').forEach((b) => b.addEventListener('click', () => {
       const o = b.dataset.o;
-      if (o === 'add') { mpOpenForm({ name: r[1], addr: r[2], tel: '', hours: '', cap: 0, memo: '', amen: [], lat: r[3], lng: r[4] }, true); return; }
+      if (o === 'add') { mpOpenForm({ name: r[1], addr: r[2], tel: '', hours: '', cap: 0, memo: '', amen: [], col: 0, lat: r[3], lng: r[4] }, true); return; }
       mpOpen(lk[o][0], lk[o][1]);
     }));
   }
@@ -4321,7 +4379,7 @@
     } else {
       box.innerHTML = list.map(({ p, d }) =>
         '<div class="mp-item' + (p.id === mpSel ? ' sel' : '') + '" data-id="' + p.id + '">' +
-          '<button type="button" class="mp-it-main"><span class="mp-it-top"><span class="mp-it-name">' + esc(p.name) + '</span>' +
+          '<button type="button" class="mp-it-main"><span class="mp-it-top"><i class="mp-sw c' + p.col + '"></i><span class="mp-it-name">' + esc(p.name) + '</span>' +
           (d !== null ? '<span class="mp-it-d">' + mpFmtDist(d) + '</span>' : '') + '</span>' +
           (p.addr ? '<span class="mp-it-sub">' + esc(p.addr) + '</span>' : '') +
           (p.amen.length || p.cap ? '<span class="mp-tags">' + mpTags(p) + '</span>' : '') + '</button>' +
@@ -4333,7 +4391,7 @@
     mpPinLayer.clearLayers();
     Object.keys(mpMk).forEach((k) => { delete mpMk[k]; });
     mpVisible().forEach((p) => {
-      const mk = L.marker([p.lat, p.lng], { icon: mpIcon(p.id === mpSel ? 'sel' : ''), title: p.name, zIndexOffset: p.id === mpSel ? 1000 : 0 });
+      const mk = L.marker([p.lat, p.lng], { icon: mpIcon(p.id === mpSel ? 'sel' : '', p.col), title: p.name, zIndexOffset: p.id === mpSel ? 1000 : 0 });
       mk.on('click', () => mpSelect(p.id, { list: true }));
       mk.addTo(mpPinLayer);
       mpMk[p.id] = mk;
@@ -4345,8 +4403,9 @@
     opt = opt || {};
     const prev = mpSel;
     mpSel = id && mpFind(id) ? id : null;
-    if (prev && mpMk[prev]) { mpMk[prev].setIcon(mpIcon('')); mpMk[prev].setZIndexOffset(0); }
-    if (mpSel && mpMk[mpSel]) { mpMk[mpSel].setIcon(mpIcon('sel')); mpMk[mpSel].setZIndexOffset(1000); }
+    const pp = prev ? mpFind(prev) : null;
+    if (prev && mpMk[prev]) { mpMk[prev].setIcon(mpIcon('', pp ? pp.col : 0)); mpMk[prev].setZIndexOffset(0); }
+    if (mpSel && mpMk[mpSel]) { mpMk[mpSel].setIcon(mpIcon('sel', mpFind(mpSel).col)); mpMk[mpSel].setZIndexOffset(1000); }
     const p = mpSel ? mpFind(mpSel) : null;
     mpEl.querySelectorAll('.mp-item').forEach((it) => it.classList.toggle('sel', it.dataset.id === mpSel));
     mpRenderCard(p);
@@ -4359,7 +4418,7 @@
     if (!p || mpPicking) { c.hidden = true; c.innerHTML = ''; return; }
     const d = mpDistOf(p), lk = mpLinks(p), kr = mpInKorea(p);
     c.innerHTML =
-      '<div class="mp-c-top"><strong>' + esc(p.name) + '</strong>' + (d !== null ? '<span class="mp-it-d">' + mpFmtDist(d) + '</span>' : '') +
+      '<div class="mp-c-top"><i class="mp-sw c' + p.col + '"></i><strong>' + esc(p.name) + '</strong>' + (d !== null ? '<span class="mp-it-d">' + mpFmtDist(d) + '</span>' : '') +
         '<button type="button" class="mp-c-x" id="mp-c-x" aria-label="닫기">✕</button></div>' +
       (p.addr ? '<div class="mp-c-l">' + esc(p.addr) + '</div>' : '') +
       (p.hours ? '<div class="mp-c-l">영업시간 · ' + esc(p.hours) + '</div>' : '') +
@@ -4405,7 +4464,7 @@
   // ----- 등록·수정 입력 화면 -----
   function mpFormSnap() {
     return JSON.stringify([mpS('#mp-f-name').value, mpS('#mp-f-addr').value, mpS('#mp-f-tel').value, mpS('#mp-f-hours').value, mpS('#mp-f-cap').value,
-      mpS('#mp-f-memo').value, mpDraft.lat, mpDraft.lng, [...mpFormAmen].sort()]);
+      mpS('#mp-f-memo').value, mpDraft.lat, mpDraft.lng, [...mpFormAmen].sort(), mpFormCol]);
   }
   function mpFormMsg(t, warn) {
     const m = mpS('#mp-f-msg');
@@ -4413,6 +4472,9 @@
   }
   function mpSyncAmen() {
     mpS('#mp-f-amen').innerHTML = MP_AMEN.map((a) => '<button type="button" class="mp-chip' + (mpFormAmen.has(a[0]) ? ' on' : '') + '" data-k="' + a[0] + '">' + a[1] + '</button>').join('');
+  }
+  function mpSyncCol() {
+    mpS('#mp-f-col').innerHTML = MP_COLOR_NAME.map((n, i) => '<button type="button" class="mp-swb c' + i + (i === mpFormCol ? ' on' : '') + '" data-c="' + i + '" role="radio" aria-checked="' + (i === mpFormCol ? 'true' : 'false') + '" aria-label="' + n + '"></button>').join('');
   }
   function mpSyncLL() {
     if (!mpEl) return;
@@ -4442,12 +4504,13 @@
     mpS('#mp-f-memo').value = p ? p.memo : '';
     mpDraft.lat = p ? p.lat : NaN; mpDraft.lng = p ? p.lng : NaN;
     mpFormAmen = new Set(p ? p.amen : []);
+    mpFormCol = p && p.col ? p.col : 0;
     mpS('#mp-ftitle').textContent = p && !asNew ? '카페 정보 수정' : '장소 추가';
     mpS('#mp-f-del').hidden = !p || !!asNew;
     mpDisarmDel();
     mpS('#mp-f-res').hidden = true; mpS('#mp-f-res').innerHTML = '';
     mpFormMsg('');
-    mpSyncAmen(); mpSyncLL();
+    mpSyncAmen(); mpSyncCol(); mpSyncLL();
     mpShowView('form');
     mpFormInit = mpFormSnap();
     if (mpNarrow()) mpTab('l');
@@ -4543,7 +4606,7 @@
     const rec = mpClean([{
       id: old ? old.id : newId(), name, lat: mpDraft.lat, lng: mpDraft.lng,
       addr: mpS('#mp-f-addr').value, tel: mpS('#mp-f-tel').value, hours: mpS('#mp-f-hours').value, cap: cap > 0 ? cap : 0,
-      amen: [...mpFormAmen], memo: mpS('#mp-f-memo').value, ts: old ? old.ts : Date.now(),
+      amen: [...mpFormAmen], memo: mpS('#mp-f-memo').value, col: mpFormCol, ts: old ? old.ts : Date.now(),
     }])[0];
     if (old) mpDB.items = mpDB.items.map((p) => (p.id === old.id ? rec : p)); else mpDB.items.push(rec);
     mpSave();
@@ -4660,6 +4723,7 @@
           field('mp-f-hours', '영업시간', '<input id="mp-f-hours" class="mp-in" type="text" maxlength="80" placeholder="예: 매일 09:00–22:00 (월 휴무)" autocomplete="off" enterkeyhint="next">') +
           field('mp-f-cap', '수용 인원', '<div class="mp-cap"><input id="mp-f-cap" class="mp-in" type="number" inputmode="numeric" min="0" max="999" placeholder="예: 20" enterkeyhint="next"><span>명</span></div>') +
           '<div class="mp-f"><label>편의 항목</label><div class="mp-chips" id="mp-f-amen"></div></div>' +
+          '<div class="mp-f"><label>지도 핀 색</label><div class="mp-cols" id="mp-f-col" role="radiogroup" aria-label="지도 핀 색"></div></div>' +
           field('mp-f-memo', '메모', '<textarea id="mp-f-memo" class="mp-in" rows="4" maxlength="1000" placeholder="예: 2층 별실은 8명까지, 오후 3시 이후 한산"></textarea>') +
           '<div class="mp-fa"><button type="button" class="mp-act" id="mp-f-save">저장</button><button type="button" class="mp-btn" id="mp-f-cancel">취소</button><button type="button" class="mp-btn warn" id="mp-f-del" hidden>삭제</button></div>' +
         '</div>' +
@@ -4670,7 +4734,9 @@
         '<div class="mp-bhint" id="mp-bhint" hidden></div>' +
         '<button type="button" class="mp-me" id="mp-me" aria-label="내 위치로 이동">' +
           '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>' +
-        '<button type="button" class="mp-br" id="mp-br" aria-label="스타벅스·투썸 매장 표시" aria-pressed="true">' +
+        '<div class="mp-bf" id="mp-bf" role="group" aria-label="카페 종류" hidden>' +
+          '<button type="button" data-f="all">전체</button><button type="button" data-f="fr">프랜차이즈</button><button type="button" data-f="ind">개인</button></div>' +
+        '<button type="button" class="mp-br" id="mp-br" aria-label="카페 표시" aria-pressed="true">' +
           '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 10h11v4.5a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V10z"/><path d="M16 11h1.4a2.4 2.4 0 0 1 0 4.8H16"/><path d="M8.5 3.5v3M12.5 3.5v3"/></svg></button>' +
         '<div class="mp-card" id="mp-card" hidden></div>' +
         '<div class="mp-cross" id="mp-cross" hidden><i></i></div>' +
@@ -4718,6 +4784,12 @@
       if (mpFormAmen.has(b.dataset.k)) mpFormAmen.delete(b.dataset.k); else mpFormAmen.add(b.dataset.k);
       b.classList.toggle('on', mpFormAmen.has(b.dataset.k));
     });
+    mpS('#mp-f-col').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-c]');
+      if (!b) return;
+      mpFormCol = +b.dataset.c;
+      mpSyncCol();
+    });
     ['#mp-f-name', '#mp-f-tel', '#mp-f-hours', '#mp-f-cap'].forEach((q) => mpS(q).addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }));
     mpS('#mp-f-save').addEventListener('click', mpFormSave);
     mpS('#mp-f-cancel').addEventListener('click', mpCloseForm);
@@ -4726,8 +4798,17 @@
     mpS('#mp-br').addEventListener('click', () => {
       const on = !mpBrOn();
       try { localStorage.setItem(MP_BR_LS, on ? 'on' : 'off'); } catch (e) { /* 저장 못 해도 이번에는 바뀜 */ }
-      if (on) { mpBrLoad(); showToastLine('스타벅스·투썸 매장을 켰습니다. 지도를 확대하면 점으로 보입니다.', true); }
-      else { mpBrClearSel(); mpRenderCard(mpSel ? mpFind(mpSel) : null); showToastLine('스타벅스·투썸 매장을 껐습니다.', true); }
+      if (on) { mpBrLoad(); showToastLine('카페 표시를 켰습니다. 지도를 확대하면 점으로 보입니다.', true); }
+      else { mpBrClearSel(); mpRenderCard(mpSel ? mpFind(mpSel) : null); showToastLine('카페 표시를 껐습니다.', true); }
+      mpBrDraw();
+    });
+    mpS('#mp-bf').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-f]');
+      if (!b) return;
+      try { localStorage.setItem(MP_BRF_LS, b.dataset.f); } catch (er) { /* 저장 못 해도 이번에는 바뀜 */ }
+      const sel = mpBrSel >= 0 && mpBrDB ? mpBrDB.r[mpBrSel] : null;
+      if (sel && (b.dataset.f === 'fr' ? sel[0] < 0 : b.dataset.f === 'ind' ? sel[0] >= 0 : false)) { mpBrClearSel(); mpRenderCard(mpSel ? mpFind(mpSel) : null); }   // 걸러져 사라질 카페의 카드는 닫는다
+      else if (sel) { const i = mpBrSel; mpBrSelect(i); }   // 남는 카페의 카드는 '같은 자리' 목록을 새 필터에 맞게 다시 그린다
       mpBrDraw();
     });
     mpS('#mp-me').addEventListener('click', () => {

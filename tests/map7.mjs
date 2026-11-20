@@ -44,6 +44,7 @@ async function openDev(dev, { data = small, mode = 'ok', cfg = {} } = {}) {
   await p.setRequestInterception(true);
   p.on('request', (r) => { const u = r.url();
     if (u.startsWith('https://tile.openstreetmap.org/') || u.startsWith('https://basemaps.cartocdn.com/')) r.respond({ status: 200, contentType: 'image/png', body: TILE, headers: { 'access-control-allow-origin': '*' } });
+    else if (u.endsWith('/data/cafes.json')) r.respond({ status: 404, body: 'x' });   // 새 파일이 없다고 응답 → 앱이 옛 형식(brandcafes.json)으로 돌아가는 경로를 시험한다
     else if (u.endsWith('/data/brandcafes.json')) { if (mode === 'ok') r.respond({ status: 200, contentType: 'application/json', body: JSON.stringify(data) }); else if (mode === 'none') r.respond({ status: 404, body: 'x' }); else r.respond({ status: 200, contentType: 'application/json', body: '{"r": oops' }); }
     else if (u.startsWith('http://localhost') || u.startsWith('data:') || u.startsWith('blob:')) r.continue(); else r.abort(); });
   await p.evaluateOnNewDocument(seed.fn, { places: [MINE, MINE2], ...cfg });
@@ -76,7 +77,7 @@ const DUO = ['Duo 펼침', 951, 669, { top: 0, right: 84, bottom: 34, left: 0 }]
   console.log('===== 듀오 펼침 · 정상 자료');
   const { p, errs, w } = await openDev(DUO);
   const br = await rect(p, '#mp-br'), me = await rect(p, '.mp-me'), zo = await rect(p, '.leaflet-control-zoom'), mw = await rect(p, '.mp-mapwrap');
-  ok('매장 단추가 있고 켜진 모양이다', !!br && await p.evaluate(() => { const e = document.querySelector('#mp-br'); return e.classList.contains('on') && e.getAttribute('aria-pressed') === 'true'; }));
+  ok('카페 단추가 있고 켜진 모양이다(옛 형식 자료라 종류 걸러 보기는 안 나온다)', !!br && !(await shown(p, '#mp-bf')) && await p.evaluate(() => { const e = document.querySelector('#mp-br'); return e.classList.contains('on') && e.getAttribute('aria-pressed') === 'true'; }));
   ok('단추가 내 위치 단추 아래에 겹치지 않게, 지도 안에 있다', br.t >= me.b + 3 && br.l >= mw.l && br.r <= mw.r && br.b <= mw.b && br.t >= zo.b, `br ${Math.round(br.t)}~${Math.round(br.b)} · me ${Math.round(me.t)}~${Math.round(me.b)} · zoom~${Math.round(zo.b)}`);
   ok('점을 그리는 캔버스가 전용 층에 있다', await p.evaluate(() => !!document.querySelector('.leaflet-mpBr-pane canvas')));
   await p.screenshot({ path: '/tmp/map7shots/duo-open.png' });
@@ -129,16 +130,16 @@ const DUO = ['Duo 펼침', 951, 669, { top: 0, right: 84, bottom: 34, left: 0 }]
   await tapAt(p, SB[3][3], SB[3][4], 16);
   ok('다른 점을 누르면 카드가 그 매장으로 바뀐다', (await cardName(p)) === SB[3][1], String(await cardName(p)));
   await p.evaluate(() => window.__mpMap.setZoom(11, { animate: false })); await sleep(500);
-  ok('확대 수준 11(기준 13 미만)에서는 점이 하나도 안 그려진다', (await dots(p)).dot === 0);
+  ok('확대 수준 11(기준 15 미만)에서는 점이 하나도 안 그려진다', (await dots(p)).dot === 0);
   ok('멀리 보면(확대 수준 11) 카드가 그대로이고 안내 문구가 뜬다(확대하면 보입니다)', (await shown(p, '#mp-bhint')) && (await txt(p, '#mp-bhint')).trim() === '지도를 확대하면 장소가 보입니다', await txt(p, '#mp-bhint'));
   { const hb = await rect(p, '#mp-bhint'), mw0 = await rect(p, '.mp-mapwrap'), c = (hb.l + hb.r) / 2, mc = (mw0.l + mw0.r) / 2;
     ok('안내 문구가 (왼쪽 목록 창을 뺀 영역이 아니라) 지도 전체의 가운데에 있다(±2px)', Math.abs(c - mc) <= 2, `문구 중심 ${c.toFixed(1)} · 지도 중심 ${mc.toFixed(1)}`);
     ok('안내 문구가 지도 안에 들어가고 오른쪽 단추(확대·내 위치)를 덮지 않는다', hb.l >= mw0.l && hb.r <= mw0.r - 62, `문구 ${Math.round(hb.l)}~${Math.round(hb.r)} · 지도 ${Math.round(mw0.l)}~${Math.round(mw0.r)}`);
     ok('추가 단추의 글자가 "＋ 장소 추가"', (await txt(p, '#mp-add')).trim() === '＋ 장소 추가', await txt(p, '#mp-add')); }
-  await p.evaluate(() => window.__mpMap.setZoom(14, { animate: false })); await sleep(500);
-  ok('확대 수준 14에서는 안내 문구가 사라지고 점이 다시 그려진다', !(await shown(p, '#mp-bhint')) && (await dots(p)).dot === (await expectIn(p, small)) && (await dots(p)).dot > 0);
+  await p.evaluate(() => window.__mpMap.setZoom(15, { animate: false })); await sleep(500);
+  ok('확대 수준 15에서는 안내 문구가 사라지고 점이 다시 그려진다', !(await shown(p, '#mp-bhint')) && (await dots(p)).dot === (await expectIn(p, small)) && (await dots(p)).dot > 0);
   { const d = await dots(p), eb = await p.evaluate((rows) => { const bb = window.__mpMap.getBounds().pad(0.4), c = [0, 0]; rows.forEach((r) => { if (bb.contains([r[3], r[4]])) c[r[0]]++; }); return c; }, small.r);
-    ok('브랜드별 색: 스타벅스 초록(#0a7a50)·투썸 빨강(#d23a2a) 점이 각각 맞는 수로 그려진다', d.c['#0a7a50'] === eb[0] && d.c['#d23a2a'] === eb[1] && eb[1] >= 3 && eb[0] >= 5, JSON.stringify(d.c) + ' 기대 ' + eb); }
+    ok('모든 카페 점이 같은 색(커피색 #8a5a3c) 하나로 그려진다(브랜드 달라도 같음)', Object.keys(d.c).length === 1 && d.c['#8a5a3c'] === eb[0] + eb[1] && eb[1] >= 3 && eb[0] >= 5, JSON.stringify(d.c) + ' 기대 ' + eb); }
   // 먼 곳(부산)
   await tapAt(p, BUSAN[3], BUSAN[4]);
   ok('먼 곳(부산)의 매장도 그 자리로 가면 눌린다', (await cardName(p)) === BUSAN[1], String(await cardName(p)));
@@ -176,7 +177,7 @@ const DUO = ['Duo 펼침', 951, 669, { top: 0, right: 84, bottom: 34, left: 0 }]
 {
   console.log('===== 점이 너무 많을 때');
   const { p, errs } = await openDev(DUO, { data: dense });
-  await p.evaluate(() => { window.__mpMap.setView([37.4960, 127.0470], 14, { animate: false }); }); await sleep(900);
+  await p.evaluate(() => { window.__mpMap.setView([37.4960, 127.0470], 15, { animate: false }); }); await sleep(900);
   ok('한 화면에 900곳이 넘으면 "가까운 900곳만" 안내가 뜨고 점은 정확히 900개', (await shown(p, '#mp-bhint')) && (await txt(p, '#mp-bhint')).includes('900곳만') && (await dots(p)).dot === 900, await txt(p, '#mp-bhint') + ' · ' + JSON.stringify(await dots(p)));
   { const hb = await rect(p, '#mp-bhint'), mw0 = await rect(p, '.mp-mapwrap'); ok('긴 안내(900곳)도 지도 전체의 가운데(±2px)이고 지도 안에 들어간다', !!hb && Math.abs((hb.l + hb.r) / 2 - (mw0.l + mw0.r) / 2) <= 2 && hb.l >= mw0.l && hb.r <= mw0.r - 62, hb ? `문구 중심 ${((hb.l + hb.r) / 2).toFixed(1)} · 지도 중심 ${((mw0.l + mw0.r) / 2).toFixed(1)} · 폭 ${Math.round(hb.r - hb.l)}` : '없음'); }
   await p.screenshot({ path: '/tmp/map7shots/duo-dense.png' });
@@ -203,7 +204,7 @@ for (const [mode, label] of [['none', '파일 없음(404)'], ['bad', '깨진 파
   console.log('===== 야간 테마');
   const { p, errs } = await openDev(DUO, { cfg: { theme: 'night' } });
   await tapAt(p, TW[2][3], TW[2][4]);
-  ok('야간 테마에서도 점이 눌려 카드가 뜬다(카드 안 브랜드 점 색 = 투썸 야간색)', (await cardName(p)) === TW[2][1] && await p.evaluate(() => (document.querySelector('#mp-card .mp-bd') || {}).style.background.replace(/\s/g, '') === 'rgb(255,122,102)'));
+  ok('야간 테마에서도 점이 눌려 카드가 뜬다(카드 안 점 색 = 야간 커피색)', (await cardName(p)) === TW[2][1] && await p.evaluate(() => (document.querySelector('#mp-card .mp-bd') || {}).style.background.replace(/\s/g, '') === 'rgb(217,165,119)'));
   await p.screenshot({ path: '/tmp/map7shots/duo-night.png' });
   ok('오류 없음', errs.length === 0, JSON.stringify(errs));
   await p.close();

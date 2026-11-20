@@ -1,6 +1,6 @@
 // 오프라인에서도 열리도록 앱 파일과 본문을 저장해 둔다.
 // 앱을 수정해서 다시 올릴 때는 아래 CACHE 이름의 숫자를 올려야 기기에 새 버전이 반영된다.
-const CACHE = 'bibleflip-v56';
+const CACHE = 'bibleflip-v57';
 const ASSETS = [
   './',
   'index.html',
@@ -40,7 +40,7 @@ async function precacheStd(cache) {
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE)
-      .then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: 'reload' }))).then(() => precacheStd(c)).then(() => c.add(new Request('data/brandcafes.json', { cache: 'reload' })).catch(() => {})))
+      .then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: 'reload' }))).then(() => precacheStd(c)).then(() => Promise.all(['data/cafes.json', 'data/brandcafes.json'].map((u) => c.add(new Request(u, { cache: 'reload' })).catch(() => {})))))
       .then(() => self.skipWaiting())
   );
 });

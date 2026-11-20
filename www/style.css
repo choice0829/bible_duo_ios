@@ -570,6 +570,10 @@ body.theme-night #mp { --mp-tint: rgba(255, 255, 255, .05); }
 #mp { --mp-land: #F2EFE2; --mp-me: #2f6fa8; }
 body.theme-sepia #mp { --mp-land: #E8D8BA; --mp-me: #2b6488; }
 body.theme-night #mp { --mp-land: #1A1B1F; --mp-me: #6fb4ea; }
+/* 내 장소 핀 색(저장한 곳을 고른 색으로 구분): --pc1~8 = 빨강·주황·노랑·초록·청록·파랑·보라·분홍. 0번(기본)은 테마 강조색(--accent) */
+#mp { --pc1: #c0392b; --pc2: #e07b1a; --pc3: #c99a06; --pc4: #2f8f4e; --pc5: #178a96; --pc6: #2f6fd0; --pc7: #7b4fb5; --pc8: #d0487e; }
+body.theme-sepia #mp { --pc1: #b0402c; --pc2: #c9701a; --pc3: #b08a10; --pc4: #3f7f48; --pc5: #2a7f86; --pc6: #2f66a8; --pc7: #76508f; --pc8: #b84a70; }
+body.theme-night #mp { --pc1: #ff7a66; --pc2: #ffa04d; --pc3: #f0c43c; --pc4: #5fd08a; --pc5: #4fc3cf; --pc6: #6aa5ff; --pc7: #b08cf0; --pc8: #ff7fb0; }
 #mp.two { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto; --mp-plw: clamp(300px, 38vw, 380px); --mp-cl: calc(var(--mp-plw) + 20px); --mp-nl: var(--mp-cl); }
 #mp.two.pl-off[data-view="list"] { --mp-cl: 10px; --mp-nl: 168px; }   /* 목록 창을 접으면 카드·안내가 왼쪽 끝까지 */
 #mp.two.picking { --mp-cl: 10px; --mp-nl: 58px; }
@@ -617,7 +621,7 @@ textarea.mp-in { resize: none; line-height: 1.5; }
 .mp-item.sel { border-color: var(--accent); }
 .mp-it-main { flex: 1; min-width: 0; display: block; text-align: left; padding: 11px 6px 11px 13px; }
 .mp-it-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.mp-it-name { min-width: 0; font-size: 16px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-it-name { flex: 1; min-width: 0; font-size: 16px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mp-it-d { flex: none; font-size: 13.5px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
 .mp-it-sub { display: block; margin-top: 3px; font-size: 13px; line-height: 1.4; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mp-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
@@ -677,6 +681,12 @@ body.theme-night .mp-src-osm .leaflet-tile-pane { filter: invert(1) hue-rotate(1
 .mp-pin.sel svg { transform: scale(1.22); }
 .mp-pin.sel .pn { fill: #1f6f78; }
 body.theme-night .mp-pin.sel .pn { fill: #4fb3bf; }
+.mp-pin.c1 .pn { fill: var(--pc1); } .mp-pin.c2 .pn { fill: var(--pc2); } .mp-pin.c3 .pn { fill: var(--pc3); } .mp-pin.c4 .pn { fill: var(--pc4); }
+.mp-pin.c5 .pn { fill: var(--pc5); } .mp-pin.c6 .pn { fill: var(--pc6); } .mp-pin.c7 .pn { fill: var(--pc7); } .mp-pin.c8 .pn { fill: var(--pc8); }
+/* 색을 고른 핀은 선택해도 색이 바뀌지 않고, 큰 크기와 굵은 테두리로 선택을 보여 준다(#mp 를 붙여 야간 테마의 선택 색 규칙보다 앞서게 한다) */
+#mp .mp-pin.sel.c1 .pn { fill: var(--pc1); } #mp .mp-pin.sel.c2 .pn { fill: var(--pc2); } #mp .mp-pin.sel.c3 .pn { fill: var(--pc3); } #mp .mp-pin.sel.c4 .pn { fill: var(--pc4); }
+#mp .mp-pin.sel.c5 .pn { fill: var(--pc5); } #mp .mp-pin.sel.c6 .pn { fill: var(--pc6); } #mp .mp-pin.sel.c7 .pn { fill: var(--pc7); } #mp .mp-pin.sel.c8 .pn { fill: var(--pc8); }
+.mp-pin.sel[class*=" c"] .pn { stroke: var(--fg); stroke-width: 2.6; }
 .mp-pin.draft .pn { fill: color-mix(in srgb, var(--bg) 85%, transparent); stroke: var(--accent); stroke-dasharray: 4 3; }
 .mp-pin.draft .cup { stroke: var(--accent); }
 .mp-note { position: absolute; z-index: 900; top: 10px; left: var(--mp-nl, 58px); right: 58px; padding: 8px 12px; border-radius: 10px; background: rgba(34, 34, 34, .88); color: #fff; font-size: 12.5px; line-height: 1.45; text-align: center; }
@@ -684,7 +694,7 @@ body.theme-night .mp-pin.sel .pn { fill: #4fb3bf; }
 .mp-me { position: absolute; z-index: 900; top: 10px; right: 10px; width: 44px; height: 44px; border-radius: 12px; background: var(--bg); color: var(--mp-me); box-shadow: 0 1px 5px rgba(0, 0, 0, .4), 0 0 0 1px var(--line); display: flex; align-items: center; justify-content: center; }
 .mp-me svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; pointer-events: none; }
 #mp.picking .mp-me { display: none; }
-/* 스타벅스·투썸 매장 층: 켜기/끄기 단추(내 위치 단추 아래)·안내 문구·카드의 브랜드 색 점 */
+/* 카페 층: 켜기/끄기 단추(내 위치 단추 아래)·안내 문구·카드의 색 점 */
 .mp-br { position: absolute; z-index: 900; top: 64px; right: 10px; width: 44px; height: 44px; border-radius: 12px; background: var(--bg); color: var(--fg); box-shadow: 0 1px 5px rgba(0, 0, 0, .4), 0 0 0 1px var(--line); display: flex; align-items: center; justify-content: center; }
 .mp-br svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 .mp-br.on { background: var(--accent); color: var(--bg); }
@@ -692,8 +702,26 @@ body.theme-night .mp-pin.sel .pn { fill: #4fb3bf; }
 .mp-bhint { position: absolute; z-index: 850; top: 10px; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 124px); margin: 0; padding: 7px 12px; border-radius: 999px; background: var(--bg); color: var(--fg); font-size: 12.5px; font-weight: 600; line-height: 1.4; text-align: center; box-shadow: 0 2px 8px rgba(0, 0, 0, .28), 0 0 0 1px var(--line); pointer-events: none; }
 .mp-bhint[hidden] { display: none; }
 .mp-note:not([hidden]) ~ .mp-bhint { top: 56px; }
+/* 종류 걸러 보기(전체 / 프랜차이즈 / 개인): 카페 단추 왼쪽 */
+.mp-bf { position: absolute; z-index: 900; top: 64px; right: 64px; height: 44px; display: flex; border-radius: 12px; overflow: hidden; background: var(--bg); box-shadow: 0 1px 5px rgba(0, 0, 0, .4), 0 0 0 1px var(--line); }
+.mp-bf[hidden] { display: none; }
+.mp-bf button { padding: 0 13px; font-size: 14px; font-weight: 700; color: var(--fg); white-space: nowrap; }
+.mp-bf button + button { border-left: 1px solid var(--line); }
+.mp-bf button.on { background: var(--accent); color: var(--bg); }
+#mp.picking .mp-bf { display: none; }
+/* 내 장소의 색 표시: 목록·카드의 작은 점, 입력 화면의 색 고르기 */
+.mp-sw, .mp-swb { background: var(--accent); }
+.mp-sw.c1, .mp-swb.c1 { background: var(--pc1); } .mp-sw.c2, .mp-swb.c2 { background: var(--pc2); } .mp-sw.c3, .mp-swb.c3 { background: var(--pc3); } .mp-sw.c4, .mp-swb.c4 { background: var(--pc4); }
+.mp-sw.c5, .mp-swb.c5 { background: var(--pc5); } .mp-sw.c6, .mp-swb.c6 { background: var(--pc6); } .mp-sw.c7, .mp-swb.c7 { background: var(--pc7); } .mp-sw.c8, .mp-swb.c8 { background: var(--pc8); }
+.mp-sw { flex: none; align-self: center; width: 11px; height: 11px; border-radius: 50%; margin-right: -3px; box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--line); }
+.mp-cols { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0 4px; }
+.mp-swb { position: relative; width: 36px; height: 36px; border-radius: 50%; box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--line); }
+.mp-swb.on { box-shadow: 0 0 0 2px var(--bg), 0 0 0 5px var(--fg); }
+.mp-swb.on::after { content: "✓"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; color: #fff; text-shadow: 0 0 2px rgba(0, 0, 0, .55); }
 .mp-bd { flex: none; align-self: center; width: 11px; height: 11px; border-radius: 50%; box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--line); }
 .mp-c-src { font-size: 12px; }
+.mp-c-near { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; max-height: 96px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.mp-nb { max-width: 100%; padding: 4px 10px; border-radius: 999px; background: var(--chip); color: var(--fg); font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mp-card, .mp-pick {
   position: absolute; z-index: 900; left: var(--mp-cl, 10px); right: 10px; bottom: 28px; max-height: 58%; overflow-y: auto; -webkit-overflow-scrolling: touch;
   padding: 12px 14px; border-radius: 14px; background: var(--bg); color: var(--fg); box-shadow: 0 4px 18px rgba(0, 0, 0, .32); touch-action: pan-y;
@@ -745,7 +773,7 @@ body.theme-night .mp-add, body.theme-night .mp-act, body.theme-night .mp-tabs bu
 #mp.two.pl-off #mp-list { display: none; }
 #mp.two.picking .mp-l { display: none; }
 #mp.two .mp-me { top: 104px; }
-#mp.two .mp-br { top: 158px; }   /* 확대·축소 단추가 오른쪽 위로 옮겨 가므로 그 아래 */
+#mp.two .mp-br, #mp.two .mp-bf { top: 158px; }   /* 확대·축소 단추가 오른쪽 위로 옮겨 가므로 그 아래 */
 #mp.two .mp-note { right: 62px; }
 html.kb #mp.two { padding-bottom: 0; }
 html.kb #mp.two .mp-l { grid-row: 3 / span 2; padding-bottom: var(--kb, 0px); }   /* 키보드는 떠 있는 목록·입력 창만 위로 올린다(지도·아래줄은 그대로) */
