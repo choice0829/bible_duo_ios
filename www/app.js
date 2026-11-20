@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v55';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v56';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const DESKS = { plain: '단색', linen: '린넨', wood: '나무결', leather: '가죽' };   // 책상(상단 배경) 질감
   const DESK_DEFAULT = 'linen';
@@ -95,6 +95,7 @@
   let selecting = false; // 길게 누른 채 끌어서 범위를 넓히는 중
   let bible = null;     // { version, books: [{id, name, chapters: [[{n,t}]]}] }
   let flip = null;      // St.PageFlip (펼친 화면에서만)
+  let flipUp = 0;       // 넘길 때 들린 쪽이 책 위쪽 경계 밖으로 올라가도 보여 주는 높이(px) — 머리줄과 책 사이 간격 안쪽만, 아이폰 앱 펼침에서만 (v56)
   let scroller = null;  // 접힌(한 쪽) 화면: 한 쪽씩 옆으로 밀어 넘기는 스크롤 영역
   let scrollIdx = 0;
   let pg = null;        // 현재 책의 쪽 나누기 결과
@@ -280,6 +281,8 @@
     root.setProperty('--txttop', g.txtTop + 'px');   // 쪽 안에서 본문이 시작하는 높이 (펼침: 책 위쪽 가장자리 기준)
     root.setProperty('--headh', (g.spread ? g.stageTop : g.padTop) + 'px');   // 머리줄 영역의 높이 (책·본문이 시작하기 전까지)
     root.setProperty('--headr', g.headR + 'px');
+    flipUp = g.full ? Math.max(0, NATIVE_HEAD_STAGE_GAP - 1) : 0;   // 아이폰 앱 펼침(html.full)에서만. 웹(PC)은 책 카드 그림자가 있어 예전 그대로 둔다
+    root.setProperty('--flip-up', flipUp + 'px');   // style.css: #stage 가 위쪽으로 이만큼 더 보여 준다(책장이 넘어갈 때 윗부분이 한 줄로 잘리지 않게)
     root.setProperty('--padbottom', g.padBottom + 'px');
     // 상단: 접힘 = 책 이름 위, 메뉴 아래(본문 바로 위) / 펼침 = 한 줄(책 이름 왼쪽, 메뉴 오른쪽)
     const hb = headBox(g.spread, g.compact), titleFs = hb.titleFs, rowH = hb.rowH;
@@ -1303,6 +1306,7 @@
     const x0 = D === FWD ? r.width - 2 : 2;
     const x1 = D === FWD ? (portrait ? -r.width * 0.05 : 1) : r.width - 1;
     const ms = window.TURN_MS || TURN_MS;
+    const lift = liftMax(r.height);
     turning = true;
     const f = flip;   // 애니메이션 도중 책이 다시 만들어지면(회전 등) 새 책에는 손대지 않는다
     try {
@@ -1312,7 +1316,7 @@
     const t0 = performance.now();
     const pt = (k) => {
       const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;   // 천천히 시작해 빨라졌다 느려지게
-      return { x: x0 + (x1 - x0) * e, y: edge - r.height * 0.1 * Math.sin(Math.PI * k) };
+      return { x: x0 + (x1 - x0) * e, y: edge - lift * Math.sin(Math.PI * k) };
     };
     const step = (now) => {
       if (f !== flip) { turning = false; return; }
@@ -1325,11 +1329,17 @@
     requestAnimationFrame(step);
   }
 
-  // 손가락의 위아래 움직임은 15%만 반영한다. 그대로 쓰면 접힘선이 크게 비스듬해져 어색하다.
+  // 들린 모서리를 올리는(접힘선을 비스듬하게 하는) 높이의 상한(px). 모서리를 L px 올리면 들린 쪽 윗부분이 책 위로 약 0.55L~0.6L px 올라가는데(PC 모의 측정),
+  // 그만큼이 책 위쪽에 보여 주는 여유(flipUp)를 넘으면 책 위쪽 경계에서 한 줄로 잘려 보인다. 그래서 여유보다 작게 묶는다. (v56)
+  const FLIP_RISE = 0.6;
+  function liftMax(h) { return flipUp > 0 ? Math.min(h * 0.1, Math.max(0, flipUp - 1) / FLIP_RISE) : h * 0.1; }   // flipUp 0(웹 등)이면 예전 그대로 쪽 높이의 10%
+
+  // 손가락의 위아래 움직임은 15%만 반영하되 liftMax 를 넘지 않게 한다. 그대로 쓰면 접힘선이 크게 비스듬해져 어색하고, 들린 쪽이 책 밖으로 나가 잘린다.
   function stagePt(e, r, corner) {
     const edge = corner === 'bottom' ? r.height - 2 : 2;
     const y = e.clientY - r.top;
-    return { x: e.clientX - r.left, y: edge + (y - edge) * 0.15 };
+    const m = liftMax(r.height);
+    return { x: e.clientX - r.left, y: edge + Math.max(-m, Math.min(m, (y - edge) * 0.15)) };
   }
 
   function startDrag(dir, e) {
@@ -4432,7 +4442,7 @@
     mpS('#mp-f-memo').value = p ? p.memo : '';
     mpDraft.lat = p ? p.lat : NaN; mpDraft.lng = p ? p.lng : NaN;
     mpFormAmen = new Set(p ? p.amen : []);
-    mpS('#mp-ftitle').textContent = p && !asNew ? '카페 정보 수정' : '카페 추가';
+    mpS('#mp-ftitle').textContent = p && !asNew ? '카페 정보 수정' : '장소 추가';
     mpS('#mp-f-del').hidden = !p || !!asNew;
     mpDisarmDel();
     mpS('#mp-f-res').hidden = true; mpS('#mp-f-res').innerHTML = '';
@@ -4633,13 +4643,13 @@
         '<button type="button" class="mp-ptog" id="mp-ptog" aria-expanded="true">‹ 목록 접기</button>' +
         '<div class="mp-view" id="mp-list">' +
           '<div class="mp-loc" id="mp-loc"></div>' +
-          '<div class="mp-top"><span class="mp-count" id="mp-count"></span><button type="button" class="mp-add" id="mp-add">＋ 카페 추가</button></div>' +
+          '<div class="mp-top"><span class="mp-count" id="mp-count"></span><button type="button" class="mp-add" id="mp-add">＋ 장소 추가</button></div>' +
           '<input id="mp-q" class="mp-in" type="search" placeholder="이름·주소·메모로 찾기" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="장소 찾기">' +
           '<div class="mp-chips" id="mp-chips"></div>' +
           '<div id="mp-items"></div>' +
         '</div>' +
         '<div class="mp-view" id="mp-form" hidden>' +
-          '<h3 id="mp-ftitle">카페 추가</h3>' +
+          '<h3 id="mp-ftitle">장소 추가</h3>' +
           field('mp-f-name', '이름 <b>*</b>', '<input id="mp-f-name" class="mp-in" type="text" maxlength="60" placeholder="예: OO커피 강동점" autocomplete="off" enterkeyhint="next">') +
           '<div class="mp-f"><label>위치 <b>*</b></label><div class="mp-ll" id="mp-f-ll"></div>' +
             '<div class="mp-btns"><button type="button" class="mp-btn" id="mp-f-gps">현재 위치로</button><button type="button" class="mp-btn" id="mp-f-pick">지도에서 고르기</button></div>' +
