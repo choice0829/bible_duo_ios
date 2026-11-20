@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v51';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v52';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const DESKS = { plain: '단색', linen: '린넨', wood: '나무결', leather: '가죽' };   // 책상(상단 배경) 질감
   const DESK_DEFAULT = 'linen';
@@ -2076,12 +2076,12 @@
       '<p class="note">기본값은 기기와 화면에 맞춰 자동으로 정해집니다(듀오 펼침: 윗 ' + TOP_DEFAULT.topSpread + ' · 가로 위치 ' + SHIFT_DEFAULT + ' · 아래 ' + BOTTOM_SPREAD_DEFAULT + ', 한 쪽 윗 ' + TOP_DEFAULT.topSingle + '). 가로로 돌린 아이폰은 머리줄이 작아지고 노치 쪽이 비워집니다.' +
       '<br>값을 바꾸면 본문이 잠시 뒤에 새로 정렬됩니다. 읽던 위치는 그대로 유지됩니다.</p>' +
       '<div class="adv-head">모임 장소 지도 그림</div>' +
-      '<p class="adv-desc">지도를 그리는 방식을 고릅니다. <b>래스터(A)</b>는 그림 조각을 받아 보여 주는 지금까지의 방식이고, <b>벡터(B)</b>는 도로·건물·글자를 앱이 직접 그려 테마 색이 더 정확하며 열쇠가 필요 없습니다(시험 중). ' +
-        '두 방식을 바꿔 가며 비교해 보세요. 벡터가 이 기기에서 안 되면 자동으로 래스터로 돌아옵니다. 선택은 <b>이 기기에만</b> 저장되며 데이터 백업에는 들어가지 않습니다.</p>' +
-      '<div class="mk-btns"><button class="seg-btn" id="me-raster" type="button">래스터 (A)</button><button class="seg-btn" id="me-vector" type="button">벡터 (B)</button></div>' +
+      '<p class="adv-desc">지도를 그리는 방식을 고릅니다. <b>벡터(B)</b>는 도로·건물·글자를 앱이 직접 그려 테마 색이 정확하고 열쇠가 필요 없는 <b>기본 방식</b>입니다. <b>래스터(A)</b>는 그림 조각을 받아 보여 주는 비상용 방식입니다. ' +
+        '벡터가 이 기기에서 안 되면 자동으로 래스터로 돌아옵니다. 선택은 <b>이 기기에만</b> 저장되며 데이터 백업에는 들어가지 않습니다.</p>' +
+      '<div class="mk-btns"><button class="seg-btn" id="me-vector" type="button">벡터 (B) · 기본</button><button class="seg-btn" id="me-raster" type="button">래스터 (A) · 비상용</button></div>' +
       '<p class="note tight" id="me-state"></p>' +
-      '<div class="adv-head">래스터(A) 지도 열쇠</div>' +
-      '<p class="adv-desc">래스터 방식에서 테마(종이·세피아·야간)에 맞춘 CARTO 지도를 쓰려면 무료 열쇠(API 키)가 필요합니다. 아래 단추로 받는 곳을 열어 이메일로 받은 열쇠를 붙여 넣어 주세요. ' +
+      '<div class="adv-head">래스터(A) 지도 열쇠 (비상용)</div>' +
+      '<p class="adv-desc">비상용 래스터 방식에서 테마(종이·세피아·야간)에 맞춘 CARTO 지도를 쓰려면 무료 열쇠(API 키)가 필요합니다. 아래 단추로 받는 곳을 열어 이메일로 받은 열쇠를 붙여 넣어 주세요. ' +
         '열쇠는 <b>이 기기에만</b> 저장되며 데이터 백업에는 들어가지 않습니다. 열쇠가 없으면 OpenStreetMap 지도에 테마 색조만 입혀 보여 줍니다. (벡터 방식에서는 쓰이지 않습니다)</p>' +
       '<p class="note tight" id="mk-state"></p>' +
       '<input id="mk-in" class="bk-text mk-in" type="text" inputmode="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="여기에 열쇠 붙여 넣기" aria-label="지도 열쇠">' +
@@ -2107,10 +2107,10 @@
       $('#me-raster').classList.toggle('on', !vec); $('#me-vector').classList.toggle('on', vec);
       $('#me-raster').setAttribute('aria-pressed', String(!vec)); $('#me-vector').setAttribute('aria-pressed', String(vec));
       $('#me-state').innerHTML = !vec
-        ? '<b>래스터(A) 사용 중</b> · 아래 열쇠가 있으면 테마별 CARTO 지도, 없으면 OpenStreetMap에 색조를 입혀 보입니다.'
+        ? '<b>래스터(A) 사용 중</b> · 비상용 방식입니다. 아래 열쇠가 있으면 테마별 CARTO 지도, 없으면 OpenStreetMap에 색조를 입혀 보입니다. 기본 방식으로 돌아가려면 위 \'벡터 (B)\'를 누르세요.'
         : (mpVecFail
           ? '<b>벡터(B) 선택됨</b> · ' + MP_VEC_WHY[mpVecFail] + ' 이번에는 래스터로 보입니다. 다시 눌러 한 번 더 시도할 수 있습니다.' + (mpVecInfo ? '<br><small>진단: ' + esc(mpVecInfo) + '</small>' : '')
-          : '<b>벡터(B) 사용 중</b> · 키 없는 공개 지도 서버(OpenFreeMap)에서 자료를 받아 테마 색으로 그립니다. (인터넷 연결 필요)');
+          : '<b>벡터(B) 사용 중</b> · 기본 방식입니다. 키 없는 공개 지도 서버(OpenFreeMap)에서 자료를 받아 테마 색으로 그립니다. (인터넷 연결 필요)');
     };
     const meSet = (v) => {
       try { localStorage.setItem(MP_ENG_LS, v); } catch (e) { $('#me-state').textContent = '저장하지 못했습니다.'; return; }
@@ -3864,10 +3864,10 @@
     carto: '지도 바탕을 불러오지 못했습니다. 인터넷 연결과, 설정 → 고급설정에 입력한 지도 열쇠를 확인해 주세요. 목록과 핀 위치는 그대로 쓸 수 있습니다.',
     vec: '지도 자료를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요. 목록과 핀 위치는 그대로 쓸 수 있습니다.',
   };
-  // 지도 방식: 'raster'(A, 기본 — 위의 그림 조각 타일) / 'vector'(B — 도로·건물·글자를 MapLibre가 직접 그림. 키 없는 OpenFreeMap 자료).
-  // B가 안 되면(이 기기에서 WebGL이 안 됨·부품/자료를 못 받음·제때 안 그려짐) 그 실행 동안은 자동으로 A로 돌아간다. 선택값(bf.mapeng)은 이 기기에만 저장하고 데이터 백업에는 넣지 않는다.
+  // 지도 방식: 'vector'(B, 기본 — 도로·건물·글자를 MapLibre가 직접 그림. 키 없는 OpenFreeMap 자료) / 'raster'(A, 비상용 — 그림 조각 타일).
+  // v52부터 기본은 B. B가 안 되면(이 기기에서 WebGL이 안 됨·부품/자료를 못 받음·제때 안 그려짐) 그 실행 동안은 자동으로 A로 돌아간다. 선택값(bf.mapeng)은 이 기기에만 저장하고 데이터 백업에는 넣지 않는다. 저장값이 없으면 B.
   const MP_ENG_LS = 'bf.mapeng';
-  const mpEngGet = () => { try { return localStorage.getItem(MP_ENG_LS) === 'vector' ? 'vector' : 'raster'; } catch (e) { return 'raster'; } };
+  const mpEngGet = () => { try { return localStorage.getItem(MP_ENG_LS) === 'raster' ? 'raster' : 'vector'; } catch (e) { return 'vector'; } };
   const MP_VEC_ATTR = '<a href="https://openfreemap.org">OpenFreeMap</a> <a href="https://www.openmaptiles.org/">© OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
   const MP_VEC_WAIT = 15000;   // 이 시간 안에 첫 그림이 안 나오면 실패로 본다(ms)
   const MP_VEC_WHY = {

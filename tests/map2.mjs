@@ -8,7 +8,7 @@ const seed={fn:(cfg)=>{
     else if(m.geocode!==undefined){ setTimeout(()=>window.bfGeo&&window.bfGeo({id:m.id,results:window.__geo.q}),40); }
     else if(m.rgeo){ setTimeout(()=>window.bfGeo&&window.bfGeo({id:m.id,results:window.__geo.r.map(x=>Object.assign({},x,{lat:m.rgeo.lat,lng:m.rgeo.lng}))}),40); }
   }}}};
-  if(!sessionStorage.getItem('s')){ sessionStorage.setItem('s','1'); localStorage.clear(); localStorage.setItem('bf.pos',JSON.stringify({book:0,chapter:0,verse:1})); if(cfg&&cfg.places!==undefined) localStorage.setItem('bf.places',typeof cfg.places==='string'?cfg.places:JSON.stringify(cfg.places)); if(cfg&&cfg.theme) localStorage.setItem('bf.settings',JSON.stringify({theme:cfg.theme})); }
+  if(!sessionStorage.getItem('s')){ sessionStorage.setItem('s','1'); localStorage.clear(); localStorage.setItem('bf.mapeng','raster'); localStorage.setItem('bf.pos',JSON.stringify({book:0,chapter:0,verse:1})); if(cfg&&cfg.places!==undefined) localStorage.setItem('bf.places',typeof cfg.places==='string'?cfg.places:JSON.stringify(cfg.places)); if(cfg&&cfg.theme) localStorage.setItem('bf.settings',JSON.stringify({theme:cfg.theme})); }
 }, arg:null};
 async function openDev(dev,{query='?native=1',cfg=null,tiles='ok'}={}) {
   const [name,w,h,si]=dev; const p=await b.newPage(); const errs=[]; const tileUrls=[];

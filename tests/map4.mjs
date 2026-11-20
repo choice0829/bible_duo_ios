@@ -19,7 +19,7 @@ const T={light:mk([245,245,243],[255,255,255],[212,218,220]), dark:mk([18,18,18]
 const seed={fn:(cfg)=>{
   window.__msgs=[]; window.__loc={lat:37.5301,lng:127.1238,acc:30};
   window.webkit={messageHandlers:{bf:{postMessage:(m)=>{ window.__msgs.push(m); if(m.loc){ setTimeout(()=>window.bfLocation&&window.bfLocation(window.__loc),40); } }}}};
-  if(!sessionStorage.getItem('s')){ sessionStorage.setItem('s','1'); localStorage.clear(); localStorage.setItem('bf.pos',JSON.stringify({book:0,chapter:0,verse:1}));
+  if(!sessionStorage.getItem('s')){ sessionStorage.setItem('s','1'); localStorage.clear(); localStorage.setItem('bf.mapeng','raster'); localStorage.setItem('bf.pos',JSON.stringify({book:0,chapter:0,verse:1}));
     if(cfg&&cfg.places) localStorage.setItem('bf.places',JSON.stringify(cfg.places));
     if(cfg&&cfg.theme) localStorage.setItem('bf.settings',JSON.stringify({theme:cfg.theme}));
     if(cfg&&cfg.key) localStorage.setItem('bf.mapkey',cfg.key); }

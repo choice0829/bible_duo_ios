@@ -1,4 +1,4 @@
-// v51 — 모임 장소 지도 '벡터 방식(B)': 스타일 검증, 세 테마 렌더(가짜 벡터 타일), 방식 전환(고급설정), 자동 복귀(WebGL 없음·부품 실패·자료 못 받음·제때 안 그려짐), 줌·핀
+// v51~v52 — 모임 장소 지도 '벡터 방식(B, v52부터 기본)': 스타일 검증, 세 테마 렌더(가짜 벡터 타일), 방식 전환(고급설정), 자동 복귀(WebGL 없음·부품 실패·자료 못 받음·제때 안 그려짐), 줌·핀
 // 사용: node map5.mjs   (스크린샷은 /tmp/map5shots/ 에 저장)
 // 주의: 타일은 tests/vtscene.mjs가 만든 '가짜 동네'다. 실제 OpenFreeMap 자료·실제 아이폰 웹뷰(WebGL·CORS·한글 글꼴)는 시험하지 못하므로 실기기에서 확인한다.
 import fs from 'node:fs'; import vm from 'node:vm'; import { spawnSync } from 'node:child_process';
@@ -144,26 +144,31 @@ console.log('===== 고급설정 · 지도 방식');
   const st = () => p.evaluate(() => document.querySelector('#me-state').textContent);
   const on = () => p.evaluate(() => ({ r: document.querySelector('#me-raster').classList.contains('on'), v: document.querySelector('#me-vector').classList.contains('on'), pr: document.querySelector('#me-raster').getAttribute('aria-pressed'), pv: document.querySelector('#me-vector').getAttribute('aria-pressed') }));
   const o0 = await on();
-  ok('방식: 처음에는 래스터(A)가 선택됨', o0.r && !o0.v && o0.pr === 'true' && o0.pv === 'false' && (await st()).includes('래스터(A) 사용 중'), await st());
-  ok('방식: 저장값이 없다(기본 = 래스터)', (await lsEng(p)) === null);
-  await p.click('#me-vector'); await sleep(300);
-  const o1 = await on();
-  ok('방식: 벡터(B)를 누르면 선택이 바뀌고 저장된다', !o1.r && o1.v && (await lsEng(p)) === 'vector' && (await st()).includes('벡터(B) 사용 중'), await st());
+  ok('방식: 처음(저장값 없음)에는 벡터(B)가 기본으로 선택됨', !o0.r && o0.v && o0.pr === 'false' && o0.pv === 'true' && (await st()).includes('벡터(B) 사용 중') && (await st()).includes('기본'), await st());
+  ok('방식: 저장값이 없다(기본 = 벡터)', (await lsEng(p)) === null);
+  ok('방식: 단추 이름에 기본/비상용이 적혀 있다', await p.evaluate(() => /벡터 \(B\) · 기본/.test(document.querySelector('#me-vector').textContent) && /래스터 \(A\) · 비상용/.test(document.querySelector('#me-raster').textContent)));
   ok('방식: 지도를 열기 전에는 벡터 부품을 받지 않는다', !log.local.some((u) => /maplibre-gl\.js|mapstyle\.js/.test(u)), JSON.stringify(log.local.filter((u) => /maplibre|mapstyle/.test(u))));
   await p.click('#go-bk'); await sleep(400);
   const bk = await p.evaluate(() => document.querySelector('#bk-out').value);
-  ok('방식: 데이터 백업에 방식 선택값이 들어가지 않는다', !/mapeng/i.test(bk) && !/vector/i.test(bk), bk.length + '자');
+  ok('방식: 데이터 백업에 방식 선택값이 들어가지 않는다', !/mapeng/i.test(bk) && !/vector/i.test(bk) && !/raster/i.test(bk), bk.length + '자');
   await p.click('#sheet-back'); await sleep(300);
   await p.click('#sheet-close'); await sleep(400); await openMap(p); const up = await vecUp(p); await sleep(2500);
-  ok('방식: 벡터를 고른 뒤 연 지도는 벡터', up && JSON.stringify(await srcCls(p)) === '["mp-src-vec"]', JSON.stringify(await srcCls(p)));
+  ok('방식: 아무것도 고르지 않고 연 지도가 벡터(기본)', up && JSON.stringify(await srcCls(p)) === '["mp-src-vec"]', JSON.stringify(await srcCls(p)));
   ok('방식: 이때 부품 4개(css·js 2개·mapstyle)를 받았다', ['lib/maplibre-gl.css', 'lib/maplibre-gl.js', 'lib/leaflet-maplibre-gl.js', 'mapstyle.js'].every((f) => log.local.some((u) => u.startsWith(f))), JSON.stringify(log.local.filter((u) => /maplibre|mapstyle/.test(u))));
   await closeMap(p);
-  // 다시 래스터로: 지도를 다시 열면 OSM 타일을 받고 벡터 층은 없다
+  // 비상용 래스터로: 지도를 다시 열면 OSM 타일을 받고 벡터 층은 없다
   const r0 = log.raster.length;   // (바꾸는 즉시 지도가 이미 만들어져 있으면 그때 타일을 받으므로, 바꾸기 전에 센다)
   await p.click('#btn-settings'); await sleep(500); await p.click('#go-adv'); await sleep(500); await p.click('#me-raster'); await sleep(300);
-  ok('방식: 래스터(A)로 되돌리면 저장값이 raster', (await lsEng(p)) === 'raster' && (await on()).r);
+  const o2 = await on();
+  ok('방식: 래스터(A)를 누르면 선택이 바뀌고 raster로 저장된다', (await lsEng(p)) === 'raster' && o2.r && !o2.v && (await st()).includes('래스터(A) 사용 중') && (await st()).includes('비상용'), await st());
   await p.click('#sheet-close'); await sleep(400); await openMap(p); await sleep(1500);
-  ok('방식: 되돌린 뒤 지도는 래스터(OSM 타일)이고 벡터 캔버스가 없다', log.raster.length > r0 && JSON.stringify(await srcCls(p)) === '["mp-src-osm"]' && (await p.evaluate(() => document.querySelectorAll('.leaflet-gl-layer').length)) === 0 && (await p.evaluate(() => document.querySelectorAll('.leaflet-tile-pane img.leaflet-tile').length)) > 0, `래스터 ${log.raster.length - r0}개 · ${JSON.stringify(await srcCls(p))}`);
+  ok('방식: 래스터로 바꾼 뒤 지도는 OSM 타일이고 벡터 캔버스가 없다', log.raster.length > r0 && JSON.stringify(await srcCls(p)) === '["mp-src-osm"]' && (await p.evaluate(() => document.querySelectorAll('.leaflet-gl-layer').length)) === 0 && (await p.evaluate(() => document.querySelectorAll('.leaflet-tile-pane img.leaflet-tile').length)) > 0, `래스터 ${log.raster.length - r0}개 · ${JSON.stringify(await srcCls(p))}`);
+  await closeMap(p);
+  // 다시 벡터로
+  await p.click('#btn-settings'); await sleep(500); await p.click('#go-adv'); await sleep(500); await p.click('#me-vector'); await sleep(300);
+  ok('방식: 벡터(B)로 다시 누르면 vector로 저장된다', (await lsEng(p)) === 'vector' && (await on()).v);
+  await p.click('#sheet-close'); await sleep(400); await openMap(p); const up2 = await vecUp(p); await sleep(2000);
+  ok('방식: 다시 연 지도가 벡터이고 래스터 타일층이 사라졌다', up2 && JSON.stringify(await srcCls(p)) === '["mp-src-vec"]' && (await p.evaluate(() => document.querySelectorAll('.leaflet-tile-pane img.leaflet-tile').length)) === 0, JSON.stringify(await srcCls(p)));
   ok('방식: 오류 없음', errs.length === 0, JSON.stringify(errs));
   await p.close();
 }
