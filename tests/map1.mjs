@@ -112,15 +112,12 @@ for (const [name,w,h,si,KB] of DEV) {
   ok(name+': 카드가 지도 칸 안에 있고 출처 표기를 가리지 않는다', card.l>=wrap.l && card.r<=wrap.r && card.b<=wrap.b-20, JSON.stringify({card:[card.t,card.b],wrap:[wrap.t,wrap.b]}));
   await p.screenshot({path:`map1-${SN[name]}-card.png`});
   // 길찾기 링크
-  await p.click('.mp-lk[data-o="naver"]'); await sleep(150);
-  await p.click('.mp-lk[data-o="apple"]'); await sleep(150);
-  await p.click('.mp-lk[data-o="google"]'); await sleep(150);
+  ok(name+': 카드 단추는 길찾기·전화·수정 세 개뿐이다(네이버·애플·구글 지도 단추 없음, v61)', JSON.stringify(await p.evaluate(()=>[...document.querySelectorAll('#mp-card .mp-lk')].map(x=>x.textContent)))===JSON.stringify(['길찾기','전화','수정']));
+  await p.click('.mp-lk[data-o="route"]'); await sleep(150);
   await p.click('.mp-lk[data-o="tel"]'); await sleep(150);
   m=(await msgs(p)).filter(x=>x.open);
-  ok(name+': 네이버 지도 주소(nmap://place …&appname=번들ID, 웹 대체 주소)', m[0] && /^nmap:\/\/place\?lat=37\.530100&lng=127\.123800&name=%EC%98%A4|^nmap:\/\/place\?lat=37\.530100&lng=127\.123800&name=OO/.test(m[0].open) && m[0].open.endsWith('&appname=com.choice0829.bibleflip') && /^https:\/\/map\.naver\.com\/p\/search\//.test(m[0].fallback), JSON.stringify(m[0]));
-  ok(name+': 애플 지도 주소', m[1] && m[1].open.startsWith('https://maps.apple.com/?daddr=37.530100,127.123800'), m[1]&&m[1].open);
-  ok(name+': 구글 지도 주소', m[2] && m[2].open==='https://www.google.com/maps/dir/?api=1&destination=37.530100,127.123800', m[2]&&m[2].open);
-  ok(name+': 전화 주소', m[3] && m[3].open==='tel:0212345678', m[3]&&m[3].open);
+  ok(name+': 길찾기 → 네이버 지도 앱 길찾기 주소(nmap://route/public?dlat&dlng&dname&appname=번들ID, 출발지 없음), 웹 대체 주소', m[0] && /^nmap:\/\/route\/public\?dlat=37\.530100&dlng=127\.123800&dname=(%EC%98%A4|OO)/.test(m[0].open) && !/slat|slng|sname/.test(m[0].open) && m[0].open.endsWith('&appname=com.choice0829.bibleflip') && /^https:\/\/map\.naver\.com\/p\/search\//.test(m[0].fallback), JSON.stringify(m[0]));
+  ok(name+': 전화 주소', m[1] && m[1].open==='tel:0212345678', m[1]&&m[1].open);
 
   // ---- 카페 추가 2: 주소로 찾기 (후보 둘 중 선택) ----
   if(narrow) await p.click('.mp-tabs [data-t="l"]');

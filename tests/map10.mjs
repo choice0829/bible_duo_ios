@@ -131,7 +131,7 @@ const DUO = ['Duo 펼침', 951, 669, { top: 0, right: 84, bottom: 34, left: 0 }]
   { const t = await txt(p, '#mp-card'), d = await dots(p);
     ok('보드게임 점을 누르면 카드에 이름·주소가 있고 "보드게임 카페 · 공공데이터(상가정보) 2026-10 기준"이 나온다', (await cardName(p)) === BG[0][0] && t.includes(BG[0][1]) && t.includes('보드게임 카페 · 공공데이터(상가정보) 2026-10 기준') && t.includes('영업 여부·시간은 지도 앱에서 확인'), t.slice(0, 140));
     ok('선택하면 고리(반지름 12)가 하나 생긴다', d.ring === 1, JSON.stringify(d)); }
-  ok('카드 단추 = 네이버·애플·구글·내 장소로 추가', JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('#mp-card .mp-lk')].map((x) => x.textContent))) === JSON.stringify(['네이버 지도', '애플 지도', '구글 지도', '내 장소로 추가']));
+  ok('카드 단추 = 길찾기·내 장소로 추가 두 개(v61)', JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('#mp-card .mp-lk')].map((x) => x.textContent))) === JSON.stringify(['길찾기', '내 장소로 추가']));
   // 카페 점 → 카드가 카페로 바뀌고 보드게임 고리는 사라진다
   await tapAt(p, CAFES[1][3], CAFES[1][4], 17);
   { const d = await dots(p);

@@ -95,8 +95,10 @@ for (const [name,w,h,si,KB] of [DUO,FOLD,IP]) {
 { console.log('===== D 한국 밖 장소');
   const {p,errs}=await openDev(DUO,{cfg:{places:[P(1,'Almaty Cafe',43.2389,76.8897,{addr:'Almaty'})],loc:{lat:43.24,lng:76.89,acc:20}}}); await settle(p);
   await p.click('#btn-map'); await sleep(1200); await p.click('.mp-it-main'); await sleep(300);
-  ok('네이버 지도 단추는 비활성', await p.evaluate(()=>document.querySelector('.mp-lk[data-o="naver"]').disabled));
-  ok('애플·구글은 활성', await p.evaluate(()=>!document.querySelector('.mp-lk[data-o="apple"]').disabled && !document.querySelector('.mp-lk[data-o="google"]').disabled));
+  ok('한국 밖: 카드 단추는 길찾기·수정뿐이고 길찾기는 활성이다(v61)', JSON.stringify(await p.evaluate(()=>[...document.querySelectorAll('#mp-card .mp-lk')].map(x=>[x.textContent,x.disabled])))===JSON.stringify([['길찾기',false],['수정',false]]));
+  await p.click('.mp-lk[data-o="route"]'); await sleep(200);
+  { const o=await p.evaluate(()=>window.__msgs.filter(m=>m.open).map(m=>m.open));
+    ok('한국 밖: 길찾기는 네이버가 아니라 구글 지도 길찾기 주소(목적지 좌표)로 간다', o.length===1 && o[0]==='https://www.google.com/maps/dir/?api=1&destination=43.238900,76.889700' && !o.some(u=>u.startsWith('nmap:')), o.join(' | ')); }
   ok('D 오류 없음', errs.length===0, JSON.stringify(errs.slice(0,3)));
   await p.close(); }
 
