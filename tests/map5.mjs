@@ -17,7 +17,12 @@ for (const t of ['paper', 'sepia', 'night']) {
   const st = ST.build(t); const errs = validate(JSON.parse(JSON.stringify(st)));
   ok(`스타일 ${t}: 규격 오류 없음`, errs.length === 0, errs.slice(0, 3).map((e) => e.message).join(' | '));
   const ids = st.layers.map((l) => l.id); ok(`스타일 ${t}: 층 id가 겹치지 않음`, new Set(ids).size === ids.length);
-  ok(`스타일 ${t}: 가게·시설(POI) 점·이름 층이 없다(v58)`, st.layers.every((l) => l['source-layer'] !== 'poi' && !/^poi/.test(l.id)) && !('poi' in ST.PAL[t]), ids.filter((i) => /poi/.test(i)).join(','));
+  { const pl = st.layers.filter((l) => l['source-layer'] === 'poi');
+    ok(`스타일 ${t}: 가게·시설(POI)은 지하철역 층 하나뿐이다(v58 제거 + v60 역만 복원)`, pl.length === 1 && pl[0].id === 'subway-station' && !ids.some((i) => /^poi/.test(i)) && !('poi' in ST.PAL[t]), pl.map((l) => l.id).join(','));
+    const f = JSON.stringify(pl[0] && pl[0].filter);
+    ok(`스타일 ${t}: 역 층은 class=railway · subclass=station · 이름 있는 것만 고른다(출구·버스 제외)`, /"railway"/.test(f) && /"station"/.test(f) && /"has","name"/.test(f) && !/entrance|bus/.test(f), f);
+    ok(`스타일 ${t}: 역 층이 맨 위 층이다(도로·동네 이름보다 우선)`, st.layers[st.layers.length - 1].id === 'subway-station');
+    ok(`스타일 ${t}: 역 아이콘 이름이 bf-subway-${t} 이고 아이콘·글자 색이 있다`, pl[0] && pl[0].layout['icon-image'] === 'bf-subway-' + t && !!ST.PAL[t].subway && !!ST.PAL[t].subwayFg && !!ST.PAL[t].subwayText); }
   ok(`스타일 ${t}: 글꼴은 OpenFreeMap이 가진 Noto Sans(Regular/Bold/Italic)만`, st.layers.every((l) => !l.layout || !l.layout['text-font'] || /^Noto Sans (Regular|Bold|Italic)$/.test(l.layout['text-font'][0])));
 }
 ok('스타일: 지도 자료·글자 주소가 OpenFreeMap', ST.TILEJSON === 'https://tiles.openfreemap.org/planet' && ST.GLYPHS === 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf');
@@ -26,6 +31,7 @@ ok('스타일: 세 테마의 땅색이 서로 다르고 야간이 가장 어둡�
 // ===== 공통: 열기 =====
 const ORIGIN = 'https://tiles.openfreemap.org';
 const seed = { fn: (cfg) => {
+  let _L; Object.defineProperty(window, 'L', { configurable: true, get() { return _L; }, set(v) { _L = v; try { v.Map.addInitHook(function () { window.__mpMap = this; }); } catch (e) { /* 무시 */ } } });   // v60: 벡터(gl) 지도 객체를 시험에서 꺼내 쓰려고
   window.__msgs = []; window.__loc = { lat: 37.5301, lng: 127.1238, acc: 30 };
   window.webkit = { messageHandlers: { bf: { postMessage: (m) => { window.__msgs.push(m); if (m.loc) { setTimeout(() => window.bfLocation && window.bfLocation(window.__loc), 40); } } } } };
   if (cfg && cfg.noGL2) { const g = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (t, ...a) { return t === 'webgl2' ? null : g.call(this, t, ...a); }; }
@@ -67,6 +73,7 @@ const note = (p) => p.evaluate(() => { const n = document.querySelector('#mp-not
 const vecUp = (p) => p.waitForFunction(() => !!document.querySelector('.leaflet-gl-layer canvas'), { timeout: 20000 }).then(() => true, () => false);
 const shot = async (p, name) => { const r = await p.evaluate(() => { const e = document.querySelector('.mp-mapwrap').getBoundingClientRect(); return { x: e.x, y: e.y, width: e.width, height: e.height }; }); const path = `/tmp/map5shots/${name}.png`; await p.screenshot({ path, clip: r, captureBeyondViewport: false }); return path; };
 const pix = (path, tol, ...cols) => JSON.parse(spawnSync('python3', ['-I', new URL('./pixstat.py', import.meta.url).pathname, path, '0', '0', '0', '0', String(tol), ...cols], { encoding: 'utf8' }).stdout || '{}');
+const pixAt = (path, x, y, w, h, tol, ...cols) => JSON.parse(spawnSync('python3', ['-I', new URL('./pixstat.py', import.meta.url).pathname, path, String(Math.max(0, Math.round(x))), String(Math.max(0, Math.round(y))), String(w), String(h), String(tol), ...cols], { encoding: 'utf8' }).stdout || '{}');
 const setTheme = async (p, t) => { await p.click('#btn-settings'); await sleep(500); await p.click(`button[data-k="theme"][data-v="${t}"]`); await sleep(450); await p.waitForFunction(() => document.querySelector('#loading')?.hidden === true, { timeout: 60000 }); await sleep(300); await p.click('#sheet-close'); await sleep(500); };
 const lsEng = (p) => p.evaluate(() => localStorage.getItem('bf.mapeng'));
 
@@ -86,7 +93,25 @@ for (const theme of ['paper', 'sepia', 'night']) {
   ok(theme + ': 출처 링크가 올바른 주소', at.h.includes('https://openfreemap.org/') && at.h.includes('https://www.openmaptiles.org/') && at.h.includes('https://www.openstreetmap.org/copyright'), JSON.stringify(at.h));
   const pin = await p.evaluate(() => !!document.querySelector('.mp-pin .pn'));
   ok(theme + ': 핀이 지도 위에 보인다', pin);
+  // v60: 지하철역 — 아이콘이 등록되고 배치되며(출구·버스 정류장·이름 없는 역은 없음) 그림에 배지 색이 보인다
+  const stn = await p.evaluate((th) => {
+    const m = window.__mpMap; if (!m) return null; let gl = null; m.eachLayer((l) => { if (l.getMaplibreMap) gl = l.getMaplibreMap(); }); if (!gl) return null;
+    const wrap = document.querySelector('.mp-mapwrap').getBoundingClientRect(), box = gl.getCanvas().getBoundingClientRect();   // gl.project 는 캔버스 기준 좌표
+    const fs = gl.queryRenderedFeatures({ layers: ['subway-station'] }), f0 = fs.find((f) => f.properties.name === '천호');
+    const q = f0 ? gl.project(f0.geometry.coordinates) : null;
+    return { has: gl.hasImage('bf-subway-' + th), names: [...new Set(fs.map((f) => f.properties.name))], at: q ? { x: q.x + box.left - wrap.left, y: q.y + box.top - wrap.top } : null };
+  }, theme);
+  ok(theme + ': 지하철 아이콘(bf-subway-' + theme + ')이 지도에 등록됐다', !!stn && stn.has, JSON.stringify(stn));
+  ok(theme + ': 역 \'천호\'가 그려졌고 출구·버스 정류장·이름 없는 역은 없다', !!stn && stn.names.includes('천호') && stn.names.every((n) => !/출구|버스|undefined|null/.test(String(n))) && stn.names.every((n) => !!n), JSON.stringify(stn && stn.names));
   const path = await shot(p, `vec-${theme}`); const P = ST.PAL[theme];
+  if (stn && stn.at) {   // 카페 점·핀 층이 아이콘을 가리지 않게 그 층들을 잠시 숨기고 찍는다(지도 바탕만 본다)
+    await p.evaluate(() => { const e = document.createElement('style'); e.id = '_hidepanes'; e.textContent = '.leaflet-pane:not(.leaflet-tile-pane):not(.leaflet-map-pane){visibility:hidden!important}'; document.head.appendChild(e); }); await sleep(300);
+    const sp = await shot(p, `station-${theme}-clean`);
+    await p.evaluate(() => document.getElementById('_hidepanes')?.remove());
+    const bx = pixAt(sp, (stn.at.x - 22) * 2, (stn.at.y - 22) * 2, 88, 88, 10, P.subway), far = pixAt(sp, (stn.at.x + 150) * 2, (stn.at.y + 60) * 2, 88, 88, 10, P.subway);
+    ok(theme + ': 역 위치에 아이콘 배지 색(' + P.subway + ')이 보이고 다른 곳에는 없다', bx.near && bx.near[0] > 0.06 && far.near && far.near[0] < 0.002, JSON.stringify(bx) + ' / 먼 곳 ' + JSON.stringify(far));
+    spawnSync('python3', ['-I', '-c', 'import sys;from PIL import Image;im=Image.open(sys.argv[1]);x,y=int(sys.argv[2]),int(sys.argv[3]);im.crop((max(0,x-140),max(0,y-90),x+260,y+90)).resize((800,360)).save(sys.argv[4])', sp, String(Math.round(stn.at.x * 2)), String(Math.round(stn.at.y * 2)), `/tmp/map5shots/station-${theme}.png`]);
+  }
   const s = pix(path, 6, P.land, P.water, P.building, P.minor, P.main); STAT[theme] = s;
   ok(theme + ': 그림에 땅색이 상당히 보인다(스타일 색이 적용됨)', s.near && s.near[0] > 0.08, JSON.stringify(s));
   ok(theme + ': 여러 색(도로·건물·글자)이 그려졌다(빈 화면 아님)', s.colors > 400, 'colors ' + s.colors);

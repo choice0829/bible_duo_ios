@@ -7,7 +7,8 @@
   · 서울의 카페를 전부(프랜차이즈 + 개인 카페),
   · 서울 밖에서는 스타벅스·투썸플레이스만
 골라 작은 파일(cafes.json)로 만듭니다. 각 카페에는 '프랜차이즈(브랜드 이름)' 또는 '개인' 표시가 붙습니다.
-같은 실행에서 이름에 '보드게임'이 들어간 가게(업종이 카페든 오락장이든)를 서울에서 따로 모아 boardgame.json 도 만듭니다.
+같은 실행에서 이름에 '보드게임'이 들어간 가게(업종이 카페든 오락장이든)와, 이름에 '보드게임'은 없지만 널리 알려진 보드게임 카페 브랜드
+(레드버튼·홈즈앤루팡·더홀릭·히어로) 또는 '○○보드카페'인 가게를 서울에서 따로 모아 boardgame.json 도 만듭니다.
 (보드게임 카페는 커피 카페 자료(cafes.json)에서는 빠집니다 — 앱에서 별도 층·별도 단추로 보이기 때문입니다.)
 파이썬 3.8 이상이면 되고, 따로 설치할 것은 없습니다(표준 라이브러리만 사용).
 
@@ -21,7 +22,8 @@
     --extra 우지커피            프랜차이즈 목록에 브랜드 이름 추가(여러 번 쓸 수 있음). 아래 FRANCHISES 목록을 직접 고쳐도 됩니다
     --asof 2026-10              자료 기준 연월을 직접 지정
     --bg-in 서울                보드게임 카페를 담을 지역(기본: 서울. 쉼표로 여러 곳, all 이면 전국)
-    --bg-extra 레드버튼         이름에 '보드게임'이 없는 보드게임 카페 이름을 더함(여러 번 쓸 수 있음)
+    --bg-extra 우리동네놀이터   위 브랜드 말고 더할 보드게임 카페 이름(여러 번 쓸 수 있음)
+    --no-bg-brand               브랜드·'보드카페' 이름 인식을 끔(이름에 '보드게임'이 든 곳만 모음)
     --bg-out boardgame.json     보드게임 파일 이름(none 이면 만들지 않음)
 
 만들어지는 파일 (실행한 폴더에):
@@ -110,6 +112,23 @@ UNNAMED = ('업소명없음', '상호없음', '이름없음')
 # 보드게임 카페: 이름에 아래 말이 들어 있으면 보드게임 카페 후보로 본다(업종은 카페·오락장 등 무엇이든). 단, 업종이 소매·학원 같은 곳과 이름이 학원·제작인 곳은 뺀다.
 BG_NAME_RE = re.compile(r'보드\s*게임|BOARD\s*-?\s*GAME', re.I)   # '보드카페'는 스노보드·스케이트보드 카페와 헷갈려 일부러 뺐다(필요하면 --bg-extra 로 이름을 더한다)
 BG_NOT_NAME = ('학원', '교습', '제작', '공방', '도매')
+# 이름에 '보드게임'은 없어도 보드게임 카페인 곳: ① 보드게임 카페 브랜드(레드버튼·홈즈앤루팡·더홀릭·히어로) ② '○○보드카페'(스노보드·스케이트보드 가게는 제외)
+BG_BRAND_RE = re.compile(r'레드\s*버튼|red\s*button|홈즈\s*(?:앤|&|and)?\s*루팡|더\s*홀릭\s*보드|히어로\s*보드', re.I)
+BG_BOARDCAFE_RE = re.compile(r'보드\s*(?:카페|까페)', re.I)
+BG_NOT_BOARDCAFE = ('스노', '스케이트', '서프', '서핑', '웨이크', '롱보드', '패들', '윈드', '스키', 'SNOW', 'SKATE', 'SURF')
+BG_VIA = []   # 이름에 '보드게임'은 없지만 브랜드·보드카페 이름이라 담은 곳(요약에 보여 주려고 모은다)
+
+
+def bg_name_hit(nm, brand_on=True):
+    """이름만 보고 보드게임 카페 후보인지 가린다. 돌려주는 값: 'name'(이름에 보드게임) / 'brand'(브랜드) / 'boardcafe'(○○보드카페) / ''(아님)"""
+    if BG_NAME_RE.search(nm):
+        return 'name'
+    if brand_on:
+        if BG_BRAND_RE.search(nm):
+            return 'brand'
+        if BG_BOARDCAFE_RE.search(nm) and not any(x in nm.upper() for x in BG_NOT_BOARDCAFE):
+            return 'boardcafe'
+    return ''
 BG_NOT_KIND = re.compile(r'소매|도매|학원|교육|제조|임대|수리|부동산|의료|병원|의원|출판|인쇄|광고|중개')
 GENERIC_LEAD = ('카페', '까페', '커피', 'CAFE', 'COFFEE')   # '카페드롭탑' 처럼 맨 앞에 붙는 말을 떼고도 한 번 더 비교
 
@@ -222,7 +241,7 @@ def sido_key(s):
     return s[:2]
 
 
-def take_boardgame(r, nm, ci, ind, sub, bg_all, bg_regions, seen, out, kinds, excl, st):
+def take_boardgame(r, nm, ci, ind, sub, bg_all, bg_regions, seen, out, kinds, excl, st, via=''):
     """이름에 보드게임이 든 한 줄을 보드게임 카페로 담을지 정한다(업종·지역·좌표·중복 확인)."""
     kind = ' / '.join(r[i].strip() for i in ind if i < len(r))
     sub_txt = ' / '.join(r[i].strip() for i in sub if i < len(r))
@@ -257,6 +276,8 @@ def take_boardgame(r, nm, ci, ind, sub, bg_all, bg_regions, seen, out, kinds, ex
         return
     seen.add(key)
     out.append((full, addr, round(lat, 5), round(lon, 5), sido, sub_txt or kind))
+    if via:
+        BG_VIA.append(full)
     kinds[sub_txt or kind or '(비어 있음)'] += 1
 
 
@@ -270,6 +291,7 @@ def main():
     ap.add_argument('--asof', default='', help='자료 기준 연월(예: 2026-10). 안 쓰면 파일 이름의 숫자(202610 등)에서 찾고, 없으면 오늘 날짜')
     ap.add_argument('--bg-in', default='서울', help='보드게임 카페를 담을 시·도(쉼표로 여러 곳, 기본: 서울 / all = 전국)')
     ap.add_argument('--bg-extra', action='append', default=[], help="이름에 '보드게임'이 없는 보드게임 카페 이름(여러 번 가능)")
+    ap.add_argument('--no-bg-brand', action='store_true', help="보드게임 카페 브랜드·'○○보드카페' 이름 인식을 끔(이름에 '보드게임'이 든 곳만 모음)")
     ap.add_argument('--bg-out', default='boardgame.json', help='보드게임 카페 파일 이름 (기본: boardgame.json / none = 만들지 않음)')
     ap.add_argument('--no-cafe-check', action='store_true', help='업종이 커피·카페인지 확인하는 단계를 건너뜀(업종 열이 없는 파일용)')
     a = ap.parse_args()
@@ -343,8 +365,11 @@ def main():
                     continue
                 if bg_on:
                     nm0 = r[ci['name']].strip()
-                    if nm0 and (BG_NAME_RE.search(nm0) or any(x in norm_key(nm0) for x in bg_extra)):
-                        take_boardgame(r, nm0, ci, ind, sub, bg_all, bg_regions, bg_seen, bg_rows, bg_kinds, bg_excl, st)
+                    hit = bg_name_hit(nm0, not a.no_bg_brand) if nm0 else ''
+                    if nm0 and not hit and any(x in norm_key(nm0) for x in bg_extra):
+                        hit = 'extra'
+                    if hit:
+                        take_boardgame(r, nm0, ci, ind, sub, bg_all, bg_regions, bg_seen, bg_rows, bg_kinds, bg_excl, st, '' if hit == 'name' else hit)
                         continue   # 보드게임 카페는 커피 카페 자료에 넣지 않는다
                 if ind and not a.no_cafe_check:
                     kind = ' '.join(r[i] for i in ind if i < len(r))
@@ -475,6 +500,9 @@ def main():
                 print('  %s: %d' % (k, v))
         if bg_rows:
             print('이름 예시:', ' · '.join(t[0] for t in bg_rows[:8]))
+        if BG_VIA:
+            print("이름에 '보드게임'은 없지만 브랜드·보드카페 이름이라 담은 곳: %d곳 — 눈으로 확인해 주세요 (boardgame-check.csv)" % len(BG_VIA))
+            print('  예시:', ' · '.join(BG_VIA[:12]))
     print('\n만든 파일: %s (앱용), %s (엑셀로 확인용)' % (os.path.abspath(a.out), os.path.abspath(chk)))
     if bg_info:
         print('            %s (보드게임 앱용), %s (엑셀로 확인용)' % (os.path.abspath(a.bg_out), os.path.abspath(bg_info[0])))
