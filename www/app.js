@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v58';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v59';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const DESKS = { plain: '단색', linen: '린넨', wood: '나무결', leather: '가죽' };   // 책상(상단 배경) 질감
   const DESK_DEFAULT = 'linen';
@@ -4017,6 +4017,13 @@
   const MP_BR_MINZ = 15;                   // 이 확대 수준보다 멀리서 보면 점을 그리지 않는다(한 화면에 너무 많아짐)
   const MP_BR_MAX = 900;                   // 한 번에 그리는 점의 최대 수(넘으면 화면 가운데에서 가까운 순)
   const MP_BR_CELL = 0.05;                 // 위치 찾기용 격자 크기(도). 약 4~5km
+  // 보드게임 카페 층: 카페 층과 따로 켜고 끄는 별도 층(data/boardgame.json, 서울). 점 색이 다르고 단추(주사위)도 따로 있다. 같은 캔버스에 그려 점 누르기가 겹치지 않는다.
+  const MP_BG_LS = 'bf.mapbg';             // 'off' 이면 끔(기본은 켬). 이 기기만 · 백업 제외
+  const MP_BG_FILE = 'data/boardgame.json';
+  const MP_BG_MINZ = 13;                   // 자료가 적어(서울 전체에 수백 곳) 카페 층보다 멀리서부터 보인다
+  const MP_BG_MAX = 600;                   // 한 번에 그리는 점의 최대 수(넘으면 화면 가운데에서 가까운 순)
+  let mpBgDB = null, mpBgP = null, mpBgState = 'idle', mpBgLayer = null, mpBgSel = -1, mpBgSelMk = null, mpBgCapped = false;   // 상태: idle | loading | ok | none(파일 없음 → 단추도 숨김) | err
+  const mpBgOn = () => { try { return localStorage.getItem(MP_BG_LS) !== 'off'; } catch (e) { return true; } };
   let mpBrDB = null, mpBrIdx = null, mpBrState = 'idle', mpBrP = null, mpBrLayer = null, mpBrRend = null, mpBrSel = -1, mpBrSelMk = null, mpBrCapped = false;   // 상태: idle | loading | ok | none(파일 없음) | err
   const mpBrOn = () => { try { return localStorage.getItem(MP_BR_LS) !== 'off'; } catch (e) { return true; } };
   const mpBrFiltRaw = () => { try { const v = localStorage.getItem(MP_BRF_LS); return v === 'fr' || v === 'ind' ? v : 'all'; } catch (e) { return 'all'; } };
@@ -4145,6 +4152,7 @@
     mpMap.createPane('mpBr').style.zIndex = 395;   // 매장 점은 내 위치 점(400)·핀(600)보다 아래
     mpBrRend = L.canvas({ pane: 'mpBr', padding: 0.4, tolerance: 8 });
     mpBrLayer = L.layerGroup().addTo(mpMap);
+    mpBgLayer = L.layerGroup().addTo(mpMap);   // 점은 카페 층과 같은 캔버스(mpBrRend)에 그린다
     mpPinLayer = L.layerGroup().addTo(mpMap);
     mpMeLayer = L.layerGroup().addTo(mpMap);
     mpMap.on('dragstart', () => { mpUserMoved = true; });
@@ -4156,6 +4164,7 @@
     mpDraftMarker();
     mpFitInitial();
     mpBrLoad();
+    mpBgLoad();
   }
   // 첫 화면: 내 위치가 있으면 그 주변, 없으면 등록한 장소가 모두 보이게, 둘 다 없으면 서울
   function mpFitInitial() {
@@ -4251,6 +4260,7 @@
       });
       if (mpBrSel >= 0 && rows[mpBrSel]) mpBrMarkSel();
     }
+    mpBgDraw();   // 보드게임 점은 늘 카페 점 위에 오도록 뒤에 그린다
     mpBrHintSync();
   }
   function mpBrMarkSel() {
@@ -4259,22 +4269,30 @@
     const acc = (mpEl && getComputedStyle(mpEl).getPropertyValue('--accent').trim()) || '#9a3b2e';
     mpBrSelMk = L.circleMarker([r[3], r[4]], { renderer: mpBrRend, radius: 12, weight: 3, color: acc, fillOpacity: 0, interactive: false }).addTo(mpBrLayer);
   }
+  // 안내 문구(#mp-bhint): 켜진 층(카페·보드게임)을 모두 보고 한 줄만 보인다. 우선순위: 자료 오류 > 확대 안내 > 점이 많아 줄였음 > 담긴 지역 밖
   function mpBrHintSync() {
     const h = mpS('#mp-bhint'); if (!h) return;
+    const cOn = mpBrOn(), gOn = mpBgOn() && mpBgState !== 'none';   // 보드게임 자료 파일이 없으면 그 층은 없는 것으로 본다
+    const z = mpMap ? mpMap.getZoom() : 99, f = mpBrFilt();
     let msg = '';
-    if (mpBrOn()) {
-      const f = mpBrFilt();
-      if (mpBrState === 'none' || mpBrState === 'err') msg = '카페 자료를 불러오지 못했습니다.';
-      else if (mpBrState === 'ok' && mpMap && mpMap.getZoom() < MP_BR_MINZ) msg = '지도를 확대하면 장소가 보입니다';
-      else if (mpBrState === 'ok' && mpBrCapped) msg = '카페가 많아 가운데에서 가까운 ' + MP_BR_MAX + '곳만 보입니다. 더 확대해 보세요';
-      else if (mpBrState === 'ok' && mpMap && mpBrDB.bb && f !== 'fr') {
+    if (cOn && (mpBrState === 'none' || mpBrState === 'err')) msg = '카페 자료를 불러오지 못했습니다.';
+    else if (gOn && mpBgState === 'err') msg = '보드게임 카페 자료를 불러오지 못했습니다.';
+    else {
+      const cReady = cOn && mpBrState === 'ok', gReady = gOn && mpBgState === 'ok';
+      const cFar = cReady && z < MP_BR_MINZ, gFar = gReady && z < MP_BG_MINZ;
+      if ((cReady || gReady) && (!cReady || cFar) && (!gReady || gFar)) msg = '지도를 확대하면 장소가 보입니다';   // 켜진 층이 모두 이 확대 수준에서는 안 그려진다
+      else if (cFar) msg = '커피 카페는 더 확대하면 보입니다';   // 보드게임 점만 보이는 중
+      else if (cReady && mpBrCapped) msg = '카페가 많아 가운데에서 가까운 ' + MP_BR_MAX + '곳만 보입니다. 더 확대해 보세요';
+      else if (gReady && mpBgCapped) msg = '보드게임 카페가 많아 가운데에서 가까운 ' + MP_BG_MAX + '곳만 보입니다. 더 확대해 보세요';
+      else if (mpMap) {
         const c = mpMap.getCenter();
-        if (!mpBrInBB(mpBrDB, c.lat, c.lng)) {
+        if (cReady && mpBrDB.bb && f !== 'fr' && !mpBrInBB(mpBrDB, c.lat, c.lng)) {
           const region = mpBrDB.full.join('·') || '서울', o = mpBrDB.outB;
           msg = f === 'ind' ? '개인 카페는 ' + region + '만 담겨 있습니다'
             : o.length && o.length <= 3 ? region + ' 밖에서는 ' + o.join('·') + ' 매장만 보입니다 (개인 카페는 ' + region + '만)'
             : o.length ? region + ' 밖에서는 일부 프랜차이즈 매장만 보입니다 (개인 카페는 ' + region + '만)' : '카페 자료는 ' + region + '만 담겨 있습니다';
         }
+        if (!msg && gReady && mpBgDB.bb && !mpBrInBB(mpBgDB, c.lat, c.lng)) msg = '보드게임 카페는 ' + (mpBgDB.full.join('·') || '서울') + '만 담겨 있습니다';
       }
     }
     h.textContent = msg; h.hidden = !msg;
@@ -4284,6 +4302,105 @@
     mpBrSel = -1;
     if (mpBrSelMk && mpBrLayer) mpBrLayer.removeLayer(mpBrSelMk);
     mpBrSelMk = null;
+  }
+  // ----- 보드게임 카페 층 -----
+  // 자료: data/boardgame.json = { v:1, src, asof, full:['서울'], bb:[남,서,북,동], r:[[이름, 주소, 위도, 경도], …] }  (scripts/filter-cafes.py 가 cafes.json 과 함께 만든다. 이름에 '보드게임'이 든 가게)
+  // 안쪽에서는 카페 층과 같은 모양([-1, 이름, 주소, 위도, 경도])으로 바꿔 두어 mpBrHave 같은 함수를 함께 쓴다.
+  function mpBgLoad() {
+    if (mpBgDB || mpBgP) return mpBgP;
+    mpBgState = 'loading';
+    mpBgP = fetch(MP_BG_FILE).then((r) => { if (!r.ok) { const e = new Error('http'); e.none = true; throw e; } return r.json(); }).then((j) => {
+      if (!j || !Array.isArray(j.r)) throw new Error('shape');
+      const rows = [];
+      j.r.forEach((x) => {
+        if (!Array.isArray(x)) return;
+        const la = +x[2], lo = +x[3];
+        if (!Number.isFinite(la) || !Number.isFinite(lo)) return;
+        rows.push([-1, String(x[0] || '보드게임 카페').slice(0, 60), String(x[1] || '').slice(0, 120), la, lo]);
+      });
+      const bb = Array.isArray(j.bb) && j.bb.length === 4 && j.bb.every((v) => Number.isFinite(+v)) ? j.bb.map(Number) : null;
+      mpBgDB = { src: String(j.src || '').slice(0, 80), asof: String(j.asof || '').slice(0, 20), r: rows, bb, full: (Array.isArray(j.full) ? j.full : []).slice(0, 4).map((n) => String(n).slice(0, 10)) };
+      mpBgState = 'ok';
+    }).catch((e) => { mpBgState = e && e.none ? 'none' : 'err'; }).then(() => { mpBgP = null; if (mpIsOpen() && mpMap) mpBrDraw(); });
+    return mpBgP;
+  }
+  // 점 색: 커피 카페(갈색)와 다른 보라 계열. 테마에 맞춰 밝기만 바꾼다.
+  function mpBgPal() {
+    const night = document.body.classList.contains('theme-night'), sepia = document.body.classList.contains('theme-sepia');
+    return night ? { c: '#b4a6f2', ring: '#16171a' } : sepia ? { c: '#5b4a8c', ring: '#f4ead6' } : { c: '#5d4fa8', ring: '#ffffff' };
+  }
+  function mpBgDraw() {
+    if (!mpMap || !mpBgLayer) return;
+    mpBgLayer.clearLayers(); mpBgSelMk = null; mpBgCapped = false;
+    const on = mpBgOn();
+    const btn = mpS('#mp-bg');
+    if (btn) { btn.hidden = !(mpBgState === 'ok' || mpBgState === 'err'); btn.classList.toggle('on', on); btn.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+    if (!(on && mpBgDB && mpMap.getZoom() >= MP_BG_MINZ)) return;
+    const b = mpMap.getBounds().pad(0.4), c = mpMap.getCenter(), rows = mpBgDB.r;
+    let out = [];
+    for (let i = 0; i < rows.length; i++) { const r = rows[i]; if (r[3] >= b.getSouth() && r[3] <= b.getNorth() && r[4] >= b.getWest() && r[4] <= b.getEast()) out.push(i); }
+    if (out.length > MP_BG_MAX) {
+      mpBgCapped = true;
+      const d2 = (i) => { const r = rows[i]; return (r[3] - c.lat) * (r[3] - c.lat) + (r[4] - c.lng) * (r[4] - c.lng); };
+      out = out.sort((x, y) => d2(x) - d2(y)).slice(0, MP_BG_MAX);
+    }
+    const pal = mpBgPal();
+    out.forEach((i) => {
+      const r = rows[i];
+      L.circleMarker([r[3], r[4]], { renderer: mpBrRend, radius: 7, weight: 2, color: pal.ring, fillColor: pal.c, fillOpacity: 1, bubblingMouseEvents: false })
+        .on('click', () => mpBgSelect(i)).addTo(mpBgLayer);
+    });
+    if (mpBgSel >= 0 && rows[mpBgSel]) mpBgMarkSel();
+  }
+  function mpBgMarkSel() {
+    if (mpBgSelMk) { mpBgLayer.removeLayer(mpBgSelMk); mpBgSelMk = null; }
+    const r = mpBgDB && mpBgDB.r[mpBgSel]; if (!r || !mpBgLayer) return;
+    const acc = (mpEl && getComputedStyle(mpEl).getPropertyValue('--accent').trim()) || '#9a3b2e';
+    mpBgSelMk = L.circleMarker([r[3], r[4]], { renderer: mpBrRend, radius: 12, weight: 3, color: acc, fillOpacity: 0, interactive: false }).addTo(mpBgLayer);
+  }
+  function mpBgClearSel() {
+    if (mpBgSel < 0) return;
+    mpBgSel = -1;
+    if (mpBgSelMk && mpBgLayer) mpBgLayer.removeLayer(mpBgSelMk);
+    mpBgSelMk = null;
+  }
+  // 같은 자리(15m 안, 같은 건물)에 겹친 다른 보드게임 카페 — 점이 겹쳐 맨 위 한 곳만 눌리므로 카드에서 고르게 한다(실제 자료에 같은 좌표 4쌍).
+  function mpBgNear(i) {
+    const rows = mpBgDB.r, r = rows[i], out = [];
+    for (let j = 0; j < rows.length; j++) {
+      const q = rows[j];
+      if (j === i || Math.abs(q[3] - r[3]) > 0.00025 || Math.abs(q[4] - r[4]) > 0.0004) continue;
+      const d = mpDist({ lat: r[3], lng: r[4] }, { lat: q[3], lng: q[4] });
+      if (d <= 15) out.push([j, d]);
+    }
+    return out.sort((x, y) => x[1] - y[1] || x[0] - y[0]).map((x) => x[0]);
+  }
+  function mpBgSelect(i) {
+    if (mpPicking || mpView === 'form' || !mpBgDB || !mpBgDB.r[i]) return;
+    mpSelect(null);                       // 내 장소·카페 선택과 카드를 먼저 닫는다(여기서 보드게임 선택도 풀린다)
+    mpBgSel = i; mpBgMarkSel();
+    const r = mpBgDB.r[i], pt = { name: r[1], lat: r[3], lng: r[4] };
+    const d = mpMe ? mpDist(mpMe, pt) : null, lk = mpLinks(pt), kr = mpInKorea(pt), have = mpBrHave(r, ''), near = mpBgNear(i);
+    const c = mpS('#mp-card');
+    c.innerHTML =
+      '<div class="mp-c-top"><i class="mp-bd" style="background:' + mpBgPal().c + '"></i><strong>' + esc(r[1]) + '</strong>' + (d !== null ? '<span class="mp-it-d">' + mpFmtDist(d) + '</span>' : '') +
+        '<button type="button" class="mp-c-x" id="mp-c-x" aria-label="닫기">✕</button></div>' +
+      (r[2] ? '<div class="mp-c-l">' + esc(r[2]) + '</div>' : '') +
+      (near.length ? '<div class="mp-c-l mp-c-near">같은 자리 근처 보드게임 카페 ' + near.length + '곳 ' + near.slice(0, 20).map((j) => '<button type="button" class="mp-nb" data-j="' + j + '">' + esc(mpBgDB.r[j][1]) + '</button>').join('') + (near.length > 20 ? ' 외 ' + (near.length - 20) + '곳' : '') + '</div>' : '') +
+      '<div class="mp-c-l mp-c-src">보드게임 카페 · 공공데이터(상가정보)' + (mpBgDB.asof ? ' ' + esc(mpBgDB.asof) + ' 기준' : '') + ' · 영업 여부·시간은 지도 앱에서 확인하세요</div>' +
+      '<div class="mp-c-b">' +
+        '<button type="button" class="mp-lk" data-o="naver"' + (kr ? '' : ' disabled') + '>네이버 지도</button>' +
+        '<button type="button" class="mp-lk" data-o="apple">애플 지도</button>' +
+        '<button type="button" class="mp-lk" data-o="google">구글 지도</button>' +
+        '<button type="button" class="mp-lk edit" data-o="add"' + (have ? ' disabled' : '') + '>' + (have ? '내 장소에 있음' : '내 장소로 추가') + '</button></div>';
+    c.hidden = false;
+    mpS('#mp-c-x').addEventListener('click', () => { mpBgClearSel(); mpRenderCard(null); });
+    c.querySelectorAll('.mp-nb').forEach((b) => b.addEventListener('click', () => mpBgSelect(+b.dataset.j)));
+    c.querySelectorAll('.mp-lk').forEach((b) => b.addEventListener('click', () => {
+      const o = b.dataset.o;
+      if (o === 'add') { mpOpenForm({ name: r[1], addr: r[2], tel: '', hours: '', cap: 0, memo: '', amen: [], col: 0, lat: r[3], lng: r[4] }, true); return; }
+      mpOpen(lk[o][0], lk[o][1]);
+    }));
   }
   // 이미 내 장소에 있는 카페인가(이름이 비슷한 장소가 40m 안에 있으면 같은 곳으로 본다. 프랜차이즈는 브랜드 이름, 개인 카페는 자기 이름의 앞 세 글자로 견준다)
   function mpBrHave(r, brand) {
@@ -4414,7 +4531,7 @@
   }
   function mpRenderCard(p) {
     const c = mpS('#mp-card');
-    mpBrClearSel();   // 어떤 카드로 바뀌든 매장 선택(고리 표시)은 풀린다. 매장 카드는 mpBrSelect 가 이 뒤에 직접 그린다.
+    mpBrClearSel(); mpBgClearSel();   // 어떤 카드로 바뀌든 카페·보드게임 선택(고리 표시)은 풀린다. 그 카드는 mpBrSelect·mpBgSelect 가 이 뒤에 직접 그린다.
     if (!p || mpPicking) { c.hidden = true; c.innerHTML = ''; return; }
     const d = mpDistOf(p), lk = mpLinks(p), kr = mpInKorea(p);
     c.innerHTML =
@@ -4738,6 +4855,8 @@
           '<button type="button" data-f="all">전체</button><button type="button" data-f="fr">프랜차이즈</button><button type="button" data-f="ind">개인</button></div>' +
         '<button type="button" class="mp-br" id="mp-br" aria-label="카페 표시" aria-pressed="true">' +
           '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 10h11v4.5a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V10z"/><path d="M16 11h1.4a2.4 2.4 0 0 1 0 4.8H16"/><path d="M8.5 3.5v3M12.5 3.5v3"/></svg></button>' +
+        '<button type="button" class="mp-bg" id="mp-bg" aria-label="보드게임 카페 표시" aria-pressed="true" hidden>' +
+          '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.1" fill="currentColor" stroke="none"/></svg></button>' +
         '<div class="mp-card" id="mp-card" hidden></div>' +
         '<div class="mp-cross" id="mp-cross" hidden><i></i></div>' +
         '<div class="mp-pick" id="mp-pick" hidden><span>지도를 끌어 가운데 십자(+)를 카페 위치에 맞춘 뒤 눌러 주세요.</span>' +
@@ -4799,7 +4918,14 @@
       const on = !mpBrOn();
       try { localStorage.setItem(MP_BR_LS, on ? 'on' : 'off'); } catch (e) { /* 저장 못 해도 이번에는 바뀜 */ }
       if (on) { mpBrLoad(); showToastLine('카페 표시를 켰습니다. 지도를 확대하면 점으로 보입니다.', true); }
-      else { mpBrClearSel(); mpRenderCard(mpSel ? mpFind(mpSel) : null); showToastLine('카페 표시를 껐습니다.', true); }
+      else { if (mpBrSel >= 0) { mpBrClearSel(); mpRenderCard(mpSel ? mpFind(mpSel) : null); } showToastLine('카페 표시를 껐습니다.', true); }
+      mpBrDraw();
+    });
+    mpS('#mp-bg').addEventListener('click', () => {
+      const on = !mpBgOn();
+      try { localStorage.setItem(MP_BG_LS, on ? 'on' : 'off'); } catch (e) { /* 저장 못 해도 이번에는 바뀜 */ }
+      if (on) { mpBgLoad(); showToastLine('보드게임 카페 표시를 켰습니다. 지도를 확대하면 점으로 보입니다.', true); }
+      else { if (mpBgSel >= 0) { mpBgClearSel(); mpRenderCard(mpSel ? mpFind(mpSel) : null); } showToastLine('보드게임 카페 표시를 껐습니다.', true); }
       mpBrDraw();
     });
     mpS('#mp-bf').addEventListener('click', (e) => {

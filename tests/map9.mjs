@@ -60,6 +60,7 @@ async function openDev(dev, { data = v2, mode = 'ok', cfg = {}, places = [MINE, 
   p.on('request', (r) => { const u = r.url();
     if (u.startsWith('https://tile.openstreetmap.org/') || u.startsWith('https://basemaps.cartocdn.com/')) r.respond({ status: 200, contentType: 'image/png', body: TILE, headers: { 'access-control-allow-origin': '*' } });
     else if (u.endsWith('/data/cafes.json')) { if (mode === 'ok') r.respond({ status: 200, contentType: 'application/json', body: JSON.stringify(data) }); else if (mode === 'none') r.respond({ status: 404, body: 'x' }); else r.respond({ status: 200, contentType: 'application/json', body: '{"r": oops' }); }
+    else if (u.endsWith('/data/boardgame.json')) r.respond({ status: 404, body: 'x' });   // 보드게임 층은 이 시험의 대상이 아니다(map10)
     else if (u.endsWith('/data/brandcafes.json')) r.respond({ status: 404, body: 'x' });
     else if (u.startsWith('http://localhost') || u.startsWith('data:') || u.startsWith('blob:')) r.continue(); else r.abort(); });
   await p.evaluateOnNewDocument(seed.fn, { places, ...cfg });

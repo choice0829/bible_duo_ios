@@ -17,8 +17,8 @@
 | `docs/WEB-README.md` | 웹 화면 쪽 버전별 설명서(길음). 새 버전은 여기 맨 아래 항목에 이어 적기 |
 | `NOTES.md` | 진행 기록 + 실기기 확인 목록(버전마다 한 줄 추가) |
 | `docs/HANDOFF-map-theme.md` | 진행 예정 작업(지도 그림을 앱 테마에 맞추기)의 인수 메모 |
-| `docs/HANDOFF-brand-cafes.md` | 모임 장소 지도의 **카페 층**(서울 모든 카페·프랜차이즈/개인 걸러 보기·내 장소 핀 색)의 인수 메모 |
-| `scripts/filter-cafes.py` | 공공데이터 상가정보 CSV에서 서울 모든 카페 + 서울 밖 스타벅스·투썸을 걸러 `cafes.json` 을 만드는 PC용 스크립트(시험: `tests/filter-cafes-test.py`) |
+| `docs/HANDOFF-brand-cafes.md` | 모임 장소 지도의 **카페 층**(서울 모든 카페·프랜차이즈/개인 걸러 보기·내 장소 핀 색)과 **보드게임 카페 층**(별도 단추·서울)의 인수 메모 |
+| `scripts/filter-cafes.py` | 공공데이터 상가정보 CSV에서 서울 모든 카페 + 서울 밖 스타벅스·투썸을 걸러 `cafes.json` 을, 이름에 '보드게임'이 든 서울 가게를 걸러 `boardgame.json` 을 함께 만드는 PC용 스크립트(시험: `tests/filter-cafes-test.py`) |
 
 `scripts/sync-web.sh`는 예전 작업 폴더(`bible-pwa`)에서 `www/`로 복사하던 도구입니다. 지금은 `www/`가 원본이라 쓰지 않습니다.
 
