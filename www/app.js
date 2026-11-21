@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v60';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v61';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const DESKS = { plain: '단색', linen: '린넨', wood: '나무결', leather: '가죽' };   // 책상(상단 배경) 질감
   const DESK_DEFAULT = 'linen';
@@ -3845,7 +3845,7 @@
   }
 
   // ---------- 모임 장소(카페) 지도 ----------
-  // 운영자(본인)가 아는 카페·모임 장소를 직접 등록하고, 내 위치 기준 가까운 순으로 보고, 지도에서 위치를 확인하고, 네이버·애플·구글 지도로 길을 찾는다.
+  // 운영자(본인)가 아는 카페·모임 장소를 직접 등록하고, 내 위치 기준 가까운 순으로 보고, 지도에서 위치를 확인하고, 길찾기(네이버 지도)로 길을 찾는다.
   // 장소는 이 기기(bf.places)에만 저장하며 데이터 백업에 함께 들어간다. 지도 바탕은 Leaflet(lib/에 포함)이 인터넷에서 받아 오므로 인터넷이 있어야 보이고(열쇠가 있으면 테마별 CARTO, 없으면 OpenStreetMap),
   // 인터넷이 없어도 목록·등록·거리 계산은 된다. 내 위치·주소 찾기·다른 지도 앱 열기는 아이폰 앱(껍데기)이 맡는다(window.bfLocation / bfGeo).
   const MP_AMEN = [['out', '콘센트'], ['wifi', '와이파이'], ['group', '단체석'], ['quiet', '조용함'], ['park', '주차'], ['room', '별실']];
@@ -3981,12 +3981,15 @@
     if (/^tel:/.test(url)) { location.href = url; return; }
     window.open(fallback || url, '_blank', 'noopener');
   }
+  // 길찾기(v61: 카드 단추는 '길찾기' 하나). 한국 안이면 네이버 지도 앱의 대중교통 길찾기로 열고, 출발지는 일부러 넣지 않는다 —
+  // 네이버 지도 URL 스킴은 출발지(slat·slng·sname)를 생략하면 지금 내 위치를 출발지로 쓴다. 앱이 없어 안 열리면 네이버 지도 웹의 장소 검색 주소로 연다(웹 길찾기 주소는 공식 문서가 없다).
+  // 한국 밖(네이버 지도가 길찾기를 못 하는 좌표)이면 구글 지도 길찾기로 연다.
   function mpLinks(p) {
     const n = encodeURIComponent(p.name), la = p.lat.toFixed(6), lo = p.lng.toFixed(6);
     return {
-      naver: ['nmap://place?lat=' + la + '&lng=' + lo + '&name=' + n + '&appname=com.choice0829.bibleflip', 'https://map.naver.com/p/search/' + n],
-      apple: ['https://maps.apple.com/?daddr=' + la + ',' + lo + '&q=' + n, ''],
-      google: ['https://www.google.com/maps/dir/?api=1&destination=' + la + ',' + lo, ''],
+      route: mpInKorea(p)
+        ? ['nmap://route/public?dlat=' + la + '&dlng=' + lo + '&dname=' + n + '&appname=com.choice0829.bibleflip', 'https://map.naver.com/p/search/' + n]
+        : ['https://www.google.com/maps/dir/?api=1&destination=' + la + ',' + lo, ''],
     };
   }
   const mpLocErr = (e) => (e === 'denied'
@@ -4383,7 +4386,7 @@
     mpSelect(null);                       // 내 장소·카페 선택과 카드를 먼저 닫는다(여기서 보드게임 선택도 풀린다)
     mpBgSel = i; mpBgMarkSel();
     const r = mpBgDB.r[i], pt = { name: r[1], lat: r[3], lng: r[4] };
-    const d = mpMe ? mpDist(mpMe, pt) : null, lk = mpLinks(pt), kr = mpInKorea(pt), have = mpBrHave(r, ''), near = mpBgNear(i);
+    const d = mpMe ? mpDist(mpMe, pt) : null, lk = mpLinks(pt), have = mpBrHave(r, ''), near = mpBgNear(i);
     const c = mpS('#mp-card');
     c.innerHTML =
       '<div class="mp-c-top"><i class="mp-bd" style="background:' + mpBgPal().c + '"></i><strong>' + esc(r[1]) + '</strong>' + (d !== null ? '<span class="mp-it-d">' + mpFmtDist(d) + '</span>' : '') +
@@ -4392,9 +4395,7 @@
       (near.length ? '<div class="mp-c-l mp-c-near">같은 자리 근처 보드게임 카페 ' + near.length + '곳 ' + near.slice(0, 20).map((j) => '<button type="button" class="mp-nb" data-j="' + j + '">' + esc(mpBgDB.r[j][1]) + '</button>').join('') + (near.length > 20 ? ' 외 ' + (near.length - 20) + '곳' : '') + '</div>' : '') +
       '<div class="mp-c-l mp-c-src">보드게임 카페 · 공공데이터(상가정보)' + (mpBgDB.asof ? ' ' + esc(mpBgDB.asof) + ' 기준' : '') + ' · 영업 여부·시간은 지도 앱에서 확인하세요</div>' +
       '<div class="mp-c-b">' +
-        '<button type="button" class="mp-lk" data-o="naver"' + (kr ? '' : ' disabled') + '>네이버 지도</button>' +
-        '<button type="button" class="mp-lk" data-o="apple">애플 지도</button>' +
-        '<button type="button" class="mp-lk" data-o="google">구글 지도</button>' +
+        '<button type="button" class="mp-lk" data-o="route">길찾기</button>' +
         '<button type="button" class="mp-lk edit" data-o="add"' + (have ? ' disabled' : '') + '>' + (have ? '내 장소에 있음' : '내 장소로 추가') + '</button></div>';
     c.hidden = false;
     mpS('#mp-c-x').addEventListener('click', () => { mpBgClearSel(); mpRenderCard(null); });
@@ -4431,7 +4432,7 @@
     mpSelect(null);                       // 내 장소 선택·카드를 먼저 닫는다(여기서 매장 선택도 풀린다)
     mpBrSel = i; mpBrMarkSel();
     const r = mpBrDB.r[i], brand = r[0] >= 0 ? mpBrDB.b[r[0]] || '' : '', pt = { name: r[1], lat: r[3], lng: r[4] };
-    const d = mpMe ? mpDist(mpMe, pt) : null, lk = mpLinks(pt), kr = mpInKorea(pt), have = mpBrHave(r, brand);
+    const d = mpMe ? mpDist(mpMe, pt) : null, lk = mpLinks(pt), have = mpBrHave(r, brand);
     const near = mpBrNear(i);
     const c = mpS('#mp-card');
     c.innerHTML =
@@ -4441,9 +4442,7 @@
       (near.length ? '<div class="mp-c-l mp-c-near">같은 자리 근처 카페 ' + near.length + '곳 ' + near.slice(0, 40).map((j) => '<button type="button" class="mp-nb" data-j="' + j + '">' + esc(mpBrDB.r[j][1]) + '</button>').join('') + (near.length > 40 ? ' 외 ' + (near.length - 40) + '곳' : '') + '</div>' : '') +
       '<div class="mp-c-l mp-c-src">' + (brand ? esc(brand) + ' 매장' : '개인 카페') + ' · 공공데이터(상가정보)' + (mpBrDB.asof ? ' ' + esc(mpBrDB.asof) + ' 기준' : '') + ' · 영업 여부·시간은 지도 앱에서 확인하세요</div>' +
       '<div class="mp-c-b">' +
-        '<button type="button" class="mp-lk" data-o="naver"' + (kr ? '' : ' disabled') + '>네이버 지도</button>' +
-        '<button type="button" class="mp-lk" data-o="apple">애플 지도</button>' +
-        '<button type="button" class="mp-lk" data-o="google">구글 지도</button>' +
+        '<button type="button" class="mp-lk" data-o="route">길찾기</button>' +
         '<button type="button" class="mp-lk edit" data-o="add"' + (have ? ' disabled' : '') + '>' + (have ? '내 장소에 있음' : '내 장소로 추가') + '</button></div>';
     c.hidden = false;
     mpS('#mp-c-x').addEventListener('click', () => { mpBrClearSel(); mpRenderCard(null); });
@@ -4536,7 +4535,7 @@
     const c = mpS('#mp-card');
     mpBrClearSel(); mpBgClearSel();   // 어떤 카드로 바뀌든 카페·보드게임 선택(고리 표시)은 풀린다. 그 카드는 mpBrSelect·mpBgSelect 가 이 뒤에 직접 그린다.
     if (!p || mpPicking) { c.hidden = true; c.innerHTML = ''; return; }
-    const d = mpDistOf(p), lk = mpLinks(p), kr = mpInKorea(p);
+    const d = mpDistOf(p), lk = mpLinks(p);
     c.innerHTML =
       '<div class="mp-c-top"><i class="mp-sw c' + p.col + '"></i><strong>' + esc(p.name) + '</strong>' + (d !== null ? '<span class="mp-it-d">' + mpFmtDist(d) + '</span>' : '') +
         '<button type="button" class="mp-c-x" id="mp-c-x" aria-label="닫기">✕</button></div>' +
@@ -4546,9 +4545,7 @@
       (p.amen.length || p.cap ? '<div class="mp-tags">' + mpTags(p) + '</div>' : '') +
       (p.memo ? '<div class="mp-c-m">' + esc(p.memo) + '</div>' : '') +
       '<div class="mp-c-b">' +
-        '<button type="button" class="mp-lk" data-o="naver"' + (kr ? '' : ' disabled title="한국 밖의 장소는 네이버 지도로 열 수 없습니다"') + '>네이버 지도</button>' +
-        '<button type="button" class="mp-lk" data-o="apple">애플 지도</button>' +
-        '<button type="button" class="mp-lk" data-o="google">구글 지도</button>' +
+        '<button type="button" class="mp-lk" data-o="route">길찾기</button>' +
         (p.tel ? '<button type="button" class="mp-lk" data-o="tel">전화</button>' : '') +
         '<button type="button" class="mp-lk edit" data-o="edit">수정</button></div>';
     c.hidden = false;

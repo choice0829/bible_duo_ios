@@ -111,7 +111,7 @@ const rgb = (hex) => { const n = parseInt(hex.slice(1), 16); return `rgb(${n >> 
   await tapAt(p, IND[1][3], IND[1][4], 16);
   ok('개인 카페 점을 누르면 카드가 "개인 카페 · 공공데이터(상가정보) 2026-10 기준"이고 주소가 있다', (await cardName(p)) === IND[1][1] && (await txt(p, '#mp-card')).includes('개인 카페 · 공공데이터(상가정보) 2026-10 기준') && (await txt(p, '#mp-card')).includes(IND[1][2]), (await txt(p, '#mp-card') || '').slice(0, 120));
   { const col = await bgOf(p, '#mp-card .mp-bd'); ok('카드의 점 색도 같은 커피색', col === rgb('#8a5a3c'), col); }
-  ok('카드 단추 = 네이버·애플·구글·내 장소로 추가', JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('#mp-card .mp-lk')].map((x) => x.textContent))) === JSON.stringify(['네이버 지도', '애플 지도', '구글 지도', '내 장소로 추가']));
+  ok('카드 단추 = 길찾기·내 장소로 추가 두 개(v61)', JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('#mp-card .mp-lk')].map((x) => x.textContent))) === JSON.stringify(['길찾기', '내 장소로 추가']));
 
   // 걸러 보기: 프랜차이즈
   await p.click('#mp-bf button[data-f="fr"]'); await sleep(500);
