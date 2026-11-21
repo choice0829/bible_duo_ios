@@ -18,21 +18,21 @@
       indus: '#E8E3D2', school: '#EBE4CC', hospital: '#EEDFD6', cemetery: '#DDE0C8', building: '#E6DFCA', buildingLine: '#D3CAB0',
       minor: '#FBF8EE', minorCase: '#DDD4BC', mid: '#FFFDF4', midCase: '#D2C8AC', main: '#FFF3D3', mainCase: '#CDBD94', motor: '#F6DDA4', motorCase: '#C4AF7C',
       path: '#B8AD94', rail: '#A89E88', boundary: '#B4A78C',
-      text: '#4A4036', textMuted: '#7A6E5E', halo: '#F2EFE2', waterText: '#5F7F85', poi: '#9A6F55',
+      text: '#4A4036', textMuted: '#7A6E5E', halo: '#F2EFE2', waterText: '#5F7F85',
     },
     sepia: {
       land: '#E8D8BA', resid: '#E4D3B3', water: '#BAC3B2', wood: '#CBC596', grass: '#D5CDA2', park: '#CFC99C', sand: '#E3D2A8', ice: '#EFE6D0',
       indus: '#DDCCA9', school: '#E0CFA9', hospital: '#E4CDB4', cemetery: '#CFC9A0', building: '#D9C5A0', buildingLine: '#C4AC80',
       minor: '#F2E6CC', minorCase: '#CDB88C', mid: '#F8EDD3', midCase: '#C3AB7C', main: '#F9E7BC', mainCase: '#B99F6A', motor: '#F0D393', motorCase: '#AE9055',
       path: '#A68E66', rail: '#9C8660', boundary: '#A58D63',
-      text: '#4B3621', textMuted: '#79603F', halo: '#E8D8BA', waterText: '#5D6F5F', poi: '#8E5527',
+      text: '#4B3621', textMuted: '#79603F', halo: '#E8D8BA', waterText: '#5D6F5F',
     },
     night: {
       land: '#1A1B1F', resid: '#1D1E23', water: '#0F1722', wood: '#1B2622', grass: '#1D2822', park: '#1F2B26', sand: '#25241F', ice: '#2A2D33',
       indus: '#212227', school: '#23232A', hospital: '#2A2224', cemetery: '#1E2622', building: '#25272D', buildingLine: '#2F323A',
       minor: '#32353D', minorCase: '#141519', mid: '#3C404A', midCase: '#141519', main: '#474B57', mainCase: '#141519', motor: '#5A5346', motorCase: '#141519',
       path: '#4A4E58', rail: '#4A4E58', boundary: '#4D515D',
-      text: '#C3C6CF', textMuted: '#8E93A0', halo: '#1A1B1F', waterText: '#6C8CA8', poi: '#C58A6E',
+      text: '#C3C6CF', textMuted: '#8E93A0', halo: '#1A1B1F', waterText: '#6C8CA8',
     },
   };
 
@@ -139,21 +139,7 @@
       layout: { 'text-field': ['get', 'housenumber'], 'text-font': FONT, 'text-size': 10 },
       paint: Object.assign({ 'text-color': p.textMuted }, halo),
     });
-    // 가게·시설(POI): 확대할수록 덜 중요한 곳까지 보인다. (필터에는 줌을 쓸 수 없어서 단계별 층으로 나눈다)
-    const rank = ['coalesce', ['get', 'rank'], 99];
-    // [순위 하한(초과), 순위 상한(이하), 보이기 시작하는 MapLibre 줌(= Leaflet 줌 − 1)]
-    [[-1, 6, 14], [6, 20, 15], [20, 60, 16], [60, 999, 17]].forEach((t, i) => {
-      const f = ['all', ['has', 'name'], ['>', rank, t[0]], ['<=', rank, t[1]]];
-      add({
-        id: 'poi-dot-' + i, type: 'circle', 'source-layer': 'poi', minzoom: t[2], filter: f,
-        paint: { 'circle-radius': Z(14, 2, 18, 4), 'circle-color': p.poi, 'circle-stroke-color': p.halo, 'circle-stroke-width': 1 },
-      });
-      add({
-        id: 'poi-name-' + i, type: 'symbol', 'source-layer': 'poi', minzoom: t[2], filter: f,
-        layout: { 'text-field': NAME, 'text-font': FONT, 'text-size': 11, 'text-anchor': 'top', 'text-offset': [0, 0.7], 'text-max-width': 7, 'text-optional': true },
-        paint: Object.assign({ 'text-color': p.poi }, halo),
-      });
-    });
+    // 가게·시설(POI) 점과 이름은 일부러 그리지 않는다(v58). 모임 장소 지도에는 내 장소와 카페 층만 점으로 보이게 하려는 것이다.
     const place = (id, classes, minzoom, maxzoom, size, font, extra) => add({
       id, type: 'symbol', 'source-layer': 'place', minzoom, maxzoom, filter: cls.apply(null, classes),
       layout: Object.assign({ 'text-field': NAME, 'text-font': font || FONT, 'text-size': size, 'text-max-width': 8 }, extra || {}),

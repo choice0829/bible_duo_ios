@@ -17,6 +17,7 @@ for (const t of ['paper', 'sepia', 'night']) {
   const st = ST.build(t); const errs = validate(JSON.parse(JSON.stringify(st)));
   ok(`스타일 ${t}: 규격 오류 없음`, errs.length === 0, errs.slice(0, 3).map((e) => e.message).join(' | '));
   const ids = st.layers.map((l) => l.id); ok(`스타일 ${t}: 층 id가 겹치지 않음`, new Set(ids).size === ids.length);
+  ok(`스타일 ${t}: 가게·시설(POI) 점·이름 층이 없다(v58)`, st.layers.every((l) => l['source-layer'] !== 'poi' && !/^poi/.test(l.id)) && !('poi' in ST.PAL[t]), ids.filter((i) => /poi/.test(i)).join(','));
   ok(`스타일 ${t}: 글꼴은 OpenFreeMap이 가진 Noto Sans(Regular/Bold/Italic)만`, st.layers.every((l) => !l.layout || !l.layout['text-font'] || /^Noto Sans (Regular|Bold|Italic)$/.test(l.layout['text-font'][0])));
 }
 ok('스타일: 지도 자료·글자 주소가 OpenFreeMap', ST.TILEJSON === 'https://tiles.openfreemap.org/planet' && ST.GLYPHS === 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf');
