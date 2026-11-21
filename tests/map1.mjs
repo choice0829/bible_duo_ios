@@ -14,7 +14,7 @@ const seed={fn:(cfg)=>{
 }, arg:null};
 async function openDev(dev,{query='?native=1',cfg=null,tiles='ok'}={}) {
   const [name,w,h,si]=dev; const p=await b.newPage(); const errs=[]; const tileUrls=[]; const tileHeaders=[];
-  p.on('pageerror',e=>errs.push('pageerror '+e.message)); p.on('console',m=>{if(m.type()==='error'&&!/\/data\/(brandcafes|cafes)\.json$/.test((m.location()||{}).url||''))errs.push(m.text())});   // 매장 자료(v54)가 아직 저장소에 없으면 404 가 나는데, 앱은 그대로 동작하므로 오류로 세지 않는다
+  p.on('pageerror',e=>errs.push('pageerror '+e.message)); p.on('console',m=>{if(m.type()==='error'&&!/\/data\/(brandcafes|cafes|boardgame)\.json$/.test((m.location()||{}).url||''))errs.push(m.text())});   // 매장 자료(v54)가 아직 저장소에 없으면 404 가 나는데, 앱은 그대로 동작하므로 오류로 세지 않는다
   await p.setViewport({width:w,height:h,deviceScaleFactor:2,isMobile:true,hasTouch:true});
   const cdp=await p.createCDPSession(); try{ await cdp.send('Emulation.setSafeAreaInsetsOverride',{insets:si}); }catch(e){}
   await p.setRequestInterception(true);

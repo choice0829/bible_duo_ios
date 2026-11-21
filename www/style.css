@@ -699,6 +699,11 @@ body.theme-night .mp-pin.sel .pn { fill: #4fb3bf; }
 .mp-br svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 .mp-br.on { background: var(--accent); color: var(--bg); }
 #mp.picking .mp-br { display: none; }
+.mp-bg { position: absolute; z-index: 900; top: 118px; right: 10px; width: 44px; height: 44px; border-radius: 12px; background: var(--bg); color: var(--fg); box-shadow: 0 1px 5px rgba(0, 0, 0, .4), 0 0 0 1px var(--line); display: flex; align-items: center; justify-content: center; }
+.mp-bg[hidden] { display: none; }
+.mp-bg svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.mp-bg.on { background: var(--accent); color: var(--bg); }
+#mp.picking .mp-bg { display: none; }
 .mp-bhint { position: absolute; z-index: 850; top: 10px; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 124px); margin: 0; padding: 7px 12px; border-radius: 999px; background: var(--bg); color: var(--fg); font-size: 12.5px; font-weight: 600; line-height: 1.4; text-align: center; box-shadow: 0 2px 8px rgba(0, 0, 0, .28), 0 0 0 1px var(--line); pointer-events: none; }
 .mp-bhint[hidden] { display: none; }
 .mp-note:not([hidden]) ~ .mp-bhint { top: 56px; }
@@ -773,7 +778,8 @@ body.theme-night .mp-add, body.theme-night .mp-act, body.theme-night .mp-tabs bu
 #mp.two.pl-off #mp-list { display: none; }
 #mp.two.picking .mp-l { display: none; }
 #mp.two .mp-me { top: 104px; }
-#mp.two .mp-br, #mp.two .mp-bf { top: 158px; }   /* 확대·축소 단추가 오른쪽 위로 옮겨 가므로 그 아래 */
+#mp.two .mp-br, #mp.two .mp-bf { top: 158px; }
+#mp.two .mp-bg { top: 212px; }   /* 카페 단추 바로 아래 */   /* 확대·축소 단추가 오른쪽 위로 옮겨 가므로 그 아래 */
 #mp.two .mp-note { right: 62px; }
 html.kb #mp.two { padding-bottom: 0; }
 html.kb #mp.two .mp-l { grid-row: 3 / span 2; padding-bottom: var(--kb, 0px); }   /* 키보드는 떠 있는 목록·입력 창만 위로 올린다(지도·아래줄은 그대로) */
