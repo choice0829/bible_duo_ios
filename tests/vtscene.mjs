@@ -54,7 +54,7 @@ const LAYERS = {
     point({ class: 'city', name: '서울' }, 0, 700),
     point({ class: 'suburb', name: '천호동' }, -200, 160),
     point({ class: 'neighbourhood', name: '성내동' }, 400, -330),
-    point({ class: 'village', name: '둔촌마을' }, 640, 360),
+    point({ class: 'village', name: '둔촌마을 Dunchon' }, 640, 360),   // 영문이 섞인 이름: 글자 파일(glyph)을 요청하게 한다(한글만 있으면 기기 글꼴로 바로 그려 요청이 없다)
   ]),
   water_name: fc([point({ class: 'river', name: '한강' }, 200, -790)]),
   poi: fc([

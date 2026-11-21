@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v57';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v58';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const DESKS = { plain: '단색', linen: '린넨', wood: '나무결', leather: '가죽' };   // 책상(상단 배경) 질감
   const DESK_DEFAULT = 'linen';
