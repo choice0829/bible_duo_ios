@@ -19,6 +19,7 @@
       minor: '#FBF8EE', minorCase: '#DDD4BC', mid: '#FFFDF4', midCase: '#D2C8AC', main: '#FFF3D3', mainCase: '#CDBD94', motor: '#F6DDA4', motorCase: '#C4AF7C',
       path: '#B8AD94', rail: '#A89E88', boundary: '#B4A78C',
       text: '#4A4036', textMuted: '#7A6E5E', halo: '#F2EFE2', waterText: '#5F7F85',
+      subway: '#2F6BB3', subwayFg: '#FFFFFF', subwayText: '#2A5A94',
     },
     sepia: {
       land: '#E8D8BA', resid: '#E4D3B3', water: '#BAC3B2', wood: '#CBC596', grass: '#D5CDA2', park: '#CFC99C', sand: '#E3D2A8', ice: '#EFE6D0',
@@ -26,6 +27,7 @@
       minor: '#F2E6CC', minorCase: '#CDB88C', mid: '#F8EDD3', midCase: '#C3AB7C', main: '#F9E7BC', mainCase: '#B99F6A', motor: '#F0D393', motorCase: '#AE9055',
       path: '#A68E66', rail: '#9C8660', boundary: '#A58D63',
       text: '#4B3621', textMuted: '#79603F', halo: '#E8D8BA', waterText: '#5D6F5F',
+      subway: '#3F6B8E', subwayFg: '#FBF3E0', subwayText: '#2F5775',
     },
     night: {
       land: '#1A1B1F', resid: '#1D1E23', water: '#0F1722', wood: '#1B2622', grass: '#1D2822', park: '#1F2B26', sand: '#25241F', ice: '#2A2D33',
@@ -33,6 +35,7 @@
       minor: '#32353D', minorCase: '#141519', mid: '#3C404A', midCase: '#141519', main: '#474B57', mainCase: '#141519', motor: '#5A5346', motorCase: '#141519',
       path: '#4A4E58', rail: '#4A4E58', boundary: '#4D515D',
       text: '#C3C6CF', textMuted: '#8E93A0', halo: '#1A1B1F', waterText: '#6C8CA8',
+      subway: '#4F8FD6', subwayFg: '#0F1722', subwayText: '#8FB9EA',
     },
   };
 
@@ -140,6 +143,7 @@
       paint: Object.assign({ 'text-color': p.textMuted }, halo),
     });
     // 가게·시설(POI) 점과 이름은 일부러 그리지 않는다(v58). 모임 장소 지도에는 내 장소와 카페 층만 점으로 보이게 하려는 것이다.
+    // 다만 지하철·전철역(poi 층의 class=railway · subclass=station)은 v60부터 아이콘 + 이름으로 따로 그린다(맨 아래 'subway-station' 층). 출구·버스 정류장은 그리지 않는다.
     const place = (id, classes, minzoom, maxzoom, size, font, extra) => add({
       id, type: 'symbol', 'source-layer': 'place', minzoom, maxzoom, filter: cls.apply(null, classes),
       layout: Object.assign({ 'text-field': NAME, 'text-font': font || FONT, 'text-size': size, 'text-max-width': 8 }, extra || {}),
@@ -152,6 +156,17 @@
     place('place-city', ['city'], 5, 15, Z(5, 13, 12, 19), FONT_B);
     place('place-state', ['state', 'province', 'region'], 3, 8, Z(3, 11, 7, 14), FONT);
     place('place-country', ['country'], 1, 6, Z(1, 12, 5, 18), FONT_B);
+    // 지하철역: 맨 위 층이라 도로·동네 이름과 겹치면 역이 이긴다. 같은 역이 점·면 두 번 들어 있어도 먼저 놓인 하나만 남는다.
+    add({
+      id: 'subway-station', type: 'symbol', 'source-layer': 'poi', minzoom: 12,
+      filter: ['all', ['==', ['get', 'class'], 'railway'], ['==', ['get', 'subclass'], 'station'], ['has', 'name']],
+      layout: {
+        'icon-image': 'bf-subway-' + theme, 'icon-size': Z(12, 0.7, 16, 1), 'icon-padding': 2,
+        'symbol-sort-key': ['coalesce', ['get', 'rank'], 99],
+        'text-field': NAME, 'text-font': FONT_B, 'text-size': Z(12, 10, 17, 13), 'text-anchor': 'left', 'text-offset': [1.15, 0], 'text-max-width': 8, 'text-optional': true,
+      },
+      paint: { 'text-color': p.subwayText, 'text-halo-color': p.halo, 'text-halo-width': 1.6 },
+    });
 
     return {
       version: 8, name: 'bf-' + theme,
@@ -162,5 +177,24 @@
     };
   }
 
-  window.bfMapStyle = { build, PAL, TILEJSON, GLYPHS };
+  // 지하철 아이콘: 그림 파일 없이 캔버스로 그려 MapLibre에 넣는다(app.js 가 'styleimagemissing' 때 부른다). id = 'bf-subway-<테마>'.
+  // 24×24 칸에 둥근 배지 + 전철 앞모습(몸통·앞유리·불빛·다리). 해상도 2배(48×48)로 그려 pixelRatio 2 로 쓴다.
+  function icon(id) {
+    const m = /^bf-subway-(paper|sepia|night)$/.exec(String(id || '')); if (!m) return null;
+    const p = PAL[m[1]], R = 2, S = 24;
+    const c = document.createElement('canvas'); c.width = c.height = S * R;
+    const g = c.getContext('2d'); if (!g) return null;
+    g.scale(R, R);
+    const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
+    g.fillStyle = p.halo; g.beginPath(); g.arc(12, 12, 11.5, 0, Math.PI * 2); g.fill();          // 바깥 테두리(배경색) — 지도 위에서 또렷하게
+    g.fillStyle = p.subway; g.beginPath(); g.arc(12, 12, 10, 0, Math.PI * 2); g.fill();          // 배지
+    g.fillStyle = p.subwayFg; rr(7.5, 5.2, 9, 11.3, 2.6); g.fill();                              // 몸통
+    g.fillStyle = p.subway; rr(9.1, 7, 5.8, 4.2, 1); g.fill();                                   // 앞유리
+    g.beginPath(); g.arc(9.9, 13.9, 0.95, 0, Math.PI * 2); g.arc(14.1, 13.9, 0.95, 0, Math.PI * 2); g.fill();   // 불빛
+    g.strokeStyle = p.subwayFg; g.lineWidth = 1.3; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(9.2, 16.6); g.lineTo(7.8, 18.9); g.moveTo(14.8, 16.6); g.lineTo(16.2, 18.9); g.stroke();   // 다리
+    return { data: g.getImageData(0, 0, S * R, S * R), ratio: R };
+  }
+
+  window.bfMapStyle = { build, PAL, TILEJSON, GLYPHS, icon };
 })();

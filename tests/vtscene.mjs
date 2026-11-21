@@ -60,7 +60,11 @@ const LAYERS = {
   poi: fc([
     point({ class: 'cafe', name: '가나 카페', rank: 1 }, 0, 0),
     point({ class: 'restaurant', name: '다라 식당', rank: 3 }, 120, 60),
-    point({ class: 'bus', name: '천호역', rank: 2 }, -140, 20),
+    point({ class: 'railway', subclass: 'station', name: '천호', rank: 2 }, -140, 20),                    // 지하철역: v60부터 아이콘+이름으로 그린다
+    point({ class: 'railway', subclass: 'station', name: '둔촌동', rank: 6 }, 520, 300),                  // 두 번째 역(멀리)
+    point({ class: 'entrance', subclass: 'subway_entrance', name: '천호역 5번 출구', rank: 3 }, -120, 44), // 출구는 그리지 않는다
+    point({ class: 'bus', subclass: 'bus_stop', name: '천호역 버스정류장', rank: 5 }, -80, 90),            // 버스 정류장도 그리지 않는다
+    point({ class: 'railway', subclass: 'station', rank: 7 }, 300, -200),                                  // 이름 없는 역은 그리지 않는다
     point({ class: 'convenience', name: 'GS25 천호점', rank: 4 }, -200, -60),   // 영문·숫자가 섞인 이름: 글자 파일(glyph)을 요청하게 한다
     point({ class: 'school', name: '천호초등학교', rank: 10 }, 260, 250),
     point({ class: 'shop', name: '마을 문구점', rank: 40 }, -60, -120),

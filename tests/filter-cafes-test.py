@@ -35,8 +35,13 @@ seoul = [
     row('홍대보드게임카페 놀자', '', '카페', S, '마포구', S + ' 마포구 서교동 1', '126.92', '37.555'),   # 중복
     row('주사위 보드 게임방', '', '기타 오락장 운영업', S, '마포구', S + ' 마포구 서교동 2', '126.921', '37.556', mid='오락시설', big='관광/여가/오락', code='R10209'),
     row('Board Game Cafe Dice', '', '카페', S, '강남구', S + ' 강남구 역삼동 3', '127.03', '37.50'),
-    row('레드버튼 홍대점', '', '기타 오락장 운영업', S, '마포구', S + ' 마포구 서교동 4', '126.922', '37.557', mid='오락시설', big='관광/여가/오락', code='R10209'),   # 이름에 '보드게임' 없음 → --bg-extra 로만
-    row('스노보드카페 윈터', '', '카페', S, '강남구', S + ' 강남구 5', '127.04', '37.51'),   # '보드카페' 는 보드게임이 아니다 → 커피 카페(개인)로 남는다
+    row('레드버튼 홍대점', '', '기타 오락장 운영업', S, '마포구', S + ' 마포구 서교동 4', '126.922', '37.557', mid='오락시설', big='관광/여가/오락', code='R10209'),   # 이름에 '보드게임'은 없지만 브랜드(레드버튼) → 기본으로 보드게임 카페
+    row('홈즈 & 루팡 강남점', '', '기타 오락장 운영업', S, '강남구', S + ' 강남구 테헤란로1길 48', '127.031', '37.501', mid='오락시설', big='관광/여가/오락', code='R10209'),   # 브랜드 표기 변형(공백·&)
+    row('올리브보드카페', '', '카페', S, '강남구', S + ' 강남구 테헤란로64길 25', '127.0517', '37.5033'),   # '○○보드카페' → 보드게임 카페
+    row('히어로 보드카페', '', '카페', S, '노원구', S + ' 노원구 동일로192길 90', '127.0777', '37.6274'),   # 브랜드(히어로 보드)
+    row('더홀릭 신촌점', '', '기타 오락장 운영업', S, '서대문구', S + ' 서대문구 연세로 10', '126.936', '37.557', mid='오락시설', big='관광/여가/오락', code='R10209'),   # 더홀릭은 '보드'가 없으면 알 수 없다 → --bg-extra 더홀릭 으로만
+    row('스노보드카페 윈터', '', '카페', S, '강남구', S + ' 강남구 5', '127.04', '37.51'),   # 스노보드 카페는 보드게임이 아니다 → 커피 카페(개인)로 남는다
+    row('롱보드카페 파도', '', '카페', S, '마포구', S + ' 마포구 망원동 6', '126.91', '37.556'),   # 롱보드(스케이트) 카페도 마찬가지
     # ↓ 보드게임이 들어가도 가게가 아닌 것
     row('보드게임 마트', '', '완구/취미', S, '마포구', S + ' 마포구 6', '126.93', '37.56', mid='소매', big='소매', code='G47'),
     row('보드게임 학원', '', '기타 교습학원', S, '마포구', S + ' 마포구 7', '126.93', '37.57', mid='학원', big='학문/교육', code='P85'),
@@ -80,10 +85,11 @@ with tempfile.TemporaryDirectory() as T, tempfile.TemporaryDirectory() as W:
     bg = json.load(open(os.path.join(W, 'boardgame.json'), encoding='utf-8'))
     bn = [x[0] for x in bg['r']]
     ok('보드게임: v1 · full=서울 · bb 4개 · 행은 [이름, 주소, 위도, 경도]', bg['v'] == 1 and bg['full'] == ['서울'] and len(bg['bb']) == 4 and all(len(x) == 4 for x in bg['r']), json.dumps(bg['bb']))
-    ok('보드게임: 업종이 카페든 오락장이든, 한글·영문 이름이 모두 들어간다(3곳 + 중복 한 곳은 하나로)', sorted(bn) == sorted(['홍대보드게임카페 놀자', '주사위 보드 게임방', 'Board Game Cafe Dice']), bn)
+    ok('보드게임: 업종이 카페든 오락장이든, 한글·영문 이름과 브랜드(레드버튼·홈즈앤루팡·히어로)·○○보드카페가 모두 들어간다(중복은 하나로)', sorted(bn) == sorted(['홍대보드게임카페 놀자', '주사위 보드 게임방', 'Board Game Cafe Dice', '레드버튼 홍대점', '홈즈 & 루팡 강남점', '올리브보드카페', '히어로 보드카페']), bn)
     ok('보드게임: 소매·학원·이름이 제작소·좌표 없음·서울 밖(경기)은 들어가지 않는다', not any(k in bn for k in ['보드게임 마트', '보드게임 학원', '보드게임 제작소', '좌표없는 보드게임카페', '수원 보드게임카페']), bn)
-    ok('보드게임: 이름에 보드게임이 없는 레드버튼은 기본으로는 빠진다', '레드버튼 홍대점' not in bn)
-    ok('커피 카페 자료에서는 보드게임 카페가 빠지고, 스노보드카페는 개인 카페로 남는다', not any('보드게임' in k or 'Board Game' in k for k in by) and '스노보드카페 윈터' in by and by['스노보드카페 윈터'][0] == -1)
+    ok("보드게임: 이름에 '보드'가 없는 더홀릭 신촌점은 기본으로는 빠진다(--bg-extra 더홀릭 으로 더함)", '더홀릭 신촌점' not in bn)
+    ok('커피 카페 자료에서는 보드게임 카페(브랜드·보드카페 포함)가 빠지고, 스노보드·롱보드 카페는 개인 카페로 남는다', not any('보드게임' in k or 'Board Game' in k or '레드버튼' in k or '올리브보드' in k or '히어로' in k or '루팡' in k for k in by) and all(k in by and by[k][0] == -1 for k in ['스노보드카페 윈터', '롱보드카페 파도']))
+    ok("출력에 '이름에 보드게임은 없지만 브랜드·보드카페 이름이라 담은 곳: 4곳'과 예시가 나온다", '브랜드·보드카페 이름이라 담은 곳: 4곳' in r.stdout and '레드버튼 홍대점' in r.stdout, r.stdout[-600:])
     ok('출력에 보드게임 카페 요약(구별·업종)과 뺀 업종이 나온다', '===== 보드게임 카페' in r.stdout and '마포구' in r.stdout and '기타 오락장 운영업' in r.stdout and ('소매' in r.stdout or '완구/취미' in r.stdout), '')
     ok('보드게임 확인용 csv 가 만들어진다(업종 열 포함)', open(os.path.join(W, 'boardgame-check.csv'), encoding='utf-8-sig').readline().startswith('매장명,주소') and '업종' in open(os.path.join(W, 'boardgame-check.csv'), encoding='utf-8-sig').readline())
     ok('출력에 "카페가 아니라서 뺀 업종"과 독서실/스터디 카페가 나온다', '카페가 아니라서 뺀 업종' in r.stdout and '독서실/스터디 카페' in r.stdout)
@@ -97,9 +103,14 @@ with tempfile.TemporaryDirectory() as T, tempfile.TemporaryDirectory() as W:
     ok('boardgame-check.csv 도 입력에서 제외돼 보드게임 결과가 그대로다', len(bg2['r']) == len(bg['r']), len(bg2['r']))
     # --bg-extra 와 --bg-in all
     W2 = tempfile.mkdtemp()
-    r4 = subprocess.run([sys.executable, '-B', '-I', SCRIPT, T, '--bg-extra', '레드버튼', '--bg-in', 'all'], cwd=W2, capture_output=True, text=True, encoding='utf-8')
+    r4 = subprocess.run([sys.executable, '-B', '-I', SCRIPT, T, '--bg-extra', '더홀릭', '--bg-in', 'all'], cwd=W2, capture_output=True, text=True, encoding='utf-8')
     bg3 = [x[0] for x in json.load(open(os.path.join(W2, 'boardgame.json'), encoding='utf-8'))['r']]
-    ok('--bg-extra 로 레드버튼이 들어가고 --bg-in all 로 경기 보드게임 카페도 들어간다', r4.returncode == 0 and '레드버튼 홍대점' in bg3 and '수원 보드게임카페' in bg3, bg3)
+    ok('--bg-extra 로 더홀릭 신촌점이 들어가고 --bg-in all 로 경기 보드게임 카페도 들어간다', r4.returncode == 0 and '더홀릭 신촌점' in bg3 and '수원 보드게임카페' in bg3, bg3)
+    W4 = tempfile.mkdtemp()
+    r6 = subprocess.run([sys.executable, '-B', '-I', SCRIPT, T, '--no-bg-brand'], cwd=W4, capture_output=True, text=True, encoding='utf-8')
+    bg4 = [x[0] for x in json.load(open(os.path.join(W4, 'boardgame.json'), encoding='utf-8'))['r']]
+    c4 = [x[1] for x in json.load(open(os.path.join(W4, 'cafes.json'), encoding='utf-8'))['r']]
+    ok("--no-bg-brand 이면 이름에 '보드게임'이 든 곳만 보드게임으로 가고, 브랜드·보드카페 이름은 커피 카페 자료에 남는다(레드버튼은 오락장이라 어느 쪽에도 없음)", r6.returncode == 0 and sorted(bg4) == sorted(['홍대보드게임카페 놀자', '주사위 보드 게임방', 'Board Game Cafe Dice']) and '올리브보드카페' in c4 and '히어로 보드카페' in c4, str(bg4) + str(len(c4)))
     W3 = tempfile.mkdtemp()
     r5 = subprocess.run([sys.executable, '-B', '-I', SCRIPT, T, '--bg-out', 'none'], cwd=W3, capture_output=True, text=True, encoding='utf-8')
     c5 = json.load(open(os.path.join(W3, 'cafes.json'), encoding='utf-8'))
