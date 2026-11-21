@@ -100,7 +100,7 @@ const DUO = ['Duo 펼침', 951, 669, { top: 0, right: 84, bottom: 34, left: 0 }]
   const before = (await stored(p)).length;
   await p.evaluate(() => document.querySelector('#mp-card .mp-lk[data-o="add"]').click()); await sleep(600);
   const f = await p.evaluate(() => ({ title: document.querySelector('#mp-ftitle').textContent, name: document.querySelector('#mp-f-name').value, addr: document.querySelector('#mp-f-addr').value, delHidden: document.querySelector('#mp-f-del').hidden, ll: document.querySelector('#mp-f-ll').textContent, formShown: !document.querySelector('#mp-form').hidden }));
-  ok('양식이 "카페 추가"로, 이름·주소·위치가 미리 채워져 열린다(삭제 단추 없음)', f.formShown && f.title === '카페 추가' && f.name === SB[0][1] && f.addr === SB[0][2] && f.delHidden && f.ll.startsWith('위치 지정됨') && f.ll.includes('37.52600'), JSON.stringify(f).slice(0, 200));
+  ok('양식이 "장소 추가"로, 이름·주소·위치가 미리 채워져 열린다(삭제 단추 없음)', f.formShown && f.title === '장소 추가' && f.name === SB[0][1] && f.addr === SB[0][2] && f.delHidden && f.ll.startsWith('위치 지정됨') && f.ll.includes('37.52600'), JSON.stringify(f).slice(0, 200));
   ok('양식을 열면 매장 카드는 닫힌다', (await cardName(p)) === null);
   await p.evaluate(() => document.querySelector('#mp-f-save').click()); await sleep(600);
   const after = await stored(p), added = after.find((x) => x.name === SB[0][1]);
@@ -131,6 +131,10 @@ const DUO = ['Duo 펼침', 951, 669, { top: 0, right: 84, bottom: 34, left: 0 }]
   await p.evaluate(() => window.__mpMap.setZoom(11, { animate: false })); await sleep(500);
   ok('확대 수준 11(기준 13 미만)에서는 점이 하나도 안 그려진다', (await dots(p)).dot === 0);
   ok('멀리 보면(확대 수준 11) 카드가 그대로이고 안내 문구가 뜬다(확대하면 보입니다)', (await shown(p, '#mp-bhint')) && (await txt(p, '#mp-bhint')).trim() === '지도를 확대하면 장소가 보입니다', await txt(p, '#mp-bhint'));
+  { const hb = await rect(p, '#mp-bhint'), mw0 = await rect(p, '.mp-mapwrap'), c = (hb.l + hb.r) / 2, mc = (mw0.l + mw0.r) / 2;
+    ok('안내 문구가 (왼쪽 목록 창을 뺀 영역이 아니라) 지도 전체의 가운데에 있다(±2px)', Math.abs(c - mc) <= 2, `문구 중심 ${c.toFixed(1)} · 지도 중심 ${mc.toFixed(1)}`);
+    ok('안내 문구가 지도 안에 들어가고 오른쪽 단추(확대·내 위치)를 덮지 않는다', hb.l >= mw0.l && hb.r <= mw0.r - 62, `문구 ${Math.round(hb.l)}~${Math.round(hb.r)} · 지도 ${Math.round(mw0.l)}~${Math.round(mw0.r)}`);
+    ok('추가 단추의 글자가 "＋ 장소 추가"', (await txt(p, '#mp-add')).trim() === '＋ 장소 추가', await txt(p, '#mp-add')); }
   await p.evaluate(() => window.__mpMap.setZoom(14, { animate: false })); await sleep(500);
   ok('확대 수준 14에서는 안내 문구가 사라지고 점이 다시 그려진다', !(await shown(p, '#mp-bhint')) && (await dots(p)).dot === (await expectIn(p, small)) && (await dots(p)).dot > 0);
   { const d = await dots(p), eb = await p.evaluate((rows) => { const bb = window.__mpMap.getBounds().pad(0.4), c = [0, 0]; rows.forEach((r) => { if (bb.contains([r[3], r[4]])) c[r[0]]++; }); return c; }, small.r);
@@ -174,6 +178,7 @@ const DUO = ['Duo 펼침', 951, 669, { top: 0, right: 84, bottom: 34, left: 0 }]
   const { p, errs } = await openDev(DUO, { data: dense });
   await p.evaluate(() => { window.__mpMap.setView([37.4960, 127.0470], 14, { animate: false }); }); await sleep(900);
   ok('한 화면에 900곳이 넘으면 "가까운 900곳만" 안내가 뜨고 점은 정확히 900개', (await shown(p, '#mp-bhint')) && (await txt(p, '#mp-bhint')).includes('900곳만') && (await dots(p)).dot === 900, await txt(p, '#mp-bhint') + ' · ' + JSON.stringify(await dots(p)));
+  { const hb = await rect(p, '#mp-bhint'), mw0 = await rect(p, '.mp-mapwrap'); ok('긴 안내(900곳)도 지도 전체의 가운데(±2px)이고 지도 안에 들어간다', !!hb && Math.abs((hb.l + hb.r) / 2 - (mw0.l + mw0.r) / 2) <= 2 && hb.l >= mw0.l && hb.r <= mw0.r - 62, hb ? `문구 중심 ${((hb.l + hb.r) / 2).toFixed(1)} · 지도 중심 ${((mw0.l + mw0.r) / 2).toFixed(1)} · 폭 ${Math.round(hb.r - hb.l)}` : '없음'); }
   await p.screenshot({ path: '/tmp/map7shots/duo-dense.png' });
   await p.evaluate(() => { window.__mpMap.setView([37.4960, 127.0470], 17, { animate: false }); }); await sleep(900);
   { const d = await dots(p), e = await expectIn(p, dense); ok('충분히 확대하면 안내가 사라지고 점 수 = 보이는 범위의 매장 수', !(await shown(p, '#mp-bhint')) && d.dot === e && e > 0 && e < 900, JSON.stringify(d) + ' 기대 ' + e); }
@@ -211,6 +216,8 @@ for (const [mode, label] of [['none', '파일 없음(404)'], ['bad', '깨진 파
   await p.click('.mp-tabs button[data-t="r"]'); await sleep(1000);
   const br = await rect(p, '#mp-br'), me = await rect(p, '.mp-me'), mw = await rect(p, '.mp-mapwrap');
   ok('좁은 화면: 단추가 내 위치 단추 아래·지도 안에 있다', br && br.t >= me.b + 3 && br.r <= mw.r && br.b <= mw.b, `br ${Math.round(br.t)}~${Math.round(br.b)} me ${Math.round(me.t)}~${Math.round(me.b)}`);
+  await p.evaluate(() => window.__mpMap.setZoom(11, { animate: false })); await sleep(500);
+  { const hb = await rect(p, '#mp-bhint'); ok('좁은 화면: 안내 문구가 지도 가운데(±2px)에 있고 지도 안에 들어간다', !!hb && Math.abs((hb.l + hb.r) / 2 - (mw.l + mw.r) / 2) <= 2 && hb.l >= mw.l && hb.r <= mw.r, hb ? `문구 중심 ${((hb.l + hb.r) / 2).toFixed(1)} · 지도 중심 ${((mw.l + mw.r) / 2).toFixed(1)}` : '없음'); }
   await tapAt(p, SB[0][3], SB[0][4]);
   ok('좁은 화면: 점을 누르면 카드가 뜬다', (await cardName(p)) === SB[0][1], String(await cardName(p)));
   const cr = await rect(p, '#mp-card');

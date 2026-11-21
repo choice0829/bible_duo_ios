@@ -12,9 +12,10 @@ for (let i=1;i<=14;i++){ await p.touchscreen.touchMove(900-i*26,540-i*10); await
 await sleep(250);
 await p.screenshot({path:'native5-turn.png'});
 // 넘김 효과가 머리줄 영역(y<118)으로 올라가지 않는다: 머리줄 아래 띠(y 60~110, 글자 없는 쪽 가운데)가 종이색 한 가지인지
-const hdr=await p.evaluate(()=>{ const st=document.querySelector('#stage').getBoundingClientRect(); return {top:st.top, ov:getComputedStyle(document.querySelector('#stage')).overflow}; });
+const hdr=await p.evaluate(()=>{ const st=document.querySelector('#stage').getBoundingClientRect(); return {top:st.top, ov:getComputedStyle(document.querySelector('#stage')).overflow, cp:getComputedStyle(document.querySelector('#stage')).clipPath}; });
 await p.touchscreen.touchEnd(); await sleep(1600);
-ok('stage top == 118 and clips', Math.abs(hdr.top-118)<=0.5 && /clip|hidden/.test(hdr.ov), JSON.stringify(hdr));
+// v56: 자르는 창이 clip-path(위쪽으로만 15px, 머리줄과 책 사이 간격 안쪽)로 바뀜 — 책장은 y 103 보다 위(머리줄)로는 올라가지 않는다
+ok('stage top == 118 and clips (overflow clip or clip-path inset ≤ 15px upward)', Math.abs(hdr.top-118)<=0.5 && (/clip|hidden/.test(hdr.ov) || (hdr.ov==='visible' && /^inset\(-(\d+(\.\d+)?)px 0px 0px\)$/.test(hdr.cp) && parseFloat(hdr.cp.match(/-([\d.]+)px/)[1])<=15)), JSON.stringify(hdr));
 console.log('tabs',JSON.stringify(tabs)); ok('note tab exists and sits left of text (right edge<=30)', tabs.length>=1 && tabs.every(t=>t[1]<=30), JSON.stringify(tabs));
 ok('no page errors', errs.length===0, JSON.stringify(errs));
 console.log(fails?'FAILS '+fails:'ALL PASS'); await b.close(); process.exit(0);
