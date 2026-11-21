@@ -8,7 +8,7 @@ mkdir -p desk
 echo "=== filter-cafes-test (PC용 스크립트)" >> reg.log
 python3 -B filter-cafes-test.py >> reg.log 2>&1
 echo "--- exit $?" >> reg.log
-for t in map1 map2 map4 map5 map6 map7 map8 map9 map10 flip1 pc1 pc2 pc3 pc4 pc5 kb1 native1 native2 native3 native5 native6 hd1 desk2 desk5 desk8 desk9 rot9 std3; do
+for t in map1 map2 map4 map5 map6 map7 map8 map9 map10 flip1 pc1 pc2 pc3 pc4 pc5 kb1 native1 native2 native3 native5 native6 hd1 desk2 desk5 desk8 desk9 rot9 std3 credit1; do
   echo "=== $t" >> reg.log
   timeout 300 node $t.mjs >> reg.log 2>&1
   echo "--- exit $?" >> reg.log
