@@ -51,17 +51,11 @@ html, body {
 body { position: fixed; top: 0; right: 0; bottom: 0; left: 0; width: 100%; }   /* 문서 자체가 끌려 움직이지 않게 고정 */
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 
-/* ---------- 책상(상단 배경): 책은 책상 위에 놓인 카드처럼 보인다 ---------- */
+/* ---------- 책상(상단 배경): 책은 책상 위에 놓인 카드처럼 보인다 (v63: 질감 없이 테마 색 한 가지) ---------- */
 :root { --desk: #DCD4C2; --glow: rgba(255,255,255,.34); --btn: rgba(255,255,255,.55); --lift: rgba(60,40,10,.24); }
 :root.theme-sepia, body.theme-sepia { --desk: #CDBA90; --glow: rgba(255,248,225,.34); --btn: rgba(255,255,255,.42); --lift: rgba(70,45,10,.28); }
 :root.theme-night, body.theme-night { --desk: #0A0B0D; --glow: rgba(255,255,255,.055); --btn: rgba(255,255,255,.09); --lift: rgba(0,0,0,.7); }
 html, body { background-color: var(--desk); background-image: radial-gradient(130% 62% at 50% 0%, var(--glow), transparent 72%); }   /* html(캔버스)도 같게: 책 오른쪽 안전영역 같은 body 밖 여백이 흰색으로 남지 않게 */
-:root.desk-linen, body.desk-linen { background-image: radial-gradient(130% 62% at 50% 0%, var(--glow), transparent 72%), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85 .85' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.19 0 0 0 0 0.07 0.8 0 0 0 -0.17'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url%28%23n%29'/%3E%3C/svg%3E"); }
-:root.theme-night.desk-linen, body.theme-night.desk-linen { background-image: radial-gradient(130% 62% at 50% 0%, var(--glow), transparent 72%), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85 .85' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.95 0 0 0 0 0.93 0 0 0 0 0.9 0.26 0 0 0 -0.04'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url%28%23n%29'/%3E%3C/svg%3E"); }
-:root.desk-wood, body.desk-wood { background-image: radial-gradient(130% 62% at 50% 0%, var(--glow), transparent 72%), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='420'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.005 .11' numOctaves='4' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.19 0 0 0 0 0.07 1.05 0 0 0 -0.33'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url%28%23n%29'/%3E%3C/svg%3E"); }
-:root.theme-night.desk-wood, body.theme-night.desk-wood { background-image: radial-gradient(130% 62% at 50% 0%, var(--glow), transparent 72%), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='420'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.005 .11' numOctaves='4' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.95 0 0 0 0 0.93 0 0 0 0 0.9 0.42 0 0 0 -0.13'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url%28%23n%29'/%3E%3C/svg%3E"); }
-:root.desk-leather, body.desk-leather { background-image: radial-gradient(130% 62% at 50% 0%, var(--glow), transparent 72%), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='3' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.19 0 0 0 0 0.07 1.5 0 0 0 -0.52'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url%28%23n%29'/%3E%3C/svg%3E"); }
-:root.theme-night.desk-leather, body.theme-night.desk-leather { background-image: radial-gradient(130% 62% at 50% 0%, var(--glow), transparent 72%), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='3' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.95 0 0 0 0 0.93 0 0 0 0 0.9 0.55 0 0 0 -0.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url%28%23n%29'/%3E%3C/svg%3E"); }
 /* 화면 가장자리의 책상색 띠. 아이폰(iOS 26~)은 화면 가장자리에 닿은 position:fixed 요소를 보고 바깥 시스템 영역(듀오 오른쪽 상태창 자리)의 색을 정한다.
    가장자리 한가운데에서 4px 안쪽을 눌러 맞는 고정 요소이고 그 가장자리를 90% 이상 덮어야 하며, 요소가 10px보다 얇으면 가장자리 4~6px 안쪽의 화면 픽셀 색을 따온다.
    띠가 4px일 때는 그 자리가 책 카드여서 종이색이 번졌다(v35). 본문 글자는 가장자리에서 8px(SIDE_PAD) 안쪽에서 시작하므로, 글자를 가리지 않으면서 4~6px 구간을 덮는 7px 띠를 둔다. 눌러도 통과한다. */
@@ -742,6 +736,39 @@ body.theme-night .mp-pin.sel .pn { fill: #4fb3bf; }
 .mp-lk { flex: 1 1 auto; padding: 10px 10px; border-radius: 10px; background: var(--chip); font-size: 14px; font-weight: 700; white-space: nowrap; }
 .mp-lk.edit { color: var(--accent); }
 .mp-lk:disabled { opacity: .4; }
+/* v63: 장소 리뷰(카드 안) */
+/* 접힌 상태('☆ 리뷰')는 카드 아래 단추 줄(.mp-c-b)의 첫 칸. 쓰는 중·쓴 뒤(.open)에만 단추 줄 위에 한 줄(전체 너비)로 펼쳐진다 */
+.mp-rv { flex: 0 0 auto; display: flex; }
+.mp-rv.open { flex: 1 0 100%; order: -1; display: block; margin-bottom: 4px; }
+.mp-rv-add { flex: 1 1 auto; padding: 10px 12px; border-radius: 10px; background: var(--chip); color: var(--accent); font-size: 14px; font-weight: 700; white-space: nowrap; }
+.mp-rv-row { display: flex; align-items: center; gap: 8px; }
+.mp-rv-row b { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.mp-rv-sp { flex: 1; }
+.mp-rv-s { color: var(--accent); font-size: 17px; letter-spacing: 1px; line-height: 1; }
+.mp-rv-ch { padding: 4px 12px; border-radius: 999px; background: var(--chip); color: var(--fg); font-size: 12.5px; font-weight: 700; }
+.mp-rv-t { margin-top: 4px; font-size: 13.5px; line-height: 1.5; word-break: break-word; }
+.mp-rv-form { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 12px; background: var(--chip); }
+.mp-rv-h { font-size: 14px; font-weight: 700; }
+.mp-rv-h small { font-size: 12px; font-weight: 500; color: var(--muted); }
+.mp-rv-stars { display: flex; align-items: center; gap: 2px; }
+.mp-st { width: 40px; height: 40px; font-size: 28px; line-height: 1; color: var(--muted); }
+.mp-st.on { color: var(--accent); }
+.mp-rv-sc { margin-left: 8px; font-size: 13px; color: var(--muted); }
+.mp-rv-in { width: 100%; resize: none; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: inherit; font-size: 16px; line-height: 1.45; }
+.mp-rv-n { font-size: 12px; color: var(--muted); text-align: right; }
+.mp-rv-b { display: flex; flex-wrap: wrap; gap: 6px; }
+.mp-rb { flex: 1 1 auto; padding: 10px 10px; border-radius: 10px; background: var(--bg); font-size: 14px; font-weight: 700; white-space: nowrap; }
+.mp-rb.edit { color: var(--accent); }
+.mp-rb:disabled { opacity: .4; }
+/* 관리자: 리뷰 모아 보기 */
+.rv-g { margin: 8px 0; padding: 10px 12px; border-radius: 12px; background: var(--chip); }
+.rv-gh { display: flex; align-items: baseline; gap: 8px; }
+.rv-gh strong { flex: 1; min-width: 0; font-size: 15px; }
+.rv-av { flex: none; font-size: 13px; font-weight: 700; color: var(--accent); }
+.rv-r { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin-top: 6px; font-size: 13.5px; line-height: 1.5; }
+.rv-s { color: var(--accent); letter-spacing: 1px; }
+.rv-t { flex: 1 1 60%; min-width: 0; word-break: break-word; }
+.rv-w { flex: none; font-size: 11.5px; color: var(--muted); }
 .mp-cross { position: absolute; z-index: 800; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; }
 .mp-cross i::before, .mp-cross i::after { content: ''; position: absolute; background: #c0392b; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .9); }
 .mp-cross i::before { left: -14px; top: -1px; width: 28px; height: 2px; }

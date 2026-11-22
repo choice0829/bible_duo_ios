@@ -35,10 +35,8 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v62';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v63';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
-  const DESKS = { plain: '단색', linen: '린넨', wood: '나무결', leather: '가죽' };   // 책상(상단 배경) 질감
-  const DESK_DEFAULT = 'linen';
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
   // 글씨체: face가 있는 것은 fonts/ 폴더의 글꼴 파일(앱에 포함, 오프라인 사용 가능)
@@ -66,7 +64,8 @@
   // 처음 설치한 기기는 여백 값을 저장하지 않는다 → 화면 크기·안전영역에 맞춰 자동으로 정해진다 (geometry의 auto).
   // 고급설정에서 직접 바꾼 값만 저장되고, 그 값이 자동값보다 우선한다.
   const freshInstall = (() => { try { return localStorage.getItem('bf.settings') === null; } catch (e) { return true; } })();
-  let settings = store.get('bf.settings', { fontSize: 18, theme: 'paper', layout: 'auto', font: 'myeongjo', std: false, desk: DESK_DEFAULT });
+  let settings = store.get('bf.settings', { fontSize: 18, theme: 'paper', layout: 'auto', font: 'myeongjo', std: false });
+  delete settings.desk;   // v63: 책상 질감 설정은 없앴다(이전 버전이 저장해 둔 값은 버린다)
   // 이전 버전에서 저장된 펼침 여백(윗 144 · 아래 8 등)을 새 기본값(96 · 52 · 20)으로 한 번만 바꾼다.
   // 이후에는 고급설정에서 바꾼 값이 그대로 유지된다. (처음 설치한 기기는 해당 없음)
   if (settings.marginRev !== MARGIN_REV) {
@@ -227,11 +226,10 @@
   }
   let lastTitleFs = 44;
 
-  // 테마(종이·세피아·야간)와 책상 질감을 body 클래스로 적용하고, 상태 표시줄 색(theme-color)을 책상 색에 맞춘다.
-  const deskOf = () => (DESKS[settings.desk] ? settings.desk : DESK_DEFAULT);
+  // 테마(종이·세피아·야간)를 body 클래스로 적용하고, 상태 표시줄 색(theme-color)을 책상 색에 맞춘다. (v63: 책상 질감은 없앴다 — 책상은 테마 색 한 가지)
   const themeHooks = [];   // 테마가 적용될 때마다 부를 함수들(모임 장소 지도가 바탕·색을 다시 맞출 때 쓴다)
   function applyDesk() {
-    const look = ' theme-' + settings.theme + ' desk-' + deskOf();
+    const look = ' theme-' + settings.theme;
     const strip = (el) => el.className.replace(/\b(theme|desk)-\w+/g, '').replace(/\s+/g, ' ').trim();
     document.body.className = strip(document.body) + look;
     // html(캔버스)에도 같은 클래스를 달아, 책 바깥 여백(듀오 오른쪽 안전영역 등)이 흰색 대신 책상 색·질감으로 칠해지게 한다
@@ -249,7 +247,7 @@
     if (NATIVE) return;   // 앱 안에서는 시스템 띠 색을 읽을 일이 없다
     const desk = getComputedStyle(document.body).getPropertyValue('--desk').trim();
     if (!desk) return;
-    const key = settings.theme + '|' + deskOf() + '|' + desk;
+    const key = settings.theme + '|' + desk;
     if (!force && key === sysColorKey) return;
     sysColorKey = key;
     const swap = () => {
@@ -2026,7 +2024,6 @@
       '<button data-f="-1" aria-label="작게">A−</button><b>' + settings.fontSize + '</b>' +
       '<button data-f="1" aria-label="크게">A+</button></div></div>' +
       '<div class="row"><span>테마</span>' + seg(THEMES, settings.theme, 'theme') + '</div>' +
-      '<div class="row"><span>책상 질감</span>' + seg(DESKS, deskOf(), 'desk') + '</div>' +
       '<div class="row col"><span>글씨체</span><div class="fontgrid">' + Object.keys(FONTS).map((k) =>
         '<button class="fbtn' + (k === settings.font ? ' on' : '') + '" data-k="font" data-v="' + k +
         '" style="font-family:' + FONTS[k].stack.replace(/"/g, "'") + '">' + FONTS[k].label + '<small>가나다 창조 Aa</small></button>').join('') +
@@ -2044,13 +2041,6 @@
     }));
     sheetBody.querySelectorAll('[data-k]').forEach((b) =>
       b.addEventListener('click', () => {
-        if (b.dataset.k === 'desk') {   // 책 쪽 나누기와 무관: 다시 만들지 않고 바로 적용
-          settings = Object.assign({}, settings, { desk: b.dataset.v });
-          store.set('bf.settings', settings);
-          applyDesk();
-          const keep = sheetBody.scrollTop; showSettings(); sheetBody.scrollTop = keep;
-          return;
-        }
         changeSettings({ [b.dataset.k]: b.dataset.v });
       }));
   }
@@ -2083,7 +2073,8 @@
       item('윗 여백', '(한 쪽)', 'topSingle', 4, topSi, '줄이기', '늘리기',
         '접은 상태에서 본문이 시작되는 높이입니다. 접은 화면은 책 이름 아래에 메뉴 아이콘이 한 줄 더 있어서, 너무 줄이면 본문과 겹칩니다.') +
       '<div class="row"><span>여백 기본값으로 되돌리기</span><button class="seg-btn" id="adv-reset" type="button">되돌리기</button></div>' +
-      '<button class="row rowlink" id="go-bk" type="button"><span>데이터 백업 <small class="sub">하이라이트 · 설교노트 · 모임 장소 내보내기/불러오기</small></span><span class="chev">›</span></button>' +
+      '<button class="row rowlink" id="go-bk" type="button"><span>데이터 백업 <small class="sub">하이라이트 · 설교노트 · 모임 장소 · 리뷰 내보내기/불러오기</small></span><span class="chev">›</span></button>' +
+      '<button class="row rowlink" id="go-rv" type="button"><span>리뷰 모아 보기 <small class="sub">관리자용 · 내 리뷰 내보내기 · 다른 기기 리뷰 모으기</small></span><span class="chev">›</span></button>' +
       '<p class="note">기본값은 기기와 화면에 맞춰 자동으로 정해집니다(듀오 펼침: 윗 ' + TOP_DEFAULT.topSpread + ' · 가로 위치 ' + SHIFT_DEFAULT + ' · 아래 ' + BOTTOM_SPREAD_DEFAULT + ', 한 쪽 윗 ' + TOP_DEFAULT.topSingle + '). 가로로 돌린 아이폰은 머리줄이 작아지고 노치 쪽이 비워집니다.' +
       '<br>값을 바꾸면 본문이 잠시 뒤에 새로 정렬됩니다. 읽던 위치는 그대로 유지됩니다.</p>' +
       '<div class="adv-head">모임 장소 지도 그림</div>' +
@@ -2112,6 +2103,7 @@
       if (next !== cur) changeSettings({ [key]: next }, showAdvanced);
     }));
     $('#go-bk').addEventListener('click', () => { showBackup(); sheetBody.scrollTop = 0; });
+    $('#go-rv').addEventListener('click', () => { showReviews(); sheetBody.scrollTop = 0; });
     // 지도 방식(A 래스터 / B 벡터): 고르면 바로 저장하고, 지도가 열려 있든 아니든 바탕을 다시 맞춘다. 다시 고르면 '벡터 실패' 기록도 지워 한 번 더 시도한다.
     const meState = () => {
       const vec = mpEngGet() === 'vector';
@@ -2170,8 +2162,8 @@
   function backupText() {
     return JSON.stringify({
       app: 'bibleflip', ver: 1, savedAt: new Date().toISOString(),
-      pos, tool, anns, notes: notesDB.items, places: mpDB.items,
-      settings: { fontSize: settings.fontSize, theme: settings.theme, desk: deskOf(), font: settings.font, layout: settings.layout, std: !!settings.std },
+      pos, tool, anns, notes: notesDB.items, places: mpDB.items, reviews: rvDB.items, reviewsIn: rvDB.inc,
+      settings: { fontSize: settings.fontSize, theme: settings.theme, font: settings.font, layout: settings.layout, std: !!settings.std },
     });
   }
   // 붙여 넣은 글을 검사해서 쓸 수 있는 것만 골라 적용한다. 잘못된 내용이면 오류를 던진다.
@@ -2210,6 +2202,13 @@
       mpSave();
       mpSel = null;
     }
+    let reviews = null;
+    if (Array.isArray(d.reviews)) {   // 리뷰가 들어 있는 백업이면 리뷰도 바꾼다 (예전 백업에는 없으므로 그때는 그대로 둔다)
+      rvDB.items = rvClean(d.reviews, false);
+      if (Array.isArray(d.reviewsIn)) rvDB.inc = rvClean(d.reviewsIn, true);
+      rvSave();
+      reviews = rvDB.items.length;
+    }
     const p = d.pos;
     if (p && Number.isInteger(p.book) && p.book >= 0 && p.book < bible.books.length &&
         Number.isInteger(p.chapter) && p.chapter >= 0 && p.chapter < bible.books[p.book].chapters.length) {
@@ -2223,13 +2222,12 @@
     const s = d.settings || {}, patch = {};
     if (Number.isFinite(s.fontSize) && s.fontSize >= FONT_MIN && s.fontSize <= FONT_MAX) patch.fontSize = Math.round(s.fontSize);
     if (THEMES[s.theme]) patch.theme = s.theme;
-    if (DESKS[s.desk]) patch.desk = s.desk;
     if (FONTS[s.font]) patch.font = s.font;
     if (LAYOUTS[s.layout]) patch.layout = s.layout;
     if (typeof s.std === 'boolean') patch.std = s.std;
     settings = Object.assign({}, settings, patch);
     store.set('bf.settings', settings);
-    return { verses, marks, notes: notes ? notes.length : null, places: places ? places.length : null };
+    return { verses, marks, notes: notes ? notes.length : null, places: places ? places.length : null, reviews };
   }
   // 백업에서 읽은 노트를 검사해 쓸 수 있는 것만 남긴다
   function cleanNotes(list) {
@@ -2263,14 +2261,14 @@
     sheetBack = () => { showAdvanced(); sheetBody.scrollTop = 0; };
     const n = Object.keys(anns).length;
     sheetBody.innerHTML =
-      '<p class="note tight">하이라이트·설교노트·모임 장소·읽던 위치·글꼴 설정은 <b>이 기기의 이 앱 안</b>에만 저장됩니다. ' +
+      '<p class="note tight">하이라이트·설교노트·모임 장소·리뷰·읽던 위치·글꼴 설정은 <b>이 기기의 이 앱 안</b>에만 저장됩니다. ' +
       '앱 주소를 옮기거나 앱을 지우면 사라지므로, 그 전에 아래에서 백업해 두세요.</p>' +
-      '<div class="adv-head">내보내기 <small class="sub">(표시한 구절 ' + n + '개 · 설교노트 ' + notesDB.items.length + '개 · 모임 장소 ' + mpDB.items.length + '곳)</small></div>' +
+      '<div class="adv-head">내보내기 <small class="sub">(표시한 구절 ' + n + '개 · 설교노트 ' + notesDB.items.length + '개 · 모임 장소 ' + mpDB.items.length + '곳 · 리뷰 ' + rvDB.items.length + '개)</small></div>' +
       '<p class="adv-desc">버튼을 눌러 복사한 뒤 메모 앱이나 카카오톡 「나에게」 같은 곳에 붙여 두세요.</p>' +
       '<textarea id="bk-out" class="bk-text" rows="4" readonly aria-label="백업 내용"></textarea>' +
       '<div class="row"><span id="bk-out-msg" class="sub">&nbsp;</span><button class="seg-btn" id="bk-copy" type="button">백업 내용 복사</button></div>' +
       '<div class="adv-head">불러오기</div>' +
-      '<p class="adv-desc">복사해 둔 백업 내용을 아래 상자에 붙여 넣으세요. <b>지금 있는 표시·설교노트·모임 장소는 모두 백업 내용으로 바뀝니다.</b></p>' +
+      '<p class="adv-desc">복사해 둔 백업 내용을 아래 상자에 붙여 넣으세요. <b>지금 있는 표시·설교노트·모임 장소·리뷰는 모두 백업 내용으로 바뀝니다.</b></p>' +
       '<textarea id="bk-in" class="bk-text" rows="4" placeholder="여기에 붙여 넣기" aria-label="불러올 백업 내용"></textarea>' +
       '<div class="row"><span id="bk-in-msg" class="sub">&nbsp;</span><button class="seg-btn" id="bk-apply" type="button">불러오기</button></div>';
     const out = $('#bk-out'), inp = $('#bk-in'), outMsg = $('#bk-out-msg'), inMsg = $('#bk-in-msg');
@@ -2297,7 +2295,7 @@
         const r = applyBackup(inp.value);
         closeSheet();
         rebuild(pos);
-        showToastLine('불러왔습니다 · ' + r.verses + '구절, 표시 ' + r.marks + '개' + (r.notes === null ? '' : ', 설교노트 ' + r.notes + '개') + (r.places === null ? '' : ', 모임 장소 ' + r.places + '곳'));
+        showToastLine('불러왔습니다 · ' + r.verses + '구절, 표시 ' + r.marks + '개' + (r.notes === null ? '' : ', 설교노트 ' + r.notes + '개') + (r.places === null ? '' : ', 모임 장소 ' + r.places + '곳') + (r.reviews ? ', 리뷰 ' + r.reviews + '개' : ''));
       } catch (err) {
         inMsg.textContent = err.message || '불러오지 못했습니다.';
       }
@@ -3919,6 +3917,193 @@
   }
   const mpDB = { items: (() => { try { return mpClean(JSON.parse(localStorage.getItem('bf.places'))); } catch (e) { return []; } })() };
   const mpSave = () => store.set('bf.places', mpDB.items);
+
+  // ---------- 장소 리뷰 (v63) ----------
+  // 평점(별 1~5개, 필수) + 100자 이하 한 줄(선택). 장소마다 이 기기에서 하나만 남기며, 이 기기(bf.reviews)에만 저장돼 다른 사람에게 보이지 않는다.
+  // 관리자는 설정 → 고급설정 → '리뷰 모아 보기'에서 다른 기기가 내보낸 리뷰 글을 붙여 넣어 모두 모아 볼 수 있다(서버는 쓰지 않는다).
+  const RV_LS = 'bf.reviews', RV_IN_LS = 'bf.reviews.in', RV_DID_LS = 'bf.did', RV_MAX = 100;
+  const rvChars = (s) => Array.from(typeof s === 'string' ? s : '');                              // 글자 수는 이모지도 한 글자로 센다
+  const rvStr = (s, n) => rvChars(typeof s === 'string' ? s.replace(/\s+/g, ' ').trim() : '').slice(0, n).join('');
+  const rvNum = (v) => (Number.isFinite(+v) && v !== null && v !== '' ? +(+v).toFixed(5) : null);
+  function rvClean(list, withDid) {
+    const out = [], seen = new Set();
+    (Array.isArray(list) ? list : []).forEach((x) => {
+      if (!x || typeof x.k !== 'string' || !x.k || x.k.length > 160) return;
+      const did = withDid ? (typeof x.did === 'string' && /^[a-z0-9]{4,12}$/.test(x.did) ? x.did : '') : '';
+      if (withDid && !did) return;
+      const id = did + '|' + x.k;
+      const r = Math.round(+x.r);
+      if (seen.has(id) || !(r >= 1 && r <= 5)) return;
+      seen.add(id);
+      const rec = { k: x.k, n: rvStr(x.n, 80), la: rvNum(x.la), lo: rvNum(x.lo), r, t: rvStr(x.t, RV_MAX), ts: Number.isFinite(+x.ts) ? +x.ts : Date.now() };
+      if (withDid) rec.did = did;
+      out.push(rec);
+    });
+    return out.slice(0, 5000);
+  }
+  const rvLoad = (key, withDid) => { try { return rvClean(JSON.parse(localStorage.getItem(key)), withDid); } catch (e) { return []; } };
+  const rvDB = { items: rvLoad(RV_LS, false), inc: rvLoad(RV_IN_LS, true) };
+  const rvSave = () => { store.set(RV_LS, rvDB.items); store.set(RV_IN_LS, rvDB.inc); };
+  function rvDid() {   // 이 기기를 구별하는 임의의 짧은 글(이름·전화번호와 무관)
+    let d = '';
+    try { d = localStorage.getItem(RV_DID_LS) || ''; } catch (e) { d = ''; }
+    if (!/^[a-z0-9]{4,12}$/.test(d)) {
+      d = Math.random().toString(36).slice(2, 8).padEnd(6, 'x');
+      try { localStorage.setItem(RV_DID_LS, d); } catch (e) { /* 무시 */ }
+    }
+    return d;
+  }
+  const rvFind = (k) => rvDB.items.find((x) => x.k === k) || null;
+  function rvPut(spec, r, t) {
+    const rec = { k: spec.k, n: rvStr(spec.n, 80), la: rvNum(spec.la), lo: rvNum(spec.lo), r, t: rvStr(t, RV_MAX), ts: Date.now() };
+    const i = rvDB.items.findIndex((x) => x.k === spec.k);
+    if (i >= 0) rvDB.items[i] = rec; else rvDB.items.push(rec);
+    rvSave();
+  }
+  function rvDel(k) {
+    const n = rvDB.items.length;
+    rvDB.items = rvDB.items.filter((x) => x.k !== k);
+    if (rvDB.items.length !== n) rvSave();
+  }
+  const rvStars = (r) => '★★★★★'.slice(0, r) + '☆☆☆☆☆'.slice(0, 5 - r);
+  const rvKey = (kind, name, lat, lng) => kind + ':' + String(name).slice(0, 80) + '|' + (+lat).toFixed(5) + ',' + (+lng).toFixed(5);   // 카페·보드게임 카페(자료 파일의 한 줄)
+  let rvDraft = null;   // 쓰는 중인 내용 { k, r, t } — 카드가 다시 그려져도(내 위치 갱신 등) 입력이 사라지지 않게 남겨 둔다
+  let rvDelArm = '', rvDelTimer = null;
+  // 카드 안의 리뷰 칸. spec = { k, n, la, lo }
+  function rvMount(box, spec) {
+    if (!box) return;
+    const draw = () => {
+      const mine = rvFind(spec.k), d = rvDraft && rvDraft.k === spec.k ? rvDraft : null;
+      if (d) {
+        const n = rvChars(d.t).length;
+        box.innerHTML = '<div class="mp-rv-form">' +
+          '<div class="mp-rv-h">' + (mine ? '리뷰 고치기' : '리뷰 남기기') + ' <small>이 기기에만 저장됩니다</small></div>' +
+          '<div class="mp-rv-stars" role="radiogroup" aria-label="평점">' + [1, 2, 3, 4, 5].map((i) =>
+            '<button type="button" class="mp-st' + (i <= d.r ? ' on' : '') + '" data-r="' + i + '" role="radio" aria-checked="' + (i === d.r ? 'true' : 'false') + '" aria-label="' + i + '점">' + (i <= d.r ? '★' : '☆') + '</button>').join('') +
+            '<span class="mp-rv-sc">' + (d.r ? d.r + '점' : '별을 눌러 평점을 고르세요') + '</span></div>' +
+          '<textarea class="mp-rv-in" rows="2" placeholder="한 줄 리뷰 (선택, 100자 이하)" aria-label="리뷰 문구">' + esc(d.t) + '</textarea>' +
+          '<div class="mp-rv-n"><span id="mp-rv-cnt">' + n + '</span> / ' + RV_MAX + '</div>' +
+          '<div class="mp-rv-b"><button type="button" class="mp-rb edit" data-a="save"' + (d.r ? '' : ' disabled') + '>저장</button>' +
+          '<button type="button" class="mp-rb" data-a="cancel">취소</button>' +
+          (mine ? '<button type="button" class="mp-rb" data-a="del">' + (rvDelArm === spec.k ? '한 번 더 누르면 삭제' : '삭제') + '</button>' : '') + '</div></div>';
+      } else if (mine) {
+        box.innerHTML = '<div class="mp-rv-row"><span class="mp-rv-s" role="img" aria-label="내 평점 ' + mine.r + '점">' + rvStars(mine.r) + '</span><b>내 리뷰</b><span class="mp-rv-sp"></span>' +
+          '<button type="button" class="mp-rv-ch" data-a="edit">수정</button></div>' + (mine.t ? '<div class="mp-rv-t">' + esc(mine.t) + '</div>' : '');
+      } else {
+        box.innerHTML = '<button type="button" class="mp-rv-add" data-a="new" aria-label="리뷰 남기기">☆ 리뷰</button>';
+      }
+      box.classList.toggle('open', !!(d || mine));   // 접힌 상태는 길찾기·내 장소로 추가 단추 줄에 한 칸으로 끼어 카드 높이를 늘리지 않는다
+      bind();
+      if (d) requestAnimationFrame(() => { const f = box.querySelector('.mp-rv-form'); if (f && f.scrollIntoView) f.scrollIntoView({ block: 'nearest' }); });   // 카드가 작은 화면에서는 입력 칸이 보이게 카드를 스크롤
+    };
+    const bind = () => {
+      const ta = box.querySelector('.mp-rv-in'), save = box.querySelector('[data-a="save"]');
+      if (ta) ta.addEventListener('input', () => {
+        const ch = rvChars(ta.value);
+        if (ch.length > RV_MAX) { ta.value = ch.slice(0, RV_MAX).join(''); }
+        rvDraft.t = ta.value;
+        const c = box.querySelector('#mp-rv-cnt'); if (c) c.textContent = rvChars(ta.value).length;
+      });
+      box.querySelectorAll('.mp-st').forEach((b) => b.addEventListener('click', () => {
+        rvDraft.r = +b.dataset.r;
+        box.querySelectorAll('.mp-st').forEach((x) => { const on = +x.dataset.r <= rvDraft.r; x.classList.toggle('on', on); x.textContent = on ? '★' : '☆'; x.setAttribute('aria-checked', String(+x.dataset.r === rvDraft.r)); });
+        const sc = box.querySelector('.mp-rv-sc'); if (sc) sc.textContent = rvDraft.r + '점';
+        if (save) save.disabled = false;
+      }));
+      box.querySelectorAll('[data-a]').forEach((b) => b.addEventListener('click', () => {
+        const a = b.dataset.a, mine = rvFind(spec.k);
+        if (a === 'new' || a === 'edit') { rvDraft = { k: spec.k, r: mine ? mine.r : 0, t: mine ? mine.t : '' }; rvDelArm = ''; draw(); return; }
+        if (a === 'cancel') { rvDraft = null; rvDelArm = ''; draw(); return; }
+        if (a === 'save') { if (!rvDraft || !rvDraft.r) return; rvPut(spec, rvDraft.r, rvDraft.t); rvDraft = null; rvDelArm = ''; draw(); return; }
+        if (a === 'del') {
+          if (rvDelArm !== spec.k) { rvDelArm = spec.k; clearTimeout(rvDelTimer); rvDelTimer = setTimeout(() => { rvDelArm = ''; if (box.isConnected) draw(); }, 4000); draw(); return; }
+          rvDel(spec.k); rvDraft = null; rvDelArm = ''; draw();
+        }
+      }));
+    };
+    draw();
+  }
+  // 관리자 화면: 이 기기 + 불러온 다른 기기의 리뷰를 모두 합친 목록
+  function rvAll() {
+    const me = rvDid();
+    return rvDB.items.map((x) => Object.assign({}, x, { did: me, mine: true })).concat(rvDB.inc.map((x) => Object.assign({}, x, { mine: false })));
+  }
+  function rvExportText() { return JSON.stringify({ app: 'bibleflip-reviews', ver: 1, did: rvDid(), savedAt: new Date().toISOString(), reviews: rvDB.items }); }
+  // 다른 기기가 내보낸 글을 불러온다. 같은 기기에서 온 것이 이미 있으면 그 기기의 리뷰를 통째로 새것으로 바꾼다. 잘못된 글이면 오류를 던진다.
+  function rvImport(text) {
+    let d; try { d = JSON.parse(String(text).trim()); } catch (e) { d = null; }
+    if (!d || d.app !== 'bibleflip-reviews' || !Array.isArray(d.reviews) || typeof d.did !== 'string' || !/^[a-z0-9]{4,12}$/.test(d.did)) {
+      throw new Error('리뷰 내용이 아닙니다. 상대가 「이 기기의 리뷰 내보내기」로 복사한 글을 처음부터 끝까지 붙여 넣었는지 확인해 주세요.');
+    }
+    if (d.did === rvDid()) throw new Error('이 기기에서 내보낸 글입니다. 다른 기기의 글을 붙여 넣어 주세요.');
+    const list = rvClean(d.reviews.map((x) => Object.assign({}, x, { did: d.did })), true);
+    rvDB.inc = rvDB.inc.filter((x) => x.did !== d.did).concat(list);
+    rvSave();
+    return { did: d.did, n: list.length };
+  }
+  function rvCsv() {
+    const q = (v) => '"' + String(v === null || v === undefined ? '' : v).replace(/"/g, '""') + '"';
+    const me = rvDid();
+    return ['장소,위도,경도,평점,문구,기기,날짜'].concat(rvAll().sort((a, b) => a.k < b.k ? -1 : a.k > b.k ? 1 : a.ts - b.ts).map((x) =>
+      [q(x.n), q(x.la), q(x.lo), x.r, q(x.t), q(x.did === me ? me + '(이 기기)' : x.did), q(new Date(x.ts).toISOString().slice(0, 10))].join(','))).join('\n');
+  }
+  function showReviews() {
+    sheetTitle.textContent = '리뷰 모아 보기';
+    backBtn.hidden = false;
+    sheetBack = () => { showAdvanced(); sheetBody.scrollTop = 0; };
+    const me = rvDid(), all = rvAll(), groups = new Map();
+    all.forEach((x) => { if (!groups.has(x.k)) groups.set(x.k, []); groups.get(x.k).push(x); });
+    const gl = [...groups.values()].map((g) => ({ name: g[0].n || '(이름 없음)', list: g.sort((a, b) => b.ts - a.ts), avg: g.reduce((s, x) => s + x.r, 0) / g.length }))
+      .sort((a, b) => b.list.length - a.list.length || b.avg - a.avg || (a.name < b.name ? -1 : 1));
+    const devs = new Set(all.map((x) => x.did));
+    const SHOW = 150;
+    sheetBody.innerHTML =
+      '<p class="note tight">장소 리뷰(별점 + 100자 이하 한 줄)는 <b>각자의 기기에만</b> 저장되고 다른 사람에게는 보이지 않습니다. ' +
+      '관리자는 사용자가 아래 「내보내기」로 복사해 보낸 글을 「모으기」에 붙여 넣어 모든 리뷰를 한곳에서 볼 수 있습니다. (서버로 자동 수집되지는 않습니다)</p>' +
+      '<div class="adv-head">모아 본 리뷰 <small class="sub">(' + all.length + '개 · 장소 ' + groups.size + '곳 · 기기 ' + devs.size + '대)</small></div>' +
+      (gl.length ? gl.slice(0, SHOW).map((g) => '<div class="rv-g"><div class="rv-gh"><strong>' + esc(g.name) + '</strong><span class="rv-av">★ ' + g.avg.toFixed(1) + ' · ' + g.list.length + '개</span></div>' +
+        g.list.map((x) => '<div class="rv-r"><span class="rv-s">' + rvStars(x.r) + '</span>' + (x.t ? '<span class="rv-t">' + esc(x.t) + '</span>' : '<span class="rv-t sub">(문구 없음)</span>') +
+          '<small class="rv-w">' + (x.did === me ? '이 기기' : '기기 ' + esc(x.did)) + ' · ' + new Date(x.ts).toISOString().slice(0, 10) + '</small></div>').join('') + '</div>').join('') +
+        (gl.length > SHOW ? '<p class="note tight">장소 ' + (gl.length - SHOW) + '곳은 화면에 다 싣지 못했습니다. 아래 「표(CSV) 복사」로 전체를 확인하세요.</p>' : '')
+        : '<p class="note">아직 모인 리뷰가 없습니다. 지도의 장소 카드에서 「리뷰 남기기」를 눌러 남길 수 있습니다.</p>') +
+      '<div class="adv-head">이 기기의 리뷰 내보내기 <small class="sub">(' + rvDB.items.length + '개 · 기기 번호 ' + me + ')</small></div>' +
+      '<p class="adv-desc">사용자가 보내는 쪽입니다. 복사해서 관리자에게 카카오톡 등으로 보내 주세요. 내용은 장소 이름·위치·별점·문구뿐이며 이름이나 전화번호는 들어 있지 않습니다.</p>' +
+      '<textarea id="rv-out" class="bk-text" rows="3" readonly aria-label="내보낼 리뷰 내용"></textarea>' +
+      '<div class="row"><span id="rv-out-msg" class="sub">&nbsp;</span><button class="seg-btn" id="rv-copy" type="button">리뷰 복사</button></div>' +
+      '<div class="adv-head">다른 기기의 리뷰 모으기 <small class="sub">(관리자용)</small></div>' +
+      '<p class="adv-desc">받은 글을 아래 상자에 붙여 넣으세요. 같은 기기의 글을 다시 붙여 넣으면 그 기기의 리뷰가 새 내용으로 바뀝니다. 이 기기의 리뷰에는 영향이 없습니다.</p>' +
+      '<textarea id="rv-in" class="bk-text" rows="3" placeholder="여기에 붙여 넣기" aria-label="모을 리뷰 내용"></textarea>' +
+      '<div class="row"><span id="rv-in-msg" class="sub">&nbsp;</span><button class="seg-btn" id="rv-apply" type="button">모으기</button></div>' +
+      '<div class="adv-head">표로 보기</div>' +
+      '<div class="row"><span id="rv-csv-msg" class="sub">전체 리뷰를 표(CSV)로 복사해 엑셀·구글 시트에 붙일 수 있습니다.</span><button class="seg-btn" id="rv-csv" type="button">표(CSV) 복사</button></div>' +
+      '<div class="row"><span class="sub">모아 온 다른 기기의 리뷰 ' + rvDB.inc.length + '개</span><button class="seg-btn" id="rv-clear" type="button"' + (rvDB.inc.length ? '' : ' disabled') + '>모아 온 리뷰 지우기</button></div>';
+    const out = $('#rv-out'), inp = $('#rv-in'), outMsg = $('#rv-out-msg'), inMsg = $('#rv-in-msg');
+    out.value = rvExportText();
+    const copy = async (text, ta, msgEl, okMsg) => {
+      let ok = false;
+      try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {
+        try { ta.value = text; ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length); ok = document.execCommand('copy'); } catch (e2) { ok = false; }
+      }
+      msgEl.textContent = ok ? okMsg : '복사가 안 됐습니다. 상자를 길게 눌러 전체 선택 → 복사하세요.';
+    };
+    $('#rv-copy').addEventListener('click', () => copy(out.value, out, outMsg, '복사했습니다. 관리자에게 붙여 넣어 보내세요.'));
+    $('#rv-csv').addEventListener('click', () => copy(rvCsv(), out, $('#rv-csv-msg'), '표를 복사했습니다. 엑셀·시트에 붙여 넣으세요.'));
+    $('#rv-apply').addEventListener('click', () => {
+      if (!inp.value.trim()) { inMsg.textContent = '붙여 넣은 내용이 없습니다.'; return; }
+      try {
+        const r = rvImport(inp.value);
+        showReviews(); sheetBody.scrollTop = 0;
+        $('#rv-in-msg').textContent = '기기 ' + r.did + '의 리뷰 ' + r.n + '개를 모았습니다.';
+      } catch (err) { inMsg.textContent = err.message || '모으지 못했습니다.'; }
+    });
+    let armed = 0, armTimer = null;
+    $('#rv-clear').addEventListener('click', () => {
+      const b = $('#rv-clear');
+      if (!armed) { armed = 1; b.textContent = '한 번 더 누르면 지움'; clearTimeout(armTimer); armTimer = setTimeout(() => { armed = 0; b.textContent = '모아 온 리뷰 지우기'; }, 4000); return; }
+      clearTimeout(armTimer); armed = 0;
+      rvDB.inc = []; rvSave(); showReviews(); sheetBody.scrollTop = 0;
+    });
+  }
   const mpFind = (id) => mpDB.items.find((p) => p.id === id) || null;
 
   // 두 지점 사이 거리(m)
@@ -4396,9 +4581,11 @@
       (near.length ? '<div class="mp-c-l mp-c-near">같은 자리 근처 보드게임 카페 ' + near.length + '곳 ' + near.slice(0, 20).map((j) => '<button type="button" class="mp-nb" data-j="' + j + '">' + esc(mpBgDB.r[j][1]) + '</button>').join('') + (near.length > 20 ? ' 외 ' + (near.length - 20) + '곳' : '') + '</div>' : '') +
       '<div class="mp-c-l mp-c-src">보드게임 카페 · 공공데이터(상가정보)' + (mpBgDB.asof ? ' ' + esc(mpBgDB.asof) + ' 기준' : '') + ' · 영업 여부·시간은 지도 앱에서 확인하세요</div>' +
       '<div class="mp-c-b">' +
+      '<div class="mp-rv" id="mp-rv"></div>' +
         '<button type="button" class="mp-lk" data-o="route">길찾기</button>' +
         '<button type="button" class="mp-lk edit" data-o="add"' + (have ? ' disabled' : '') + '>' + (have ? '내 장소에 있음' : '내 장소로 추가') + '</button></div>';
     c.hidden = false;
+    rvMount(mpS('#mp-rv'), { k: rvKey('b', r[1], r[3], r[4]), n: r[1], la: r[3], lo: r[4] });
     mpS('#mp-c-x').addEventListener('click', () => { mpBgClearSel(); mpRenderCard(null); });
     c.querySelectorAll('.mp-nb').forEach((b) => b.addEventListener('click', () => mpBgSelect(+b.dataset.j)));
     c.querySelectorAll('.mp-lk').forEach((b) => b.addEventListener('click', () => {
@@ -4443,9 +4630,11 @@
       (near.length ? '<div class="mp-c-l mp-c-near">같은 자리 근처 카페 ' + near.length + '곳 ' + near.slice(0, 40).map((j) => '<button type="button" class="mp-nb" data-j="' + j + '">' + esc(mpBrDB.r[j][1]) + '</button>').join('') + (near.length > 40 ? ' 외 ' + (near.length - 40) + '곳' : '') + '</div>' : '') +
       '<div class="mp-c-l mp-c-src">' + (brand ? esc(brand) + ' 매장' : '개인 카페') + ' · 공공데이터(상가정보)' + (mpBrDB.asof ? ' ' + esc(mpBrDB.asof) + ' 기준' : '') + ' · 영업 여부·시간은 지도 앱에서 확인하세요</div>' +
       '<div class="mp-c-b">' +
+      '<div class="mp-rv" id="mp-rv"></div>' +
         '<button type="button" class="mp-lk" data-o="route">길찾기</button>' +
         '<button type="button" class="mp-lk edit" data-o="add"' + (have ? ' disabled' : '') + '>' + (have ? '내 장소에 있음' : '내 장소로 추가') + '</button></div>';
     c.hidden = false;
+    rvMount(mpS('#mp-rv'), { k: rvKey('c', r[1], r[3], r[4]), n: r[1], la: r[3], lo: r[4] });
     mpS('#mp-c-x').addEventListener('click', () => { mpBrClearSel(); mpRenderCard(null); });
     c.querySelectorAll('.mp-nb').forEach((b) => b.addEventListener('click', () => mpBrSelect(+b.dataset.j)));
     c.querySelectorAll('.mp-lk').forEach((b) => b.addEventListener('click', () => {
@@ -4546,10 +4735,12 @@
       (p.amen.length || p.cap ? '<div class="mp-tags">' + mpTags(p) + '</div>' : '') +
       (p.memo ? '<div class="mp-c-m">' + esc(p.memo) + '</div>' : '') +
       '<div class="mp-c-b">' +
+      '<div class="mp-rv" id="mp-rv"></div>' +
         '<button type="button" class="mp-lk" data-o="route">길찾기</button>' +
         (p.tel ? '<button type="button" class="mp-lk" data-o="tel">전화</button>' : '') +
         '<button type="button" class="mp-lk edit" data-o="edit">수정</button></div>';
     c.hidden = false;
+    rvMount(mpS('#mp-rv'), { k: 'm:' + p.id, n: p.name, la: p.lat, lo: p.lng });
     mpS('#mp-c-x').addEventListener('click', () => mpSelect(null));
     c.querySelectorAll('.mp-lk').forEach((b) => b.addEventListener('click', () => {
       const o = b.dataset.o;
@@ -4745,6 +4936,7 @@
     }
     mpDB.items = mpDB.items.filter((p) => p.id !== old.id);
     mpSave();
+    rvDel('m:' + old.id);
     if (mpSel === old.id) mpSel = null;
     mpFormInit = mpFormSnap();
     mpCloseForm();
@@ -4918,15 +5110,15 @@
     mpS('#mp-br').addEventListener('click', () => {
       const on = !mpBrOn();
       try { localStorage.setItem(MP_BR_LS, on ? 'on' : 'off'); } catch (e) { /* 저장 못 해도 이번에는 바뀜 */ }
-      if (on) { mpBrLoad(); showToastLine('카페 표시를 켰습니다. 지도를 확대하면 점으로 보입니다.', true); }
-      else { if (mpBrSel >= 0) { mpBrClearSel(); mpRenderCard(mpSel ? mpFind(mpSel) : null); } showToastLine('카페 표시를 껐습니다.', true); }
+      if (on) mpBrLoad();   // v63: '표시를 켰습니다/껐습니다' 검은 안내는 없앴다(켜졌는지는 단추 모양으로 안다)
+      else if (mpBrSel >= 0) { mpBrClearSel(); mpRenderCard(mpSel ? mpFind(mpSel) : null); }
       mpBrDraw();
     });
     mpS('#mp-bg').addEventListener('click', () => {
       const on = !mpBgOn();
       try { localStorage.setItem(MP_BG_LS, on ? 'on' : 'off'); } catch (e) { /* 저장 못 해도 이번에는 바뀜 */ }
-      if (on) { mpBgLoad(); showToastLine('보드게임 카페 표시를 켰습니다. 지도를 확대하면 점으로 보입니다.', true); }
-      else { if (mpBgSel >= 0) { mpBgClearSel(); mpRenderCard(mpSel ? mpFind(mpSel) : null); } showToastLine('보드게임 카페 표시를 껐습니다.', true); }
+      if (on) mpBgLoad();
+      else if (mpBgSel >= 0) { mpBgClearSel(); mpRenderCard(mpSel ? mpFind(mpSel) : null); }
       mpBrDraw();
     });
     mpS('#mp-bf').addEventListener('click', (e) => {

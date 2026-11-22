@@ -152,7 +152,7 @@ const DUO = ['Duo 펼침', 951, 669, { top: 0, right: 84, bottom: 34, left: 0 }]
   await tapAt(p, SB[6][3], SB[6][4]);
   ok('(끄기 전) 점 누르기 동작', (await cardName(p)) === SB[6][1]);
   await p.click('#mp-br'); await sleep(500);
-  ok('끄면 카드가 닫히고 단추가 꺼진 모양이며 알림이 뜬다', (await cardName(p)) === null && await p.evaluate(() => { const e = document.querySelector('#mp-br'); return !e.classList.contains('on') && e.getAttribute('aria-pressed') === 'false' && localStorage.getItem('bf.mapbrand') === 'off'; }) && (await txt(p, '#infotoast') || '').includes('껐습니다'), await txt(p, '#infotoast'));
+  ok('끄면 카드가 닫히고 단추가 꺼진 모양이며 검은 알림은 뜨지 않는다(v63)', (await cardName(p)) === null && await p.evaluate(() => { const e = document.querySelector('#mp-br'); return !e.classList.contains('on') && e.getAttribute('aria-pressed') === 'false' && localStorage.getItem('bf.mapbrand') === 'off'; }) && !(await txt(p, '#infotoast') || '').includes('껐습니다'), await txt(p, '#infotoast'));
   await tapAt(p, SB[6][3], SB[6][4]);
   ok('끈 상태에서는 점이 0개이고 같은 자리를 눌러도 매장 카드가 안 뜬다', (await cardName(p)) === null && (await dots(p)).dot === 0);
   await p.click('#mp-br'); await sleep(500);

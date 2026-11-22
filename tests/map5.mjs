@@ -21,6 +21,12 @@ for (const t of ['paper', 'sepia', 'night']) {
     ok(`스타일 ${t}: 가게·시설(POI)은 지하철역 층 하나뿐이다(v58 제거 + v60 역만 복원)`, pl.length === 1 && pl[0].id === 'subway-station' && !ids.some((i) => /^poi/.test(i)) && !('poi' in ST.PAL[t]), pl.map((l) => l.id).join(','));
     const f = JSON.stringify(pl[0] && pl[0].filter);
     ok(`스타일 ${t}: 역 층은 class=railway · subclass=station · 이름 있는 것만 고른다(출구·버스 제외)`, /"railway"/.test(f) && /"station"/.test(f) && /"has","name"/.test(f) && !/entrance|bus/.test(f), f);
+    // v63: 철도·지하철 노선선(점선)을 없앴고, 모든 노선의 역이 아이콘으로 나오게 역 고르는 조건을 넓혔다
+    ok(`스타일 ${t}: 철도·지하철 노선선(점선) 층이 없다 — 점선(line-dasharray)을 쓰는 transportation 층도 철도 계열 필터도 없다`, !ids.includes('rail') && !st.layers.some((l) => l['source-layer'] === 'transportation' && /"rail"|"transit"/.test(JSON.stringify(l.filter || ''))), ids.filter((i) => /rail|transit|subway/.test(i)).join(','));
+    { const fl = spec.featureFilter(pl[0].filter, 'layers[0].filter').filter; const ev = (props) => fl({ zoom: 14 }, { type: 2, properties: props });
+      ok(`스타일 ${t}: 역 조건 — 역·간이역·지하철·경전철·모노레일은 이름이 있으면 통과(name 또는 name:ko)`, [['railway', 'station', { name: 'A' }], ['railway', 'halt', { name: 'A' }], ['railway', 'subway', { name: 'A' }], ['railway', 'light_rail', { name: 'A' }], ['railway', 'monorail', { name: 'A' }], ['railway', 'station', { 'name:ko': '천호' }], ['railway', 'station', { name_en: 'Cheonho' }]].every(([c, s, o]) => ev({ class: c, subclass: s, ...o })));
+      ok(`스타일 ${t}: 역 조건 — 이름 없는 역·출구·전차 정류장·버스·다른 가게는 제외`, [['railway', 'station', {}], ['entrance', 'subway_entrance', { name: 'A' }], ['railway', 'tram_stop', { name: 'A' }], ['bus', 'bus_stop', { name: 'A' }], ['bus', 'bus_station', { name: 'A' }], ['shop', 'convenience', { name: 'A' }]].every(([c, s, o]) => !ev({ class: c, subclass: s, ...o }))); }
+    ok(`스타일 ${t}: 역 아이콘은 붙어 있어도 하나도 빠지지 않는다(icon-allow-overlap) · 이름은 자리가 있을 때만(text-optional)`, pl[0].layout['icon-allow-overlap'] === true && pl[0].layout['text-optional'] === true);
     ok(`스타일 ${t}: 역 층이 맨 위 층이다(도로·동네 이름보다 우선)`, st.layers[st.layers.length - 1].id === 'subway-station');
     ok(`스타일 ${t}: 역 아이콘 이름이 bf-subway-${t} 이고 아이콘·글자 색이 있다`, pl[0] && pl[0].layout['icon-image'] === 'bf-subway-' + t && !!ST.PAL[t].subway && !!ST.PAL[t].subwayFg && !!ST.PAL[t].subwayText); }
   ok(`스타일 ${t}: 글꼴은 OpenFreeMap이 가진 Noto Sans(Regular/Bold/Italic)만`, st.layers.every((l) => !l.layout || !l.layout['text-font'] || /^Noto Sans (Regular|Bold|Italic)$/.test(l.layout['text-font'][0])));

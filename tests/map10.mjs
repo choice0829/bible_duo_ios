@@ -176,7 +176,7 @@ const DUO = ['Duo 펼침', 951, 669, { top: 0, right: 84, bottom: 34, left: 0 }]
   await p.click('#mp-bg'); await sleep(500);
   { const d = await dots(p), st = await btnState(p, '#mp-bg');
     ok('끄면 보드게임 점·열린 카드가 사라지고 단추가 꺼진 모양이며 저장된다', d.bg === 0 && d.ring === 0 && (await cardName(p)) === null && st.on === false && st.pressed === 'false' && (await lsGet(p, 'bf.mapbg')) === 'off', JSON.stringify(d) + JSON.stringify(st) + ' ' + (await lsGet(p, 'bf.mapbg')));
-    ok('끄면 카페 점은 그대로고 알림이 뜬다', d.cafe > 0 && (await p.evaluate(() => document.body.textContent.includes('보드게임 카페 표시를 껐습니다'))), JSON.stringify(d)); }
+    ok('끄면 카페 점은 그대로이고 검은 알림은 뜨지 않는다(v63)', d.cafe > 0 && !(await p.evaluate(() => document.body.textContent.includes('표시를 껐습니다'))), JSON.stringify(d)); }
   await view(p, CL, 14);
   ok('보드게임을 끈 채 확대 14: "지도를 확대하면 장소가 보입니다"(카페만 멀어서 안 보임)', (await hint(p)) === '지도를 확대하면 장소가 보입니다', await hint(p));
   await p.click('#mp-bg'); await sleep(500);
