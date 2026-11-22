@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v61';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v62';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const DESKS = { plain: '단색', linen: '린넨', wood: '나무결', leather: '가죽' };   // 책상(상단 배경) 질감
   const DESK_DEFAULT = 'linen';
@@ -2034,7 +2034,8 @@
       '<div class="row"><span>화면 구성</span>' + seg(LAYOUTS, settings.layout, 'layout') + '</div>' +
       '<button class="row rowlink" id="go-tr" type="button"><span>번역 선택 <small class="sub">' + (settings.std ? 'AI 표준어 번역 켜짐' : '개역한글만 보기') + '</small></span><span class="chev">›</span></button>' +
       '<button class="row rowlink" id="go-adv" type="button"><span>고급설정 <small class="sub">여백 · 위치 · 지도 · 화면 정보</small></span><span class="chev">›</span></button>' +
-      '<p class="note">자동: 화면이 넓으면(펼친 상태) 두 쪽, 좁으면(접힌 상태) 한 쪽으로 보여 줍니다.<br>본문: 개역한글 (퍼블릭 도메인)</p>';
+      '<p class="note">자동: 화면이 넓으면(펼친 상태) 두 쪽, 좁으면(접힌 상태) 한 쪽으로 보여 줍니다.<br>본문: 개역한글 (퍼블릭 도메인)</p>' +
+      '<p class="credit" aria-label="앱 제작자 SEONHAN">© SEONHAN</p>';   // v62: 설정 화면 맨 아래 제작자 표시
     $('#go-tr').addEventListener('click', () => { showTranslations(); sheetBody.scrollTop = 0; });
     $('#go-adv').addEventListener('click', () => { showAdvanced(); sheetBody.scrollTop = 0; });
     sheetBody.querySelectorAll('[data-f]').forEach((b) => b.addEventListener('click', () => {

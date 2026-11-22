@@ -224,6 +224,7 @@ html.kb #sheet.tall .panel { height: 100%; }
 .act-btn { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 30px; margin: -4px 0; color: var(--accent); }
 .act-btn[hidden] { display: none; }
 .act-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.credit { margin: 18px 0 0; text-align: center; font-size: 12px; letter-spacing: .04em; color: var(--std, var(--muted)); user-select: none; -webkit-user-select: none; }   /* v62: 설정 화면 맨 아래 제작자 표시 */
 #sheet-body { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px 16px 22px; touch-action: pan-y; }
 .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
 .tab { flex: 1; padding: 9px 0; border-radius: 10px; background: var(--chip); font-weight: 600; }
