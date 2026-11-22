@@ -20,7 +20,7 @@
   const SPREAD_MIN_SHIFT = 28;     // 그 밖의 기기: 책 왼쪽에 최소로 남기는 폭 (노트 탭이 붙는 자리)
   const BOTTOM_SPREAD_DEFAULT = 20;
   // 아이폰 앱(껍데기) 전용 — 펼친 화면의 책을 '카드'로 둔다: 좌우 여백을 같게, 아래도 화면 끝에서 띄운다.
-  const NATIVE_TEXT_OUT = 30;           // 앱 펼침: 화면 바깥쪽 가장자리에서 본문 글자까지(px). 책 카드 없이 화면 전체를 책장으로 쓴다 (v41)
+  const NATIVE_TEXT_OUT = 26;           // 앱 펼침: 화면 바깥쪽 가장자리에서 본문 글자까지(px). 책 카드 없이 화면 전체를 책장으로 쓴다 (v41, v64: 30 → 24, v65: 노트 탭이 답답해 보여 24 → 26)
   const NATIVE_SIDE_SINGLE = 24;        // 앱 한 쪽(접은·세로) 화면: 본문 좌우 여백(px). 웹앱은 8 (v43)
   const NATIVE_TEXT_IN = 22;            // 앱 펼침: 가운데(책등) 쪽 글자 여백(px). 두 쪽 사이 간격은 이 값의 두 배
   const NATIVE_BOTTOM_GAP = 12;         // 앱 펼침: 본문 아래 끝과 화면 맨 아래 사이(px, 안전영역이 더 크면 그만큼). 낮은 화면(가로로 돌린 아이폰)은 10
@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v63';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v65';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -208,7 +208,7 @@
     const headR = Math.max(Math.round(W - bookRight + padOut), Math.round(si.right) + (spread ? 8 : 14), 14);
     return {
       W, H, spread, compact, duo, sym, pageW, pageH, bookW: spread ? pageW * 2 : pageW,
-      padX: full ? padOut : padX, padOut, padIn, full, tabEdge: full ? Math.max(padOut - 6, 0) : shiftX,
+      padX: full ? padOut : padX, padOut, padIn, full, tabEdge: full ? Math.max(padOut - 9, 0) : shiftX,
       padTop, padBottom, si, shiftX, eff, stageTop, txtTop, headR, intoPill,
       textW: pageW - padOut - padIn, textH: pageH - txtTop - padBottom,
     };
@@ -1869,11 +1869,12 @@
     document.documentElement.classList.toggle('kb', kbH > 0);
     fitSheet();
     if (pcIsOpen()) { layoutPc(); pcRender(); }
-    if (mpIsOpen()) layoutMp();
+    if (mpIsOpen()) { layoutMp(); mpCardFit(); }
     if (kbH > 0) revealFocused();
   };
-  document.addEventListener('focusin', () => { setTimeout(fitSheet, 50); if (kbH > 0) revealFocused(); });
-  document.addEventListener('focusout', () => setTimeout(fitSheet, 50));
+  document.addEventListener('focusin', () => { setTimeout(fitSheet, 50); if (kbH > 0) revealFocused(); if (mpIsOpen()) setTimeout(mpCardFit, 80); });
+  document.addEventListener('focusout', () => { setTimeout(fitSheet, 50); if (mpIsOpen()) setTimeout(mpCardFit, 80); });
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', () => { if (mpIsOpen()) mpCardFit(); });   // 웹(브라우저)에서는 보이는 영역이 줄어드는 것으로 안다
   let openedAt = 0;
   function openSheet(tall) {
     closeSpot();
@@ -2453,8 +2454,8 @@
     tabsEl.innerHTML = '';
     tabsEl.classList.remove('moving');
     if (!bible || !pg || scroller || !flip || !pg.g || !pg.g.spread) return;
-    const edge = pg.g.tabEdge != null ? pg.g.tabEdge : pg.g.shiftX;   // 노트 탭의 오른쪽 끝(책 왼쪽 가장자리, 앱 펼침은 본문 왼쪽 끝 6px 앞)
-    const tw = Math.min(23, edge - 4);
+    const edge = pg.g.tabEdge != null ? pg.g.tabEdge : pg.g.shiftX;   // 노트 탭의 오른쪽 끝(책 왼쪽 가장자리, 앱 펼침은 본문 왼쪽 끝 9px 앞 — v65: 탭과 본문 사이를 넉넉하게)
+    const tw = Math.min(23, pg.g.full ? edge : edge - 2);   // 앱 펼침은 탭이 화면 왼쪽 끝에 붙는다(왼쪽 0px)
     if (tw < 16) return;   // 왼쪽 여백이 너무 좁으면 탭은 생략하고 본문의 절 번호 배지만 보인다
     // 지금 펼쳐진 두 쪽(왼쪽 L, 오른쪽 L+1)만 읽는 순서대로 본다. 그 노트 본문이 처음 나오는 줄의 높이를 잡는다.
     const W = window.innerWidth, top = {};
@@ -2472,8 +2473,8 @@
     });
     const items = Object.keys(top).filter((id) => noteById(id)).map((id) => {
       const n = noteById(id);
-      const label = Array.from(n.title.replace(/\s+/g, '')).slice(0, 5).join('');   // 제목 앞 5글자
-      return { id, y0: top[id], label, title: n.title, h: Math.round(Array.from(label).length * 12.5 + 18) };
+      const label = Array.from(n.title.replace(/\s+/g, '')).slice(0, 6).join('');   // 제목 앞 6글자 (v64: 5 → 6)
+      return { id, y0: top[id], label, title: n.title, h: Math.round(Array.from(label).length * 12.5 + 24) };   // 글자 위아래 여유 12px(v65, 전 9px)
     }).sort((p, q) => p.y0 - q.y0);
     // 겹치지 않게 위에서부터 쌓고, 아래로 넘치면 위로 당긴다. 그래도 안 들어가면 나머지는 "+N" 하나로 줄인다.
     const topLim = 60, botLim = window.innerHeight - 10, gap = 5;
@@ -3994,6 +3995,7 @@
       }
       box.classList.toggle('open', !!(d || mine));   // 접힌 상태는 길찾기·내 장소로 추가 단추 줄에 한 칸으로 끼어 카드 높이를 늘리지 않는다
       bind();
+      if (typeof mpCardFit === 'function' && mpEl) mpCardFit();
       if (d) requestAnimationFrame(() => { const f = box.querySelector('.mp-rv-form'); if (f && f.scrollIntoView) f.scrollIntoView({ block: 'nearest' }); });   // 카드가 작은 화면에서는 입력 칸이 보이게 카드를 스크롤
     };
     const bind = () => {
@@ -4213,6 +4215,10 @@
   const MP_BG_MAX = 600;                   // 한 번에 그리는 점의 최대 수(넘으면 화면 가운데에서 가까운 순)
   let mpBgDB = null, mpBgP = null, mpBgState = 'idle', mpBgLayer = null, mpBgSel = -1, mpBgSelMk = null, mpBgCapped = false;   // 상태: idle | loading | ok | none(파일 없음 → 단추도 숨김) | err
   const mpBgOn = () => { try { return localStorage.getItem(MP_BG_LS) !== 'off'; } catch (e) { return true; } };
+  // 지하철역 층(v64): 벡터 지도에서만 있는 층(역 아이콘). 카페·보드게임처럼 따로 켜고 끈다. 환승역은 같은 이름끼리 한 곳으로 합쳐 하나만 그린다(mapstyle.js merge).
+  const MP_SW_LS = 'bf.mapsubway';         // 'off' 이면 끔(기본은 켬). 이 기기만 · 백업 제외
+  const mpSwOn = () => { try { return localStorage.getItem(MP_SW_LS) !== 'off'; } catch (e) { return true; } };
+  let mpSwData = null, mpSwSig = '';      // 마지막으로 합친 역 목록(GeoJSON)과 그 서명 — 테마를 바꿔 지도를 새로 만들 때 바로 쓴다
   let mpBrDB = null, mpBrIdx = null, mpBrState = 'idle', mpBrP = null, mpBrLayer = null, mpBrRend = null, mpBrSel = -1, mpBrSelMk = null, mpBrCapped = false;   // 상태: idle | loading | ok | none(파일 없음) | err
   const mpBrOn = () => { try { return localStorage.getItem(MP_BR_LS) !== 'off'; } catch (e) { return true; } };
   const mpBrFiltRaw = () => { try { const v = localStorage.getItem(MP_BRF_LS); return v === 'fr' || v === 'ind' ? v : 'all'; } catch (e) { return 'all'; } };
@@ -4308,7 +4314,7 @@
     const Layer = L.MaplibreGL.extend({ getAttribution() { return this.options.attribution; } });   // 출처 표시는 우리가 정한 글(MP_VEC_ATTR)로 고정
     let layer = null;
     try {
-      layer = new Layer({ style: window.bfMapStyle.build(settings.theme), attribution: MP_VEC_ATTR, fadeDuration: 0, maxPitch: 0 });
+      layer = new Layer({ style: window.bfMapStyle.build(settings.theme, { subway: mpSwOn(), data: mpSwData }), attribution: MP_VEC_ATTR, fadeDuration: 0, maxPitch: 0 });
       mpVec = layer;
       layer.addTo(mpMap);
     } catch (e) { mpVec = null; mpVecFailed('gl', String(e && e.message || e).slice(0, 120)); return; }
@@ -4324,7 +4330,7 @@
       try { const im = window.bfMapStyle.icon(ev && ev.id); if (im && !gl.hasImage(ev.id)) gl.addImage(ev.id, im.data, { pixelRatio: im.ratio }); } catch (e) { /* 무시 */ }
     });
     gl.on('styledata', () => { st.style = true; });
-    gl.on('sourcedata', (ev) => { if (ev && ev.sourceDataType === 'metadata') st.src = true; if (ev && ev.tile) st.tiles++; });
+    gl.on('sourcedata', (ev) => { if (!ev || ev.sourceId !== window.bfMapStyle.SRC) return; if (ev.sourceDataType === 'metadata') st.src = true; if (ev.tile) st.tiles++; });   // 지하철 합친 목록(GeoJSON 원)의 알림은 세지 않는다
     gl.on('error', (ev) => {
       if (!alive()) return;
       { const er = ev && ev.error; st.err = String((er && (er.status ? er.status + ' ' : '') + (er.message || '')) || (ev && ev.message) || '').slice(0, 90); }
@@ -4332,7 +4338,65 @@
       if (!loaded) { if (!(ev && ev.tile) || ++errs >= 4) { clearTimeout(timer); mpVecFailed('net', diag()); } return; }
       if (++mpTileErr >= 3 && Date.now() >= mpNoteHold) mpS('#mp-note').hidden = false;
     });
-    gl.on('idle', () => { if (!alive()) return; mpTileErr = 0; if (Date.now() >= mpNoteHold) mpS('#mp-note').hidden = true; });
+    gl.on('idle', () => { if (!alive()) return; mpTileErr = 0; if (Date.now() >= mpNoteHold) mpS('#mp-note').hidden = true; mpSwRefresh(); });
+    gl.on('load', () => { if (alive()) mpSwRefresh(); });
+  }
+  // 지하철역: 지금 읽어 둔 타일의 역을 모아 같은 이름·가까운 것을 한 곳으로 합쳐 'bf-subway' 원에 넣는다. 합친 역이 하나라도 있으면 합친 층(subway-merged)을, 없으면 타일 그대로의 예비 층(subway-station)을 보인다.
+  function mpSwVis(gl, merged) {
+    const on = mpSwOn();
+    [['subway-station', on && !merged], ['subway-merged', on && merged]].forEach(([id, vis]) => {
+      try { if (gl.getLayer(id) && gl.getLayoutProperty(id, 'visibility') !== (vis ? 'visible' : 'none')) gl.setLayoutProperty(id, 'visibility', vis ? 'visible' : 'none'); } catch (e) { /* 무시 */ }
+    });
+  }
+  function mpSwRefresh() {
+    const layer = mpVec, gl = layer && layer.getMaplibreMap && layer.getMaplibreMap();
+    if (!gl || !window.bfMapStyle || !gl.getLayer || !gl.getLayer('subway-merged')) return;
+    const B = window.bfMapStyle;
+    if (!mpSwOn()) { mpSwVis(gl, false); return; }
+    let fc = null;
+    try {
+      if (gl.getZoom() >= 11.5) fc = B.merge(gl.querySourceFeatures(B.SRC, { sourceLayer: 'poi', filter: B.STATION_FILTER }));
+    } catch (e) { fc = null; }
+    if (fc && fc.features.length) {
+      const sig = fc.features.map((f) => f.properties.name + '@' + f.geometry.coordinates.join(',')).join(';');
+      if (sig !== mpSwSig) {
+        const src = gl.getSource(B.SUBWAY_SRC);
+        if (src && src.setData) { try { src.setData(fc); mpSwSig = sig; mpSwData = fc; } catch (e) { /* 무시 */ } }
+      }
+      mpSwVis(gl, true);
+    } else if (!mpSwData) {
+      mpSwVis(gl, false);   // 아직 모은 역이 없으면 타일 그대로의 예비 층
+    } else {
+      mpSwVis(gl, true);    // 이 화면에는 역이 없어도(또는 아직 못 읽어도) 지난번 목록이 있으면 합친 층을 그대로 둔다
+    }
+  }
+  // 리뷰 입력(v64): 키보드가 올라오면 지도 카드(아래에 붙어 있어 키보드에 가려짐)를 키보드 바로 위로 올리고, 입력 중에는 이름·리뷰 칸만 남기고 줄인다.
+  // 키보드 높이는 앱이 알려 주는 값(kbH)을 쓰고, 웹에서는 visualViewport 가 줄어든 만큼으로 안다.
+  function mpKbH() {
+    if (kbH > 0) return kbH;
+    const v = window.visualViewport;
+    return v && v.height < window.innerHeight - 120 ? Math.max(0, Math.round(window.innerHeight - v.height - v.offsetTop)) : 0;
+  }
+  function mpCardFit() {
+    if (!mpEl) return;
+    const c = mpS('#mp-card'); if (!c) return;
+    const a = document.activeElement, kb = mpKbH();
+    const typing = !c.hidden && kb > 0 && !!a && a.tagName === 'TEXTAREA' && c.contains(a) && !!c.querySelector('.mp-rv-form');
+    if (!typing) {
+      if (c.classList.contains('kbup')) { c.classList.remove('kbup'); c.style.removeProperty('--kb-bottom'); c.style.removeProperty('--kb-max'); }
+      return;
+    }
+    const kbTop = window.innerHeight - kb, wr = (c.offsetParent || mpS('.mp-mapwrap')).getBoundingClientRect();
+    c.style.setProperty('--kb-bottom', Math.max(8, Math.round(wr.bottom - kbTop) + 8) + 'px');   // 카드 아래 끝이 키보드 위 8px
+    c.style.setProperty('--kb-max', Math.max(150, Math.round(kbTop - wr.top - 16)) + 'px');       // 지도 위 끝 안쪽까지만
+    c.classList.add('kbup');
+    setTimeout(() => { if (document.activeElement === a) { try { a.scrollIntoView({ block: 'nearest' }); } catch (e) { /* 무시 */ } } }, 60);
+  }
+  // 지하철 단추: 벡터 지도일 때만 있고, 누르면 두 역 층을 켜고 끈다.
+  function mpSwSync() {
+    const btn = mpEl && mpS('#mp-sw'); if (!btn) return;
+    const on = mpSwOn();
+    btn.classList.toggle('on', on); btn.setAttribute('aria-pressed', on ? 'true' : 'false');
   }
   themeHooks.push(() => { if (mpMap) { mpApplyTile(); mpDrawMe(); mpBrDraw(); } });   // 테마를 바꾸면 바탕(밝은/어두운)과 내 위치 점 색도 바꾼다
   function mpEnsureMap() {
@@ -5048,6 +5112,8 @@
           '<button type="button" data-f="all">전체</button><button type="button" data-f="fr">프랜차이즈</button><button type="button" data-f="ind">개인</button></div>' +
         '<button type="button" class="mp-br" id="mp-br" aria-label="카페 표시" aria-pressed="true">' +
           '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 10h11v4.5a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V10z"/><path d="M16 11h1.4a2.4 2.4 0 0 1 0 4.8H16"/><path d="M8.5 3.5v3M12.5 3.5v3"/></svg></button>' +
+        '<button type="button" class="mp-subway" id="mp-sw" aria-label="지하철역 표시" aria-pressed="true">' +
+          '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5.5" y="3.5" width="13" height="13" rx="3.6"/><path d="M5.5 10.5h13"/><circle cx="9" cy="13.6" r=".9" fill="currentColor" stroke="none"/><circle cx="15" cy="13.6" r=".9" fill="currentColor" stroke="none"/><path d="M8.4 20.5l1.7-4M15.6 20.5l-1.7-4"/></svg></button>' +
         '<button type="button" class="mp-bg" id="mp-bg" aria-label="보드게임 카페 표시" aria-pressed="true" hidden>' +
           '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.1" fill="currentColor" stroke="none"/></svg></button>' +
         '<div class="mp-card" id="mp-card" hidden></div>' +
@@ -5121,6 +5187,12 @@
       else if (mpBgSel >= 0) { mpBgClearSel(); mpRenderCard(mpSel ? mpFind(mpSel) : null); }
       mpBrDraw();
     });
+    mpS('#mp-sw').addEventListener('click', () => {
+      const on = !mpSwOn();
+      try { localStorage.setItem(MP_SW_LS, on ? 'on' : 'off'); } catch (e) { /* 저장 못 해도 이번에는 바뀜 */ }
+      mpSwSync(); mpSwRefresh();
+    });
+    mpSwSync();
     mpS('#mp-bf').addEventListener('click', (e) => {
       const b = e.target.closest('button[data-f]');
       if (!b) return;
