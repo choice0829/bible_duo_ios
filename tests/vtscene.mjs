@@ -61,6 +61,8 @@ const LAYERS = {
     point({ class: 'cafe', name: '가나 카페', rank: 1 }, 0, 0),
     point({ class: 'restaurant', name: '다라 식당', rank: 3 }, 120, 60),
     point({ class: 'railway', subclass: 'station', name: '천호', rank: 2 }, -140, 20),                    // 지하철역: v60부터 아이콘+이름으로 그린다
+    point({ class: 'railway', subclass: 'station', name: '천호', rank: 4 }, -100, 52),                    // v64: 환승역 — 같은 이름의 둘째 점(노선이 다른 점). 하나로 합쳐져야 한다
+    point({ class: 'railway', subclass: 'subway', name: '천호역', rank: 5 }, -170, 8),                    // v64: 셋째 점('역'이 붙은 이름) — 이것도 같은 역
     point({ class: 'railway', subclass: 'station', name: '둔촌동', rank: 6 }, 520, 300),                  // 두 번째 역(멀리)
     point({ class: 'entrance', subclass: 'subway_entrance', name: '천호역 5번 출구', rank: 3 }, -120, 44), // 출구는 그리지 않는다
     point({ class: 'bus', subclass: 'bus_stop', name: '천호역 버스정류장', rank: 5 }, -80, 90),            // 버스 정류장도 그리지 않는다

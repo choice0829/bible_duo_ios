@@ -47,7 +47,53 @@
   const tunnel = ['==', ['get', 'brunnel'], 'tunnel'];
   const FONT = ['Noto Sans Regular'], FONT_B = ['Noto Sans Bold'], FONT_I = ['Noto Sans Italic'];
 
-  function build(theme) {
+  // ----- 지하철역 -----
+  // 같은 역이 노선마다 따로 들어 있어(환승역) 그대로 그리면 한 역에 아이콘이 둘 이상 겹쳐 보인다. 그래서 앱이 타일에서 역을 모아
+  // 같은 이름·가까운 것을 한 곳으로 합친 목록(GeoJSON, 원 'bf-subway')을 만들어 그린다 — 합친 역 층 'subway-merged'.
+  // 아직 합친 목록이 없거나(타일을 읽지 못한 기기 등) 모으기가 안 될 때를 위해 타일의 역을 그대로 그리는 'subway-station' 층도 함께 둔다(둘 중 하나만 보임).
+  const SUBWAY_SRC = 'bf-subway';
+  const STATION_FILTER = ['all',
+    ['any', ['==', ['get', 'class'], 'railway'], ['==', ['get', 'subclass'], 'subway']],
+    ['in', ['get', 'subclass'], ['literal', ['station', 'halt', 'subway', 'light_rail', 'monorail']]],
+    ['any', ['has', 'name'], ['has', 'name:ko'], ['has', 'name_en']]];
+  const EMPTY = { type: 'FeatureCollection', features: [] };
+  const MERGE_M = 700;   // 같은 이름의 역이 이 거리(m) 안에 있으면 한 역(환승역 안의 노선별 점·출입구 묶음)으로 본다
+  function centre(g) {   // 점은 그대로, 선·면은 좌표의 가운데
+    if (!g || !g.coordinates) return null;
+    if (g.type === 'Point') { const c = g.coordinates; return Number.isFinite(c[0]) && Number.isFinite(c[1]) ? [c[0], c[1]] : null; }
+    let n = 0, x = 0, y = 0;
+    (function walk(a) { if (typeof a[0] === 'number') { if (Number.isFinite(a[0]) && Number.isFinite(a[1])) { x += a[0]; y += a[1]; n++; } } else a.forEach(walk); })(g.coordinates);
+    return n ? [x / n, y / n] : null;
+  }
+  // features(타일에서 모은 역들) → 합친 GeoJSON. 같은 이름(공백·끝의 '역' 무시)이고 700m 안이면 하나로, 위치는 평균.
+  function merge(features) {
+    const groups = new Map();
+    (features || []).forEach((f) => {
+      const pr = (f && f.properties) || {};
+      const raw = pr['name:ko'] || pr.name || pr.name_en; if (!raw) return;
+      const c = centre(f.geometry); if (!c) return;
+      const key = String(raw).replace(/\s+/g, '').replace(/역$/, '').toLowerCase() || String(raw);
+      const rank = Number.isFinite(+pr.rank) ? +pr.rank : 99;
+      const a = groups.get(key) || []; a.push({ lng: c[0], lat: c[1], rank, name: String(raw) }); groups.set(key, a);
+    });
+    const out = [];
+    groups.forEach((list) => {
+      const cl = [];
+      list.forEach((q) => {
+        const k = Math.cos(q.lat * Math.PI / 180) * 111320;
+        const hit = cl.find((c) => Math.hypot((q.lng - c.lng) * k, (q.lat - c.lat) * 111320) <= MERGE_M);
+        if (hit) { hit.n++; hit.sx += q.lng; hit.sy += q.lat; hit.lng = hit.sx / hit.n; hit.lat = hit.sy / hit.n; if (q.rank < hit.rank) hit.rank = q.rank; }
+        else cl.push({ n: 1, sx: q.lng, sy: q.lat, lng: q.lng, lat: q.lat, rank: q.rank, name: q.name });
+      });
+      cl.forEach((c) => out.push({ type: 'Feature', properties: { name: c.name, rank: c.rank }, geometry: { type: 'Point', coordinates: [+c.lng.toFixed(6), +c.lat.toFixed(6)] } }));
+    });
+    out.sort((a, b) => a.properties.rank - b.properties.rank || (a.properties.name < b.properties.name ? -1 : a.properties.name > b.properties.name ? 1 : 0) || a.geometry.coordinates[0] - b.geometry.coordinates[0] || a.geometry.coordinates[1] - b.geometry.coordinates[1]);
+    return { type: 'FeatureCollection', features: out };
+  }
+
+  // opt.subway === false 이면 지하철 층을 모두 감춘다(켜고 끄는 단추). opt.data = 지난번에 합친 목록(테마를 바꿔 지도를 새로 만들 때 바로 보이게).
+  function build(theme, opt) {
+    opt = opt || {};
     const p = PAL[theme] || PAL.paper;
     const L = [];
     const add = (l) => { l.source = SRC; L.push(l); };
@@ -153,25 +199,32 @@
     place('place-city', ['city'], 5, 15, Z(5, 13, 12, 19), FONT_B);
     place('place-state', ['state', 'province', 'region'], 3, 8, Z(3, 11, 7, 14), FONT);
     place('place-country', ['country'], 1, 6, Z(1, 12, 5, 18), FONT_B);
-    // 지하철역: 맨 위 층이라 도로·동네 이름과 겹치면 역이 이긴다. 같은 역이 점·면 두 번 들어 있어도 먼저 놓인 하나만 남는다.
+    // 지하철역: 맨 위 층이라 도로·동네 이름과 겹치면 역이 이긴다.
+    // (1) 'subway-station' — 타일의 역(poi 층)을 그대로 그린다. 모든 노선의 역이 나오도록 조금 넓게 고른다(v63): railway 계열의 역·간이역·지하철·경전철·모노레일
+    //     (출구·전차 정류장·버스는 제외), 이름이 있는 것만. 아이콘이 겹치면 하나만 남는다. 합친 목록이 없을 때의 예비.
+    // (2) 'subway-merged' — 환승역을 한 곳으로 합친 목록(v64). 합친 역끼리는 겹치지 않으므로 아이콘을 하나도 빼지 않는다(이름은 자리가 있을 때만).
+    const swOn = opt.subway !== false;
+    const swData = opt.data && opt.data.features && opt.data.features.length ? opt.data : null;
+    const swLayout = (extra) => Object.assign({
+      'icon-image': 'bf-subway-' + theme, 'icon-size': Z(12, 0.7, 16, 1),
+      'text-field': NAME, 'text-font': FONT_B, 'text-size': Z(12, 10, 17, 13), 'text-anchor': 'left', 'text-offset': [1.15, 0], 'text-max-width': 8, 'text-optional': true,
+    }, extra);
+    const swPaint = { 'text-color': p.subwayText, 'text-halo-color': p.halo, 'text-halo-width': 1.6 };
     add({
       id: 'subway-station', type: 'symbol', 'source-layer': 'poi', minzoom: 12,
-      // v63: 모든 노선의 역이 나오도록 조금 넓게 고른다 — railway 계열의 역·간이역·지하철·경전철·모노레일(출구·전차 정류장·버스는 제외), 이름이 있는 것만.
-      filter: ['all',
-        ['any', ['==', ['get', 'class'], 'railway'], ['==', ['get', 'subclass'], 'subway']],
-        ['in', ['get', 'subclass'], ['literal', ['station', 'halt', 'subway', 'light_rail', 'monorail']]],
-        ['any', ['has', 'name'], ['has', 'name:ko'], ['has', 'name_en']]],
-      layout: {
-        'icon-image': 'bf-subway-' + theme, 'icon-size': Z(12, 0.7, 16, 1), 'icon-padding': 2, 'icon-allow-overlap': true,   // v63: 붙어 있는 역도 아이콘은 하나도 빠지지 않게(이름은 자리가 있을 때만)
-        'symbol-sort-key': ['coalesce', ['get', 'rank'], 99],
-        'text-field': NAME, 'text-font': FONT_B, 'text-size': Z(12, 10, 17, 13), 'text-anchor': 'left', 'text-offset': [1.15, 0], 'text-max-width': 8, 'text-optional': true,
-      },
-      paint: { 'text-color': p.subwayText, 'text-halo-color': p.halo, 'text-halo-width': 1.6 },
+      filter: STATION_FILTER,
+      layout: swLayout({ 'icon-padding': 2, 'icon-allow-overlap': false, 'symbol-sort-key': ['coalesce', ['get', 'rank'], 99], visibility: swOn && !swData ? 'visible' : 'none' }),
+      paint: swPaint,
+    });
+    L.push({
+      id: 'subway-merged', type: 'symbol', source: SUBWAY_SRC, minzoom: 12,
+      layout: swLayout({ 'icon-padding': 0, 'icon-allow-overlap': true, 'symbol-sort-key': ['coalesce', ['get', 'rank'], 99], visibility: swOn && swData ? 'visible' : 'none' }),
+      paint: swPaint,
     });
 
     return {
       version: 8, name: 'bf-' + theme,
-      sources: { [SRC]: { type: 'vector', url: TILEJSON } },
+      sources: { [SRC]: { type: 'vector', url: TILEJSON }, [SUBWAY_SRC]: { type: 'geojson', data: swData || EMPTY } },
       glyphs: GLYPHS,
       transition: { duration: 0, delay: 0 },
       layers: L,
@@ -197,5 +250,5 @@
     return { data: g.getImageData(0, 0, S * R, S * R), ratio: R };
   }
 
-  window.bfMapStyle = { build, PAL, TILEJSON, GLYPHS, icon };
+  window.bfMapStyle = { build, PAL, TILEJSON, GLYPHS, icon, merge, SRC, SUBWAY_SRC, STATION_FILTER, EMPTY };
 })();

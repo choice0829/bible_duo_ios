@@ -321,7 +321,7 @@ html.kb #sheet.tall .panel { height: 100%; }
 .chnav button:disabled { opacity: 0; pointer-events: none; }
 
 /* ---------- 설교노트 ---------- */
-/* 펼친 화면: 책 왼쪽 옆면(무대 밖 왼쪽 여백)에 붙는 인덱스 탭. 제목 앞 5글자가 세로로 적히고, 누르면 그 노트가 열린다. */
+/* 펼친 화면: 책 왼쪽 옆면(무대 밖 왼쪽 여백)에 붙는 인덱스 탭. 제목 앞 6글자가 세로로 적히고, 누르면 그 노트가 열린다. */
 #note-tabs { position: fixed; left: 0; top: 0; width: 0; height: 0; z-index: 9; transition: opacity .15s; }
 #note-tabs.moving { opacity: 0; pointer-events: none; }
 .nt-tab {
@@ -695,6 +695,10 @@ body.theme-night .mp-pin.sel .pn { fill: #4fb3bf; }
 .mp-br.on { background: var(--accent); color: var(--bg); }
 #mp.picking .mp-br { display: none; }
 .mp-bg { position: absolute; z-index: 900; top: 118px; right: 10px; width: 44px; height: 44px; border-radius: 12px; background: var(--bg); color: var(--fg); box-shadow: 0 1px 5px rgba(0, 0, 0, .4), 0 0 0 1px var(--line); display: flex; align-items: center; justify-content: center; }
+.mp-subway { position: absolute; z-index: 900; top: 172px; right: 10px; width: 44px; height: 44px; border-radius: 12px; background: var(--bg); color: var(--fg); box-shadow: 0 1px 5px rgba(0, 0, 0, .4), 0 0 0 1px var(--line); display: flex; align-items: center; justify-content: center; }
+.mp-subway svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.mp-subway.on { background: var(--accent); color: var(--bg); }
+#mp:not(.mp-src-vec) .mp-subway, #mp.picking .mp-subway { display: none; }   /* 역은 벡터 지도에만 있다(래스터 바탕에는 켜고 끌 수 없음) */
 .mp-bg[hidden] { display: none; }
 .mp-bg svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 .mp-bg.on { background: var(--accent); color: var(--bg); }
@@ -760,6 +764,21 @@ body.theme-night .mp-pin.sel .pn { fill: #4fb3bf; }
 .mp-rb { flex: 1 1 auto; padding: 10px 10px; border-radius: 10px; background: var(--bg); font-size: 14px; font-weight: 700; white-space: nowrap; }
 .mp-rb.edit { color: var(--accent); }
 .mp-rb:disabled { opacity: .4; }
+/* 리뷰 칸에 글을 쓰는 중 키보드가 올라오면(.kbup): 카드를 키보드 위로 올리고 이름·리뷰 칸만 남긴다(주소·출처·같은 자리 목록·길찾기 단추는 키보드를 내리면 돌아온다) */
+.mp-card.kbup { bottom: var(--kb-bottom, 28px) !important; max-height: var(--kb-max, 58%) !important; z-index: 1100; }
+.mp-card.kbup > :not(.mp-c-top):not(.mp-c-b), .mp-card.kbup .mp-lk { display: none; }
+.mp-card.kbup { padding: 8px 12px; }
+.mp-card.kbup .mp-c-b { margin-top: 6px; }
+.mp-card.kbup .mp-rv.open { margin-bottom: 0; }
+/* 낮은 화면(듀오 펼침)에서 키보드 위 공간에 다 들어가도록 폼을 간추린다: 제목 줄 없음 · 별 오른쪽에 글자 수 · 단추 낮게 */
+.mp-card.kbup .mp-rv-form { display: grid; grid-template-columns: 1fr auto; gap: 6px 8px; padding: 8px 10px; }
+.mp-card.kbup .mp-rv-h { display: none; }
+.mp-card.kbup .mp-rv-stars { grid-column: 1; grid-row: 1; }
+.mp-card.kbup .mp-rv-n { grid-column: 2; grid-row: 1; align-self: center; }
+.mp-card.kbup .mp-rv-in { grid-column: 1 / span 2; grid-row: 2; padding: 6px 10px; }
+.mp-card.kbup .mp-rv-b { grid-column: 1 / span 2; grid-row: 3; }
+.mp-card.kbup .mp-st { width: 36px; height: 36px; font-size: 25px; }
+.mp-card.kbup .mp-rb { padding: 8px 10px; }
 /* 관리자: 리뷰 모아 보기 */
 .rv-g { margin: 8px 0; padding: 10px 12px; border-radius: 12px; background: var(--chip); }
 .rv-gh { display: flex; align-items: baseline; gap: 8px; }
@@ -807,6 +826,7 @@ body.theme-night .mp-add, body.theme-night .mp-act, body.theme-night .mp-tabs bu
 #mp.two.picking .mp-l { display: none; }
 #mp.two .mp-me { top: 104px; }
 #mp.two .mp-br, #mp.two .mp-bf { top: 158px; }
+#mp.two .mp-subway { top: 104px; right: 64px; }   /* 펼침: 내 위치 단추의 왼쪽(아래 단추들은 카드에 가려질 수 있어서) */
 #mp.two .mp-bg { top: 212px; }   /* 카페 단추 바로 아래 */   /* 확대·축소 단추가 오른쪽 위로 옮겨 가므로 그 아래 */
 #mp.two .mp-note { right: 62px; }
 html.kb #mp.two { padding-bottom: 0; }

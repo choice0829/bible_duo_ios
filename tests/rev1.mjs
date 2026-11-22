@@ -321,4 +321,45 @@ const KEY_BG0 = 'b:시험 보드게임카페 가|37.52600,127.11800';
   ok('페이지 오류 없음', errs.length === 0, JSON.stringify(errs.slice(0, 3)));
   await p.close();
 }
+// ===== G. 리뷰를 쓰는 중 키보드가 올라와도 입력 칸이 가려지지 않는다(v64) =====
+// 아이폰 앱은 키보드 높이를 앱(Swift)이 window.bfKeyboard(px) 로 알려 준다 → 여기서는 그 호출을 흉내 낸다. 실제 키보드·실기기는 확인하지 못한다.
+for (const [label, dev, kb, narrow, theme] of [['듀오 펼침', DUO, 300, false, 'paper'], ['아이폰 세로', PH, 336, true, 'night']]) {
+  console.log('===== G. 키보드 — ' + label);
+  const { p, errs } = await openDev(dev, { cfg: { theme } });
+  if (narrow) { await p.evaluate(() => { const t = document.querySelector('.mp-tabs button[data-t="r"]'); if (t) t.click(); }); await sleep(900); }
+  await tapAt(p, BG[0][2], BG[0][3], 16);
+  await click(p, '.mp-rv-add'); await click(p, '.mp-st[data-r="3"]');
+  const geo = () => p.evaluate((kbh) => {
+    const r = (q) => { const e = document.querySelector(q); if (!e) return null; const b = e.getBoundingClientRect(); return { t: b.top, b: b.bottom, l: b.left, r: b.right }; };
+    const c = document.querySelector('#mp-card');
+    return { kbTop: innerHeight - kbh, card: r('#mp-card'), ta: r('.mp-rv-in'), sv: r('[data-a="save"]'), cn: r('[data-a="cancel"]'), title: r('.mp-c-top'), map: r('.mp-mapwrap'), cls: c.className, bottom: getComputedStyle(c).bottom, route: getComputedStyle(c.querySelector('.mp-lk')).display, src: c.querySelector('.mp-c-src') ? getComputedStyle(c.querySelector('.mp-c-src')).display : 'none', ae: document.activeElement.className };
+  }, kb);
+  const g0 = await geo();
+  ok(label + ': (키보드 전) 카드가 평소 자리(아래 28px)에 있고 줄어들지 않았다', !/kbup/.test(g0.cls) && g0.bottom === '28px' && g0.route !== 'none', JSON.stringify(g0.cls + ' ' + g0.bottom));
+  await p.focus('.mp-rv-in');
+  await p.evaluate((h) => window.bfKeyboard(h), kb); await sleep(500);
+  const g1 = await geo();
+  const above = (o) => o && o.b <= g1.kbTop + 0.5;
+  ok(label + ': 키보드가 올라오면 카드가 키보드 위로 올라가 아래 끝이 키보드 위에 있다', /kbup/.test(g1.cls) && above(g1.card), JSON.stringify({ kbTop: g1.kbTop, card: g1.card, cls: g1.cls }));
+  ok(label + ': 리뷰 입력 칸·저장·취소 단추가 모두 키보드 위에 보인다(카드 안, 가려지지 않음)', g1.ta && above(g1.ta) && above(g1.sv) && above(g1.cn) && g1.ta.t >= g1.card.t - 0.5 && g1.sv.b <= g1.card.b + 0.5, JSON.stringify({ kbTop: g1.kbTop, ta: g1.ta, sv: g1.sv, card: g1.card }));
+  { const sc = await p.evaluate(() => { const c = document.querySelector('#mp-card'); return { sh: c.scrollHeight, ch: c.clientHeight, top: c.scrollTop }; });
+    ok(label + ': 간추린 카드는 스크롤 없이 이름 줄·별·입력 칸·저장 단추가 한 번에 다 보인다', sc.sh <= sc.ch + 1 && sc.top === 0, JSON.stringify(sc)); }
+  ok(label + ': 카드 위 끝이 지도 안에 있다(지도 밖으로 밀려 올라가지 않음)', g1.card.t >= g1.map.t - 0.5, JSON.stringify({ card: g1.card, map: g1.map }));
+  ok(label + ': 입력 중에는 이름 줄과 리뷰 칸만 남기고 주소·출처·길찾기 단추는 숨긴다', g1.title && g1.src === 'none' && g1.route === 'none', JSON.stringify([g1.src, g1.route]));
+  await p.screenshot({ path: '/tmp/rev1shots/g-' + (narrow ? 'phone' : 'duo') + '-kb.png' });
+  // 글을 쓰고 저장 → 카드가 원래대로(키보드가 아직 올라와 있어도 저장 뒤에는 입력 칸이 없으므로)
+  await p.type('.mp-rv-in', '키보드 위에서 쓴 리뷰'); await sleep(150);
+  await click(p, '[data-a="save"]'); await sleep(300);
+  const g2 = await geo().catch(() => null);
+  ok(label + ': 저장하면 카드가 평소 모양으로 돌아온다(줄임 해제 · 길찾기 단추 복귀)', !!g2 && !/kbup/.test(g2.cls) && g2.bottom === '28px' && g2.route !== 'none' && (await rvStore(p)).length === 1, JSON.stringify(g2 && [g2.cls, g2.bottom, g2.route]));
+  await p.evaluate(() => window.bfKeyboard(0)); await sleep(200);
+  // 고치기 → 키보드 → 키보드 내림(blur)
+  await click(p, '.mp-rv-ch'); await p.focus('.mp-rv-in'); await p.evaluate((h) => window.bfKeyboard(h), kb); await sleep(400);
+  ok(label + ': 고치기에서도 같은 방식으로 올라온다', /kbup/.test((await geo()).cls) && above((await geo()).ta));
+  await p.evaluate(() => { document.activeElement.blur(); window.bfKeyboard(0); }); await sleep(400);
+  const g3 = await geo();
+  ok(label + ': 키보드를 내리면 카드가 제자리로 돌아오고 리뷰 폼은 그대로 열려 있다', !/kbup/.test(g3.cls) && g3.bottom === '28px' && !!g3.ta && g3.route !== 'none', JSON.stringify([g3.cls, g3.bottom]));
+  ok(label + ': 페이지 오류 없음', errs.length === 0, JSON.stringify(errs.slice(0, 3)));
+  await p.close();
+}
 console.log(fails ? 'FAILS ' + fails : 'ALL PASS'); await b.close(); process.exit(fails ? 1 : 0);
