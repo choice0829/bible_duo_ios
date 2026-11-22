@@ -98,10 +98,7 @@
         paint: { 'line-color': fill, 'line-width': wFill, 'line-opacity': ['case', tunnel, 0.5, 1] },
       });
     };
-    add({
-      id: 'rail', type: 'line', 'source-layer': 'transportation', minzoom: 11, filter: ['all', LINE, cls('rail', 'transit')],
-      paint: { 'line-color': p.rail, 'line-width': Z(11, 0.5, 16, 1.4), 'line-dasharray': [3, 2] },
-    });
+    // 철도·지하철 노선선(회색 점선)은 v63부터 그리지 않는다 — 지하철은 역 아이콘(맨 아래 'subway-station' 층)만 보인다.
     add({
       id: 'path', type: 'line', 'source-layer': 'transportation', minzoom: 14, filter: ['all', LINE, cls('path', 'pier')],
       layout: { 'line-cap': 'round' },
@@ -159,9 +156,13 @@
     // 지하철역: 맨 위 층이라 도로·동네 이름과 겹치면 역이 이긴다. 같은 역이 점·면 두 번 들어 있어도 먼저 놓인 하나만 남는다.
     add({
       id: 'subway-station', type: 'symbol', 'source-layer': 'poi', minzoom: 12,
-      filter: ['all', ['==', ['get', 'class'], 'railway'], ['==', ['get', 'subclass'], 'station'], ['has', 'name']],
+      // v63: 모든 노선의 역이 나오도록 조금 넓게 고른다 — railway 계열의 역·간이역·지하철·경전철·모노레일(출구·전차 정류장·버스는 제외), 이름이 있는 것만.
+      filter: ['all',
+        ['any', ['==', ['get', 'class'], 'railway'], ['==', ['get', 'subclass'], 'subway']],
+        ['in', ['get', 'subclass'], ['literal', ['station', 'halt', 'subway', 'light_rail', 'monorail']]],
+        ['any', ['has', 'name'], ['has', 'name:ko'], ['has', 'name_en']]],
       layout: {
-        'icon-image': 'bf-subway-' + theme, 'icon-size': Z(12, 0.7, 16, 1), 'icon-padding': 2,
+        'icon-image': 'bf-subway-' + theme, 'icon-size': Z(12, 0.7, 16, 1), 'icon-padding': 2, 'icon-allow-overlap': true,   // v63: 붙어 있는 역도 아이콘은 하나도 빠지지 않게(이름은 자리가 있을 때만)
         'symbol-sort-key': ['coalesce', ['get', 'rank'], 99],
         'text-field': NAME, 'text-font': FONT_B, 'text-size': Z(12, 10, 17, 13), 'text-anchor': 'left', 'text-offset': [1.15, 0], 'text-max-width': 8, 'text-optional': true,
       },

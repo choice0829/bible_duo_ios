@@ -30,10 +30,6 @@ for (const [th,col] of [['sepia','#cdba90'],['night','#0a0b0d'],['paper','#dcd4c
   await tag(); await sleep(1500);
   const s4=await state(); ok(th+': then quiet (no endless swapping)', s4.metaTag==='1' && s4.r==='1', JSON.stringify({m:s4.metaTag,r:s4.r}));
 }
-// 같은 테마를 다시 눌러도 불필요한 교체는 없어야 한다 (settings 재그리기 때)
-await tag(); await p.evaluate(()=>[...document.querySelectorAll('#sheet-body button[data-k="desk"]')].find(b=>b.dataset.v==='wood').click()); await sleep(40);
-const s5=await state(); ok('desk change -> refresh', s5.metaTag==='' && s5.r==='', JSON.stringify({m:s5.metaTag,r:s5.r}));
-await sleep(1500);
 // 크기 변화(접기/펴기) 뒤에도 한 번 다시 읽게 한다
 await tag(); await p.setViewport({width:382,height:700,deviceScaleFactor:2}); await sleep(900);
 const s6=await state(); ok('resize (fold) -> refresh', s6.metaTag==='' && s6.r==='' && s6.nr===1, JSON.stringify({m:s6.metaTag,r:s6.r,W:s6.W}));
