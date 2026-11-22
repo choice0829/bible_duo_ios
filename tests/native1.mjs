@@ -22,9 +22,9 @@ const H=669, L=st.stage.left, Rm=st.W-st.stage.right;
 ok('v41 html.full set', ex.full);
 ok('stage spans full width (no side margins)', L<=1 && Rm<=1.5, L+' / '+Rm);
 ok('stage reaches screen bottom', Math.abs(H-st.stage.bottom)<=0.5, String(H-st.stage.bottom));
-ok('text left edge 24 (v64: 30 -> 24)', Math.abs(ex.txtL-24)<=1.5, String(ex.txtL));
-ok('text right edge W-24', Math.abs((st.W-ex.txtR)-24)<=1.5, String(st.W-ex.txtR));
-ok('text width 429 both pages', Math.abs(ex.txtWl-429)<=1 && Math.abs(ex.txtWr-429)<=1, ex.txtWl+' / '+ex.txtWr);
+ok('text left edge 26 (v64: 30 -> 24, v65: 24 -> 26 for the note tab)', Math.abs(ex.txtL-26)<=1.5, String(ex.txtL));
+ok('text right edge W-26', Math.abs((st.W-ex.txtR)-26)<=1.5, String(st.W-ex.txtR));
+ok('text width 427 both pages', Math.abs(ex.txtWl-427)<=1 && Math.abs(ex.txtWr-427)<=1, ex.txtWl+' / '+ex.txtWr);
 ok('background is paper colour = page colour, no texture', ex.bgHtml===ex.bgPage && ex.bgImg==='none', ex.bgHtml+' vs '+ex.bgPage+' img='+ex.bgImg);
 // v56: 책을 자르는 창이 overflow:clip 에서 clip-path(위쪽으로만 15px 넓힘)로 바뀌었다 — 어느 쪽이든 '자른다'(왼쪽·오른쪽·아래는 책 가장자리 그대로)
 ok('stage clips (overflow clip, or clip-path inset widened only upward)', ex.clip==='clip' || ex.clip==='hidden' || (/^inset\(/.test(ex.cp) && /^inset\(-?\d+(\.\d+)?px 0px 0px\)$/.test(ex.cp)), ex.clip+' / '+ex.cp);

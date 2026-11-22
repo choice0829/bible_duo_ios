@@ -55,7 +55,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.choice0829.bibleflip
         PRODUCT_NAME: BibleFlip
-        MARKETING_VERSION: "64"
+        MARKETING_VERSION: "65"
         CURRENT_PROJECT_VERSION: "1"
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: NO

@@ -331,7 +331,7 @@ html.kb #sheet.tall .panel { height: 100%; }
 }
 #note-tabs.spot .nt-tab { transition: transform .15s, opacity .15s, box-shadow .15s; }
 #note-tabs.spot .nt-tab:not(.sel) { opacity: .45; }
-#note-tabs.spot .nt-tab.sel { transform: translateX(-7px); box-shadow: -3px 2px 8px rgba(0, 0, 0, .35); }
+#note-tabs.spot .nt-tab.sel { transform: translateX(4px); box-shadow: -3px 2px 8px rgba(0, 0, 0, .35); }
 /* 스포트라이트: 눌린 노트의 본문(JS가 규칙을 덧붙여 opacity 1로 되돌린다)만 남기고 나머지 글은 흐리게 */
 #stage.spot p[data-k], #stage.spot p[data-s], #stage.spot h2.ch { opacity: .2; transition: opacity .18s; }
 /* 노트 미리보기 카드 */
@@ -826,7 +826,8 @@ body.theme-night .mp-add, body.theme-night .mp-act, body.theme-night .mp-tabs bu
 #mp.two.picking .mp-l { display: none; }
 #mp.two .mp-me { top: 104px; }
 #mp.two .mp-br, #mp.two .mp-bf { top: 158px; }
-#mp.two .mp-subway { top: 104px; right: 64px; }   /* 펼침: 내 위치 단추의 왼쪽(아래 단추들은 카드에 가려질 수 있어서) */
+#mp.two .mp-subway { top: 266px; }   /* 보드게임 단추 바로 아래(내 위치 104 · 카페 158 · 보드게임 212 · 지하철 266) */
+#mp.two .mp-card { right: 64px; }   /* v65: 오른쪽 단추 줄(너비 44 + 여백 10)은 카드가 덮지 않는다 */
 #mp.two .mp-bg { top: 212px; }   /* 카페 단추 바로 아래 */   /* 확대·축소 단추가 오른쪽 위로 옮겨 가므로 그 아래 */
 #mp.two .mp-note { right: 62px; }
 html.kb #mp.two { padding-bottom: 0; }

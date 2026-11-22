@@ -7,7 +7,7 @@ await p.screenshot({path:'native5-rest.png'});
 const tabs=await p.evaluate(()=>[...document.querySelectorAll('.nt-tab')].map(t=>{const r=t.getBoundingClientRect(); return [Math.round(r.left),Math.round(r.right),Math.round(r.top)]}));
 { const lb=await p.evaluate(()=>[...document.querySelectorAll('.nt-tab')].map(t=>({t:t.querySelector('b').textContent,h:Math.round(t.getBoundingClientRect().height),w:Math.round(t.getBoundingClientRect().width)})));
   ok('v64: note tab label shows the first 6 chars (spaces removed)', lb.some(x=>x.t==='기초의복음서') && lb.some(x=>x.t==='창조의순서'), JSON.stringify(lb));
-  ok('v64: 6-char tab is taller than the 5-char one (93 vs 80.5) and both are 18px wide', (()=>{const a=lb.find(x=>x.t==='기초의복음서'),c=lb.find(x=>x.t==='창조의순서'); return a&&c&&a.h>c.h&&a.h>=92&&a.w===18&&c.w===18;})(), JSON.stringify(lb)); }
+  ok('v64/v65: 6-char tab is taller than the 5-char one (99 vs 86.5) and both are 17px wide', (()=>{const a=lb.find(x=>x.t==='기초의복음서'),c=lb.find(x=>x.t==='창조의순서'); return a&&c&&a.h>c.h&&a.h>=98&&a.w===17&&c.w===17;})(), JSON.stringify(lb)); }
 
 // 넘기는 중
 await p.touchscreen.touchStart(900,540);
@@ -19,6 +19,6 @@ const hdr=await p.evaluate(()=>{ const st=document.querySelector('#stage').getBo
 await p.touchscreen.touchEnd(); await sleep(1600);
 // v56: 자르는 창이 clip-path(위쪽으로만 15px, 머리줄과 책 사이 간격 안쪽)로 바뀜 — 책장은 y 103 보다 위(머리줄)로는 올라가지 않는다
 ok('stage top == 118 and clips (overflow clip or clip-path inset ≤ 15px upward)', Math.abs(hdr.top-118)<=0.5 && (/clip|hidden/.test(hdr.ov) || (hdr.ov==='visible' && /^inset\(-(\d+(\.\d+)?)px 0px 0px\)$/.test(hdr.cp) && parseFloat(hdr.cp.match(/-([\d.]+)px/)[1])<=15)), JSON.stringify(hdr));
-console.log('tabs',JSON.stringify(tabs)); ok('note tab exists and sits left of text (right edge<=24, width>=16)', tabs.length>=1 && tabs.every(t=>t[1]<=24 && t[1]-t[0]>=16), JSON.stringify(tabs));
+console.log('tabs',JSON.stringify(tabs)); ok('note tab exists, flush with the screen edge (left 0), width>=16, and leaves >=8px before the text (text starts at 26)', tabs.length>=1 && tabs.every(t=>t[0]===0 && t[1]-t[0]>=16 && 26-t[1]>=8), JSON.stringify(tabs));
 ok('no page errors', errs.length===0, JSON.stringify(errs));
 console.log(fails?'FAILS '+fails:'ALL PASS'); await b.close(); process.exit(0);

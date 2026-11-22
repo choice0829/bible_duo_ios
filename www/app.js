@@ -20,7 +20,7 @@
   const SPREAD_MIN_SHIFT = 28;     // 그 밖의 기기: 책 왼쪽에 최소로 남기는 폭 (노트 탭이 붙는 자리)
   const BOTTOM_SPREAD_DEFAULT = 20;
   // 아이폰 앱(껍데기) 전용 — 펼친 화면의 책을 '카드'로 둔다: 좌우 여백을 같게, 아래도 화면 끝에서 띄운다.
-  const NATIVE_TEXT_OUT = 24;           // 앱 펼침: 화면 바깥쪽 가장자리에서 본문 글자까지(px). 책 카드 없이 화면 전체를 책장으로 쓴다 (v41, v64: 30 → 24)
+  const NATIVE_TEXT_OUT = 26;           // 앱 펼침: 화면 바깥쪽 가장자리에서 본문 글자까지(px). 책 카드 없이 화면 전체를 책장으로 쓴다 (v41, v64: 30 → 24, v65: 노트 탭이 답답해 보여 24 → 26)
   const NATIVE_SIDE_SINGLE = 24;        // 앱 한 쪽(접은·세로) 화면: 본문 좌우 여백(px). 웹앱은 8 (v43)
   const NATIVE_TEXT_IN = 22;            // 앱 펼침: 가운데(책등) 쪽 글자 여백(px). 두 쪽 사이 간격은 이 값의 두 배
   const NATIVE_BOTTOM_GAP = 12;         // 앱 펼침: 본문 아래 끝과 화면 맨 아래 사이(px, 안전영역이 더 크면 그만큼). 낮은 화면(가로로 돌린 아이폰)은 10
@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v64';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v65';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -208,7 +208,7 @@
     const headR = Math.max(Math.round(W - bookRight + padOut), Math.round(si.right) + (spread ? 8 : 14), 14);
     return {
       W, H, spread, compact, duo, sym, pageW, pageH, bookW: spread ? pageW * 2 : pageW,
-      padX: full ? padOut : padX, padOut, padIn, full, tabEdge: full ? Math.max(padOut - 4, 0) : shiftX,
+      padX: full ? padOut : padX, padOut, padIn, full, tabEdge: full ? Math.max(padOut - 9, 0) : shiftX,
       padTop, padBottom, si, shiftX, eff, stageTop, txtTop, headR, intoPill,
       textW: pageW - padOut - padIn, textH: pageH - txtTop - padBottom,
     };
@@ -2454,8 +2454,8 @@
     tabsEl.innerHTML = '';
     tabsEl.classList.remove('moving');
     if (!bible || !pg || scroller || !flip || !pg.g || !pg.g.spread) return;
-    const edge = pg.g.tabEdge != null ? pg.g.tabEdge : pg.g.shiftX;   // 노트 탭의 오른쪽 끝(책 왼쪽 가장자리, 앱 펼침은 본문 왼쪽 끝 4px 앞)
-    const tw = Math.min(23, edge - 2);
+    const edge = pg.g.tabEdge != null ? pg.g.tabEdge : pg.g.shiftX;   // 노트 탭의 오른쪽 끝(책 왼쪽 가장자리, 앱 펼침은 본문 왼쪽 끝 9px 앞 — v65: 탭과 본문 사이를 넉넉하게)
+    const tw = Math.min(23, pg.g.full ? edge : edge - 2);   // 앱 펼침은 탭이 화면 왼쪽 끝에 붙는다(왼쪽 0px)
     if (tw < 16) return;   // 왼쪽 여백이 너무 좁으면 탭은 생략하고 본문의 절 번호 배지만 보인다
     // 지금 펼쳐진 두 쪽(왼쪽 L, 오른쪽 L+1)만 읽는 순서대로 본다. 그 노트 본문이 처음 나오는 줄의 높이를 잡는다.
     const W = window.innerWidth, top = {};
@@ -2474,7 +2474,7 @@
     const items = Object.keys(top).filter((id) => noteById(id)).map((id) => {
       const n = noteById(id);
       const label = Array.from(n.title.replace(/\s+/g, '')).slice(0, 6).join('');   // 제목 앞 6글자 (v64: 5 → 6)
-      return { id, y0: top[id], label, title: n.title, h: Math.round(Array.from(label).length * 12.5 + 18) };
+      return { id, y0: top[id], label, title: n.title, h: Math.round(Array.from(label).length * 12.5 + 24) };   // 글자 위아래 여유 12px(v65, 전 9px)
     }).sort((p, q) => p.y0 - q.y0);
     // 겹치지 않게 위에서부터 쌓고, 아래로 넘치면 위로 당긴다. 그래도 안 들어가면 나머지는 "+N" 하나로 줄인다.
     const topLim = 60, botLim = window.innerHeight - 10, gap = 5;
