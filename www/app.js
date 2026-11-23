@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v70';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v71';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -1255,24 +1255,47 @@
       }
     });
   }
-  barKinds.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) guard(() => applyKind(b.dataset.kind)); });
-  barPens.addEventListener('click', (e) => {
-    const b = e.target.closest('button');
-    if (!b) return;
-    tool.pen = b.dataset.pen; store.set('bf.tool', tool); paintBarTools();
-  });
-  barColors.addEventListener('click', (e) => {
-    const b = e.target.closest('button');
-    if (!b) return;
-    tool.c = +b.dataset.c; store.set('bf.tool', tool); paintBarTools();
-  });
-  $('#ab-close').addEventListener('click', clearSelection);
-  $('#ab-all').addEventListener('click', () => guard(() => replaceAct((it) => { it.s = 0; it.e = itemText(it).length; })));
-  $('#ab-erase').addEventListener('click', () => guard(eraseSel));
-  $('#ab-s-prev').addEventListener('click', () => guard(() => moveEdge('s', -1)));
-  $('#ab-s-next').addEventListener('click', () => guard(() => moveEdge('s', 1)));
-  $('#ab-e-prev').addEventListener('click', () => guard(() => moveEdge('e', -1)));
-  $('#ab-e-next').addEventListener('click', () => guard(() => moveEdge('e', 1)));
+  // 도구 상자 단추 연결 (v71). 길게 눌러 낱말을 고른 직후의 첫 터치가 먹지 않고 연달아 눌러야 적용된다는 제보에 따라,
+  // 머리줄 메뉴(onMenu)처럼 ① 누른 손가락을 떼는 순간(pointerup)에 바로 처리하고 ② 아이폰이 click 을 만들어 주면 그것도 받되
+  // 같은 터치의 click 은 한 번만 처리한다. (손가락이 12px 넘게 움직였으면 누른 것이 아니다)
+  // 단추를 처리하면 도구 상자가 곧바로 사라지므로, 아이폰이 손 뗀 뒤 그 자리를 다시 찾아 보내는 click 이
+  // 아래에 있던 요소(머리줄의 책 이름·설정 등)를 누르지 않게 그 자리의 click 을 잠깐(450ms) 막는다.
+  let barGhost = null;
+  window.addEventListener('click', (e) => {
+    if (!barGhost) return;
+    if (performance.now() > barGhost.until) { barGhost = null; return; }
+    if (Math.hypot(e.clientX - barGhost.x, e.clientY - barGhost.y) <= 48) { e.stopPropagation(); e.preventDefault(); }
+  }, true);
+  function barTap(root, fn) {
+    let downAt = null, doneAt = 0, doneBtn = null;
+    const hit = (e) => { const b = e.target.closest && e.target.closest('button'); return b && root.contains(b) ? b : null; };
+    root.addEventListener('pointerdown', (e) => { downAt = hit(e) ? { x: e.clientX, y: e.clientY } : null; });
+    root.addEventListener('pointerup', (e) => {
+      const b = hit(e), d = downAt;
+      downAt = null;
+      if (!b || !d || Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 12) return;
+      doneAt = performance.now(); doneBtn = b;
+      barGhost = { x: e.clientX, y: e.clientY, until: doneAt + 450 };
+      fn(b);
+    });
+    root.addEventListener('pointercancel', () => { downAt = null; });
+    root.addEventListener('click', (e) => {
+      const b = hit(e);
+      if (!b) return;
+      if (b === doneBtn && performance.now() - doneAt < 600) { doneBtn = null; return; }   // 방금 손가락 뗄 때 처리한 같은 터치의 click
+      fn(b);
+    });
+  }
+  barTap(barKinds, (b) => guard(() => applyKind(b.dataset.kind)));
+  barTap(barPens, (b) => { tool.pen = b.dataset.pen; store.set('bf.tool', tool); paintBarTools(); });
+  barTap(barColors, (b) => { tool.c = +b.dataset.c; store.set('bf.tool', tool); paintBarTools(); });
+  barTap($('#ab-close'), () => clearSelection());
+  barTap($('#ab-all'), () => guard(() => replaceAct((it) => { it.s = 0; it.e = itemText(it).length; })));
+  barTap($('#ab-erase'), () => guard(eraseSel));
+  barTap($('#ab-s-prev'), () => guard(() => moveEdge('s', -1)));
+  barTap($('#ab-s-next'), () => guard(() => moveEdge('s', 1)));
+  barTap($('#ab-e-prev'), () => guard(() => moveEdge('e', -1)));
+  barTap($('#ab-e-next'), () => guard(() => moveEdge('e', 1)));
   buildBar();
 
   // ---------- 책장 넘기기: 탭·끌기·길게 누르기·키보드 ----------
@@ -1393,7 +1416,13 @@
     clearTimeout(pressTimer);
     if (Math.abs(dx) > Math.abs(dy) * 1.2) { clearSelection(); startDrag(dx < 0 ? FWD : BACK, e); }
   });
+  // 책을 끌거나 길게 눌러 고르던 손가락의 포인터 캡처를 손가락이 떨어질 때 반드시 푼다 (v71).
+  // 캡처가 남으면 그 뒤 첫 터치가 도구 상자가 아니라 책(stage)으로 가 버릴 수 있다.
+  function releaseStage(e) {
+    try { if (e && e.pointerId != null && stage.hasPointerCapture && stage.hasPointerCapture(e.pointerId)) stage.releasePointerCapture(e.pointerId); } catch (err) { /* 무시 */ }
+  }
   function endPointer(e, cancelled) {
+    releaseStage(e);
     clearTimeout(pressTimer);
     if (selecting) { selecting = false; down = null; drag = null; return; }   // 끌어서 고르기 끝 — 도구 상자는 그대로 둔다
     const d = down, dg = drag;
@@ -1441,7 +1470,7 @@
   // 낱말을 끌어 고르는 동안에는 화면이 같이 스크롤되지 않게 막는다
   stage.addEventListener('touchmove', (e) => { if (selecting && e.cancelable) e.preventDefault(); }, { passive: false });
   // 어떤 이유로든 손가락이 떨어지면 '고르는 중'을 반드시 끝낸다 (스크롤이 막힌 채로 남지 않게)
-  ['pointerup', 'pointercancel', 'touchend', 'touchcancel'].forEach((ev) => window.addEventListener(ev, () => { selecting = false; }));
+  ['pointerup', 'pointercancel', 'touchend', 'touchcancel'].forEach((ev) => window.addEventListener(ev, (e) => { selecting = false; releaseStage(e); }));
   stage.addEventListener('pointerup', (e) => endPointer(e, false));
   stage.addEventListener('pointercancel', (e) => endPointer(e, true));
   window.addEventListener('keydown', (e) => {
