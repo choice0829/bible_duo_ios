@@ -109,11 +109,11 @@ const rgb = (hex) => { const n = parseInt(hex.slice(1), 16); return `rgb(${n >> 
   // 카드: 프랜차이즈 / 개인
   await tapAt(p, FR[0][3], FR[0][4], 16);
   const fr0 = await cardName(p);
-  ok('프랜차이즈 점을 누르면 카드에 브랜드 이름이 있다', fr0 === FR[0][1] && (await txt(p, '#mp-card')).includes('스타벅스 매장 · 공공데이터') && !(await txt(p, '#mp-card')).includes('개인 카페'), String(fr0));
+  ok('프랜차이즈 점을 누르면 카드에 브랜드 이름이 있다', fr0 === FR[0][1] && (await txt(p, '#mp-card')).includes('분류 스타벅스 매장') && !(await txt(p, '#mp-card')).includes('개인 카페'), String(fr0));
   await tapAt(p, IND[1][3], IND[1][4], 16);
-  ok('개인 카페 점을 누르면 카드가 "개인 카페 · 공공데이터(상가정보) 2026-10 기준"이고 주소가 있다', (await cardName(p)) === IND[1][1] && (await txt(p, '#mp-card')).includes('개인 카페 · 공공데이터(상가정보) 2026-10 기준') && (await txt(p, '#mp-card')).includes(IND[1][2]), (await txt(p, '#mp-card') || '').slice(0, 120));
+  ok('개인 카페 점을 누르면 카드 정보 칸이 "분류 개인 카페 / 자료 공공데이터(상가정보) 2026-10 기준"이고 주소가 있다', (await cardName(p)) === IND[1][1] && (await txt(p, '#mp-card')).includes('분류 개인 카페') && (await txt(p, '#mp-card')).includes('공공데이터(상가정보) 2026-10 기준') && (await txt(p, '#mp-card')).includes(IND[1][2]), (await txt(p, '#mp-card') || '').slice(0, 120));
   { const col = await bgOf(p, '#mp-card .mp-bd'); ok('카드의 점 색도 같은 커피색', col === rgb('#8a5a3c'), col); }
-  ok('카드 단추 = 길찾기·내 장소로 추가 두 개(v61)', JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('#mp-card .mp-lk')].map((x) => x.textContent))) === JSON.stringify(['길찾기', '내 장소로 추가']));
+  ok('카드 단추 = 정보 보기·길찾기·나만의 리뷰·내 장소로 추가 네 개(v61·v72)', JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('#mp-card .mp-lk')].map((x) => x.textContent))) === JSON.stringify(['정보 보기', '길찾기', '나만의 리뷰', '내 장소로 추가']));
 
   // 걸러 보기: 프랜차이즈
   await p.click('#mp-bf button[data-f="fr"]'); await sleep(500);

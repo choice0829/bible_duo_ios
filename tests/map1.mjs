@@ -111,7 +111,7 @@ for (const [name,w,h,si,KB] of DEV) {
   ok(name+': 카드가 지도 칸 안에 있고 출처 표기를 가리지 않는다', card.l>=wrap.l && card.r<=wrap.r && card.b<=wrap.b-20, JSON.stringify({card:[card.t,card.b],wrap:[wrap.t,wrap.b]}));
   await p.screenshot({path:`map1-${SN[name]}-card.png`});
   // 길찾기 링크
-  ok(name+': 카드 단추는 길찾기·전화·수정 세 개뿐이다(네이버·애플·구글 지도 단추 없음, v61)', JSON.stringify(await p.evaluate(()=>[...document.querySelectorAll('#mp-card .mp-lk')].map(x=>x.textContent)))===JSON.stringify(['길찾기','전화','수정']));
+  ok(name+': 카드 단추는 길찾기·나만의 리뷰·전화·수정 네 개뿐이다(네이버·애플·구글 지도 단추 없음, v61·v72)', JSON.stringify(await p.evaluate(()=>[...document.querySelectorAll('#mp-card .mp-lk')].map(x=>x.textContent)))===JSON.stringify(['길찾기','나만의 리뷰','전화','수정']));
   await p.click('.mp-lk[data-o="route"]'); await sleep(150);
   await p.click('.mp-lk[data-o="tel"]'); await sleep(150);
   m=(await msgs(p)).filter(x=>x.open);

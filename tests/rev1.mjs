@@ -101,7 +101,7 @@ const LONG = '가나다라마바사아자차카타파하'.repeat(10);   // 140�
 const EMO = '맛있어요😀'.repeat(30);                    // 이모지 포함 180자
 const rvStore = (p) => p.evaluate(() => JSON.parse(localStorage.getItem('bf.reviews') || '[]'));
 const rvIn = (p) => p.evaluate(() => JSON.parse(localStorage.getItem('bf.reviews.in') || '[]'));
-const box = (p) => p.evaluate(() => { const e = document.querySelector('#mp-rv'); return e ? { html: e.innerHTML, text: e.textContent, add: !!e.querySelector('.mp-rv-add'), form: !!e.querySelector('.mp-rv-form'), stars: e.querySelector('.mp-rv-s')?.textContent || '', body: e.querySelector('.mp-rv-t')?.textContent || '' } : null; });
+const box = (p) => p.evaluate(() => { const e = document.querySelector('#mp-rv'); return e ? { html: e.innerHTML, text: e.textContent, add: !!document.querySelector('#mp-card .mp-rv-add'), shown: !e.hidden, empty: e.innerHTML === '', form: !!e.querySelector('.mp-rv-form'), stars: e.querySelector('.mp-rv-s')?.textContent || '', body: e.querySelector('.mp-rv-t')?.textContent || '' } : null; });
 const lkTexts = (p) => p.evaluate(() => [...document.querySelectorAll('#mp-card .mp-lk')].map((x) => x.textContent));
 const click = async (p, sel) => { await p.evaluate((s) => document.querySelector(s).click(), sel); await sleep(180); };
 const openAdv = async (p, sel) => { await p.click('#btn-settings'); await sleep(500); await click(p, '#go-adv'); await sleep(300); await click(p, sel); await sleep(300); };
@@ -113,14 +113,14 @@ const KEY_BG0 = 'b:시험 보드게임카페 가|37.52600,127.11800';
   console.log('===== A. 듀오 펼침 · 보드게임 카드의 리뷰');
   const { p, errs } = await openDev(DUO);
   await tapAt(p, BG[0][2], BG[0][3], 16);
-  ok('보드게임 카드가 열리고 단추는 길찾기·내 장소로 추가 두 개 그대로다', (await cardName(p)) === BG[0][0] && JSON.stringify(await lkTexts(p)) === JSON.stringify(['길찾기', '내 장소로 추가']), await cardName(p));
+  ok('보드게임 카드가 열리고 단추는 정보 보기·길찾기·나만의 리뷰·내 장소로 추가 네 개다(v72)', (await cardName(p)) === BG[0][0] && JSON.stringify(await lkTexts(p)) === JSON.stringify(['정보 보기', '길찾기', '나만의 리뷰', '내 장소로 추가']), await cardName(p));
   let bx = await box(p);
   { const g = await p.evaluate(() => { document.querySelector('#mp').classList.add('mp-src-vec'); /* 이 시험은 래스터 바탕이라 지하철 단추가 숨어 있다 — 자리만 보려고 잠시 보이게 한다 */ const r = (q) => { const e = document.querySelector(q); if (!e || e.hidden) return null; const b = e.getBoundingClientRect(); return { t: b.top, b: b.bottom, l: b.left, r: b.right }; }; const o = { me: r('#mp-me'), br: r('#mp-br'), bg: r('#mp-bg'), sw: r('#mp-sw'), card: r('#mp-card') }; document.querySelector('#mp').classList.remove('mp-src-vec'); return o; });
     ok('(듀오 펼침) 오른쪽 단추 줄이 위에서부터 내 위치 · 카페 · 보드게임 · 지하철 순이고 같은 줄(오른쪽 끝)에 선다', g.me && g.br && g.bg && g.sw && g.me.b <= g.br.t + 1 && g.br.b <= g.bg.t + 1 && g.bg.b <= g.sw.t + 1 && Math.abs(g.bg.r - g.sw.r) <= 1 && Math.abs(g.br.r - g.sw.r) <= 1, JSON.stringify(g));
     ok('(듀오 펼침) 카드를 열어도 오른쪽 단추 줄(특히 지하철 단추)을 덮지 않는다', g.card && g.sw && g.card.r <= g.sw.l - 2, JSON.stringify([g.card, g.sw])); }
-  ok('처음에는 "☆ 리뷰" 단추 하나만 보인다(접근성 이름은 "리뷰 남기기")', bx && bx.add && !bx.form && /리뷰/.test(bx.text) && (await p.evaluate(() => document.querySelector('.mp-rv-add').getAttribute('aria-label'))) === '리뷰 남기기', bx && bx.text);
-  { const g = await p.evaluate(() => { const a = document.querySelector('.mp-rv-add').getBoundingClientRect(), r = document.querySelector('.mp-lk[data-o="route"]').getBoundingClientRect(), e = document.querySelector('.mp-lk[data-o="add"]').getBoundingClientRect(), c = document.querySelector('#mp-card').getBoundingClientRect(), m = document.querySelector('#mp-map').getBoundingClientRect(); return { aT: a.top, rT: r.top, eT: e.top, aR: a.right, rL: r.left, cardTop: c.top, midY: (m.top + m.bottom) / 2 }; });
-    ok('접힌 리뷰 단추가 길찾기·내 장소로 추가와 같은 줄(높이가 늘지 않는다)', Math.abs(g.aT - g.rT) <= 2 && Math.abs(g.rT - g.eT) <= 2 && g.aR <= g.rL + 1, JSON.stringify(g));
+  ok('처음에는 리뷰 칸이 접혀 있고 단추 이름은 "나만의 리뷰"다(접근성 이름은 "나만의 리뷰 남기기")', bx && bx.add && bx.empty && !bx.shown && !bx.form && (await p.evaluate(() => document.querySelector('.mp-rv-add').textContent)) === '나만의 리뷰' && (await p.evaluate(() => document.querySelector('.mp-rv-add').getAttribute('aria-label'))) === '나만의 리뷰 남기기', bx && bx.text);
+  { const g = await p.evaluate(() => { const a = document.querySelector('.mp-rv-add').getBoundingClientRect(), r = document.querySelector('.mp-lk[data-o="route"]').getBoundingClientRect(), e = document.querySelector('.mp-lk[data-o="add"]').getBoundingClientRect(), c = document.querySelector('#mp-card').getBoundingClientRect(), m = document.querySelector('#mp-map').getBoundingClientRect(); return { aT: a.top, rT: r.top, eT: e.top, aL: a.left, aR: a.right, rR: r.right, eL: e.left, aH: a.height, rH: r.height, cardTop: c.top, midY: (m.top + m.bottom) / 2 }; });
+    ok('나만의 리뷰 단추가 길찾기 오른쪽·내 장소로 추가 왼쪽의 같은 줄에 같은 높이로 선다(v72)', Math.abs(g.aT - g.rT) <= 2 && Math.abs(g.rT - g.eT) <= 2 && g.rR <= g.aL + 1 && g.aR <= g.eL + 1 && Math.abs(g.aH - g.rH) <= 1, JSON.stringify(g));
     ok('(듀오 펼침) 카드가 지도 가운데 높이를 가리지 않는다(맨 위가 지도 세로 가운데보다 아래)', g.cardTop > g.midY, JSON.stringify(g)); }
   await click(p, '.mp-rv-add');
   bx = await box(p);
@@ -139,21 +139,21 @@ const KEY_BG0 = 'b:시험 보드게임카페 가|37.52600,127.11800';
   await p.screenshot({ path: '/tmp/rev1shots/a-form.png' });
   await click(p, '[data-a="save"]');
   bx = await box(p); let rv = await rvStore(p);
-  ok('저장하면 카드에 ★★★★☆ · 내 리뷰 · 문구가 보인다', bx && !bx.form && bx.stars === '★★★★☆' && bx.body === '분위기 좋고 게임 종류가 많아요' && /내 리뷰/.test(bx.text), JSON.stringify(bx && [bx.stars, bx.body]));
+  ok('저장하면 카드에 ★★★★☆ · 나만의 리뷰 · 문구가 보인다', bx && !bx.form && bx.shown && bx.stars === '★★★★☆' && bx.body === '분위기 좋고 게임 종류가 많아요' && /나만의 리뷰/.test(bx.text), JSON.stringify(bx && [bx.stars, bx.body]));
   ok('기기 저장(bf.reviews): 한 건 · 키·이름·좌표·평점·문구', rv.length === 1 && rv[0].k === KEY_BG0 && rv[0].n === BG[0][0] && rv[0].r === 4 && rv[0].t === '분위기 좋고 게임 종류가 많아요' && rv[0].la === 37.526 && rv[0].lo === 127.118, JSON.stringify(rv));
-  ok('카드 단추는 여전히 두 개', JSON.stringify(await lkTexts(p)) === JSON.stringify(['길찾기', '내 장소로 추가']));
+  ok('카드 단추는 여전히 네 개(리뷰를 써도 단추 이름·순서는 그대로)', JSON.stringify(await lkTexts(p)) === JSON.stringify(['정보 보기', '길찾기', '나만의 리뷰', '내 장소로 추가']));
   await p.screenshot({ path: '/tmp/rev1shots/a-saved.png' });
   // 닫았다 다시 열어도 · 다른 장소에는 없다
   await click(p, '#mp-c-x');
   await tapAt(p, BG[0][2], BG[0][3], 16);
   ok('카드를 닫았다 다시 열어도 리뷰가 남아 있다', (await box(p)).stars === '★★★★☆');
   await click(p, '#mp-c-x'); await tapAt(p, BG[1][2], BG[1][3], 16);
-  ok('다른 보드게임 카페 카드에는 그 리뷰가 없다(장소마다 따로)', (await cardName(p)) === BG[1][0] && (await box(p)).add);
+  ok('다른 보드게임 카페 카드에는 그 리뷰가 없다(장소마다 따로)', (await cardName(p)) === BG[1][0] && (await box(p)).empty && !(await box(p)).shown);
   // 수정
   await click(p, '#mp-c-x'); await tapAt(p, BG[0][2], BG[0][3], 16);
   await click(p, '[data-a="edit"]');
   const pre = await p.evaluate(() => ({ r: [...document.querySelectorAll('.mp-st')].filter((x) => x.classList.contains('on')).length, t: document.querySelector('.mp-rv-in').value, del: !!document.querySelector('[data-a="del"]'), h: document.querySelector('.mp-rv-h').textContent }));
-  ok('수정을 누르면 지금 별점·문구가 채워져 있고 삭제 단추가 생긴다', pre.r === 4 && pre.t === '분위기 좋고 게임 종류가 많아요' && pre.del && /리뷰 고치기/.test(pre.h), JSON.stringify(pre));
+  ok('수정을 누르면 지금 별점·문구가 채워져 있고 삭제 단추가 생긴다(제목은 "나만의 리뷰 고치기")', pre.r === 4 && pre.t === '분위기 좋고 게임 종류가 많아요' && pre.del && /^나만의 리뷰 고치기/.test(pre.h), JSON.stringify(pre));
   await click(p, '.mp-st[data-r="2"]'); await click(p, '[data-a="save"]'); rv = await rvStore(p);
   ok('별점을 2로 고쳐 저장하면 같은 한 건이 바뀐다(새 건이 늘지 않음)', rv.length === 1 && rv[0].r === 2 && (await box(p)).stars === '★★☆☆☆', JSON.stringify(rv.map((x) => x.r)));
   // 취소는 저장하지 않는다
@@ -163,7 +163,7 @@ const KEY_BG0 = 'b:시험 보드게임카페 가|37.52600,127.11800';
   await click(p, '[data-a="edit"]'); await click(p, '[data-a="del"]');
   ok('삭제를 한 번 누르면 "한 번 더 누르면 삭제"로 바뀌고 아직 지워지지 않는다', /한 번 더 누르면 삭제/.test((await box(p)).text) && (await rvStore(p)).length === 1);
   await click(p, '[data-a="del"]');
-  ok('한 번 더 누르면 지워지고 "리뷰 남기기"로 돌아간다', (await rvStore(p)).length === 0 && (await box(p)).add);
+  ok('한 번 더 누르면 지워지고 리뷰 칸이 접혀 "나만의 리뷰" 단추만 남는다', (await rvStore(p)).length === 0 && (await box(p)).empty && !(await box(p)).shown && (await box(p)).add);
   // 리뷰 없이 별만(문구 없음)
   await click(p, '.mp-rv-add'); await click(p, '.mp-st[data-r="5"]'); await click(p, '[data-a="save"]'); rv = await rvStore(p);
   ok('문구 없이 별점만 저장할 수 있다', rv.length === 1 && rv[0].r === 5 && rv[0].t === '' && (await box(p)).stars === '★★★★★' && (await box(p)).body === '');
@@ -184,7 +184,7 @@ const KEY_BG0 = 'b:시험 보드게임카페 가|37.52600,127.11800';
   ok('카페 리뷰는 키가 c: 로 시작하고 이름·좌표가 들어 있다', rv.length === 1 && /^c:스타벅스 시험2점\|37\.53000,127\.11500$/.test(rv[0].k) && rv[0].r === 3, JSON.stringify(rv));
   // 내 장소
   await click(p, '#mp-c-x'); await tapAt(p, MINE.lat, MINE.lng, 16);
-  ok('내 장소 카드: 단추는 길찾기·수정, 리뷰 칸이 있다', (await cardName(p)) === MINE.name && JSON.stringify(await lkTexts(p)) === JSON.stringify(['길찾기', '수정']) && (await box(p)).add, JSON.stringify(await lkTexts(p)));
+  ok('내 장소 카드: 단추는 길찾기·나만의 리뷰·수정(전화가 없는 장소), 리뷰 칸 자리가 있다', (await cardName(p)) === MINE.name && JSON.stringify(await lkTexts(p)) === JSON.stringify(['길찾기', '나만의 리뷰', '수정']) && (await box(p)).add, JSON.stringify(await lkTexts(p)));
   await click(p, '.mp-rv-add'); await click(p, '.mp-st[data-r="3"]');
   await p.evaluate(() => { const t = document.querySelector('.mp-rv-in'); t.value = '쓰는 중인 글'; t.dispatchEvent(new Event('input', { bubbles: true })); });
   await click(p, '#mp-me'); await sleep(1200);   // 내 위치 갱신 → 카드가 다시 그려진다
@@ -335,7 +335,7 @@ for (const [label, dev, kb, narrow, theme] of [['듀오 펼침', DUO, 300, false
   const geo = () => p.evaluate((kbh) => {
     const r = (q) => { const e = document.querySelector(q); if (!e) return null; const b = e.getBoundingClientRect(); return { t: b.top, b: b.bottom, l: b.left, r: b.right }; };
     const c = document.querySelector('#mp-card');
-    return { kbTop: innerHeight - kbh, card: r('#mp-card'), ta: r('.mp-rv-in'), sv: r('[data-a="save"]'), cn: r('[data-a="cancel"]'), title: r('.mp-c-top'), map: r('.mp-mapwrap'), cls: c.className, bottom: getComputedStyle(c).bottom, route: getComputedStyle(c.querySelector('.mp-lk')).display, src: c.querySelector('.mp-c-src') ? getComputedStyle(c.querySelector('.mp-c-src')).display : 'none', ae: document.activeElement.className };
+    return { kbTop: innerHeight - kbh, card: r('#mp-card'), ta: r('.mp-rv-in'), sv: r('[data-a="save"]'), cn: r('[data-a="cancel"]'), title: r('.mp-c-top'), map: r('.mp-mapwrap'), cls: c.className, bottom: getComputedStyle(c).bottom, route: getComputedStyle(c.querySelector('.mp-c-b')).display, src: c.querySelector('.mp-c-l') ? getComputedStyle(c.querySelector('.mp-c-l')).display : 'none', info: c.querySelector('.mp-info') ? getComputedStyle(c.querySelector('.mp-info')).display : 'none', ae: document.activeElement.className };
   }, kb);
   const g0 = await geo();
   ok(label + ': (키보드 전) 카드가 평소 자리(아래 28px)에 있고 줄어들지 않았다', !/kbup/.test(g0.cls) && g0.bottom === '28px' && g0.route !== 'none', JSON.stringify(g0.cls + ' ' + g0.bottom));
@@ -348,7 +348,7 @@ for (const [label, dev, kb, narrow, theme] of [['듀오 펼침', DUO, 300, false
   { const sc = await p.evaluate(() => { const c = document.querySelector('#mp-card'); return { sh: c.scrollHeight, ch: c.clientHeight, top: c.scrollTop }; });
     ok(label + ': 간추린 카드는 스크롤 없이 이름 줄·별·입력 칸·저장 단추가 한 번에 다 보인다', sc.sh <= sc.ch + 1 && sc.top === 0, JSON.stringify(sc)); }
   ok(label + ': 카드 위 끝이 지도 안에 있다(지도 밖으로 밀려 올라가지 않음)', g1.card.t >= g1.map.t - 0.5, JSON.stringify({ card: g1.card, map: g1.map }));
-  ok(label + ': 입력 중에는 이름 줄과 리뷰 칸만 남기고 주소·출처·길찾기 단추는 숨긴다', g1.title && g1.src === 'none' && g1.route === 'none', JSON.stringify([g1.src, g1.route]));
+  ok(label + ': 입력 중에는 이름 줄과 리뷰 칸만 남기고 주소·정보 칸·단추 줄(정보 보기·길찾기·나만의 리뷰·내 장소로 추가)은 숨긴다', g1.title && g1.src === 'none' && g1.info === 'none' && g1.route === 'none', JSON.stringify([g1.src, g1.info, g1.route]));
   await p.screenshot({ path: '/tmp/rev1shots/g-' + (narrow ? 'phone' : 'duo') + '-kb.png' });
   // 글을 쓰고 저장 → 카드가 원래대로(키보드가 아직 올라와 있어도 저장 뒤에는 입력 칸이 없으므로)
   await p.type('.mp-rv-in', '키보드 위에서 쓴 리뷰'); await sleep(150);
