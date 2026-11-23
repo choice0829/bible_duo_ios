@@ -11,6 +11,7 @@ const ok = (n, c, x = '') => { if (!c) fails++; console.log((c ? 'ok   ' : 'FAIL
 const PICK = ['SE3 세로', '15 세로', '14 가로', 'Duo 펼침', 'Duo 접힘'];
 const HEAD_PICK = ['SE3 세로', '12mini 세로', '15 세로', '16ProMax 세로', 'SE3 가로', '14 가로', '15Plus 가로', 'iPad mini 세로', 'Duo 펼침', 'Duo 접힘'];
 const MAIL = 'test@example.com';
+const APPVER = fs.readFileSync(new URL('../www/app.js', import.meta.url), 'utf8').match(/APP_VER = '(v\d+)'/)[1];   // 버전을 올려도 시험을 고치지 않게 코드에서 읽는다
 const IDS = ['btn-search', 'btn-hl', 'btn-notes', 'btn-card', 'btn-map', 'btn-ask', 'btn-settings'];
 
 // 앱(껍데기) 모의: 보낸 메시지를 __msgs 에 모으고, 메일 요청에는 __mailResult 대로 답한다.
@@ -143,7 +144,7 @@ for (const name of PICK) {
   await p.evaluate(() => { window.__mailResult = 'cancelled'; });
   await p.click('#ask-send'); await sleep(400);
   let m = (await msgs(p)).filter((x) => x.mail);
-  ok(name + ': 앱으로 보낸 메시지: 받는 사람·제목 머리말·본문·앱 버전', m.length === 1 && m[0].mail.to === MAIL && m[0].mail.subject === '[앱 문의] 글자가 겹칩니다' && m[0].mail.body.includes('카드 글자가 겹쳐') && m[0].mail.body.includes('앱 v70') && Array.isArray(m[0].mail.photos) && m[0].mail.photos.length === 0 && typeof m[0].id === 'number', JSON.stringify(m[0] && m[0].mail).slice(0, 200));
+  ok(name + ': 앱으로 보낸 메시지: 받는 사람·제목 머리말·본문·앱 버전', m.length === 1 && m[0].mail.to === MAIL && m[0].mail.subject === '[앱 문의] 글자가 겹칩니다' && m[0].mail.body.includes('카드 글자가 겹쳐') && m[0].mail.body.includes('앱 ' + APPVER) && Array.isArray(m[0].mail.photos) && m[0].mail.photos.length === 0 && typeof m[0].id === 'number', JSON.stringify(m[0] && m[0].mail).slice(0, 200));
   ok(name + ': 취소하면 안내하고 쓰던 글은 그대로', (await msgText(p)).includes('취소') && await p.evaluate(() => document.querySelector('#ask-title').value !== '' && !document.querySelector('#ask-send').disabled));
   for (const [res, word] of [['saved', '임시 보관함'], ['failed', '보내지 못했습니다'], ['busy', '다른 창']]) {
     await p.evaluate((r) => { window.__mailResult = r; }, res); await p.click('#ask-send'); await sleep(400);
