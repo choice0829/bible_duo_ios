@@ -1,4 +1,5 @@
 import {serve,launch,sleep} from './devlib.mjs';
+import { fakeVector } from './vtscene.mjs';   // v68: 벡터 지도 자료 서버 흉내(래스터 지도가 없어졌으므로)
 serve(8966); const b=await launch(); let fails=0; const ok=(n,c,x='')=>{console.log((c?'ok  ':'FAIL')+' '+n+' '+x); if(!c) fails++;};
 const PNG=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==','base64');
 const seed={fn:(cfg)=>{
@@ -8,7 +9,7 @@ const seed={fn:(cfg)=>{
     else if(m.geocode!==undefined){ setTimeout(()=>window.bfGeo&&window.bfGeo({id:m.id,results:window.__geo.q}),40); }
     else if(m.rgeo){ setTimeout(()=>window.bfGeo&&window.bfGeo({id:m.id,results:window.__geo.r.map(x=>Object.assign({},x,{lat:m.rgeo.lat,lng:m.rgeo.lng}))}),40); }
   }}}};
-  if(!sessionStorage.getItem('s')){ sessionStorage.setItem('s','1'); localStorage.clear(); localStorage.setItem('bf.mapeng','raster'); localStorage.setItem('bf.pos',JSON.stringify({book:0,chapter:0,verse:1})); if(cfg&&cfg.places!==undefined) localStorage.setItem('bf.places',typeof cfg.places==='string'?cfg.places:JSON.stringify(cfg.places)); if(cfg&&cfg.theme) localStorage.setItem('bf.settings',JSON.stringify({theme:cfg.theme})); }
+  if(!sessionStorage.getItem('s')){ sessionStorage.setItem('s','1'); localStorage.clear();  localStorage.setItem('bf.pos',JSON.stringify({book:0,chapter:0,verse:1})); if(cfg&&cfg.places!==undefined) localStorage.setItem('bf.places',typeof cfg.places==='string'?cfg.places:JSON.stringify(cfg.places)); if(cfg&&cfg.theme) localStorage.setItem('bf.settings',JSON.stringify({theme:cfg.theme})); }
 }, arg:null};
 async function openDev(dev,{query='?native=1',cfg=null,tiles='ok'}={}) {
   const [name,w,h,si]=dev; const p=await b.newPage(); const errs=[]; const tileUrls=[];
@@ -17,7 +18,7 @@ async function openDev(dev,{query='?native=1',cfg=null,tiles='ok'}={}) {
   const cdp=await p.createCDPSession(); try{ await cdp.send('Emulation.setSafeAreaInsetsOverride',{insets:si}); }catch(e){}
   await p.setRequestInterception(true);
   const st={tiles};
-  p.on('request',r=>{const u=r.url(); if(u.startsWith('https://tile.openstreetmap.org/')||u.startsWith('https://basemaps.cartocdn.com/')){ tileUrls.push(u); if(st.tiles==='ok') r.respond({status:200,contentType:'image/png',body:PNG,headers:{'access-control-allow-origin':'*'}}); else r.abort(); } else if(u.startsWith('http://localhost')||u.startsWith('data:')||u.startsWith('blob:')) r.continue(); else r.abort();});
+  p.on('request',r=>{const u=r.url(); if(fakeVector(u,r)) return; if(u.startsWith('https://tile.openstreetmap.org/')||u.startsWith('https://basemaps.cartocdn.com/')){ tileUrls.push(u); if(st.tiles==='ok') r.respond({status:200,contentType:'image/png',body:PNG,headers:{'access-control-allow-origin':'*'}}); else r.abort(); } else if(u.startsWith('http://localhost')||u.startsWith('data:')||u.startsWith('blob:')) r.continue(); else r.abort();});
   await p.evaluateOnNewDocument(seed.fn, cfg);
   await p.goto('http://localhost:8966/index.html'+query); await p.waitForFunction(()=>document.querySelector('#loading')?.hidden===true,{timeout:90000}); await sleep(1500);
   return {p,errs,tileUrls,st};

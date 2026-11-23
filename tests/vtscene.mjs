@@ -85,3 +85,15 @@ export function tile(z, x, y) {
   return Buffer.from(vtpbf.fromGeojsonVt(layers, { version: 2, extent: 4096 }));
 }
 export const TILEJSON = (origin) => ({ tilejson: '3.0.0', name: 'bf-test', format: 'pbf', minzoom: 0, maxzoom: 14, bounds: [-180, -85, 180, 85], tiles: [origin + '/t/{z}/{x}/{y}.pbf'] });
+
+// v68: 지도 자료 서버(OpenFreeMap)를 흉내 내는 공용 응답. 요청 가로채기 안에서 `if (fakeVector(u, r)) return;` 로 쓴다.
+// 래스터 지도가 없어진 뒤로, 지도 시험도 '벡터가 정상인 보통 상태'(안내문 없음)에서 돌려야 화면 배치가 실제와 같다.
+// 글자 파일은 일부러 404(기기 글꼴로 그림). 실제 서버·실제 웹뷰가 아니므로 실기기 확인은 따로 필요하다.
+const FV_ORIGIN = 'https://tiles.openfreemap.org';
+export function fakeVector(u, r) {
+  const H = { 'access-control-allow-origin': '*' };
+  if (u.startsWith(FV_ORIGIN + '/planet')) { r.respond({ status: 200, contentType: 'application/json', body: JSON.stringify(TILEJSON(FV_ORIGIN)), headers: H }); return true; }
+  if (u.startsWith(FV_ORIGIN + '/t/')) { const m = u.match(/\/t\/(\d+)\/(\d+)\/(\d+)\.pbf/); if (!m) { r.abort(); return true; } r.respond({ status: 200, contentType: 'application/x-protobuf', body: tile(+m[1], +m[2], +m[3]), headers: H }); return true; }
+  if (u.startsWith(FV_ORIGIN + '/fonts/')) { r.respond({ status: 404, headers: H, body: '' }); return true; }
+  return false;
+}
