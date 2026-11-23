@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v71';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v72';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -4018,14 +4018,15 @@
   let rvDraft = null;   // 쓰는 중인 내용 { k, r, t } — 카드가 다시 그려져도(내 위치 갱신 등) 입력이 사라지지 않게 남겨 둔다
   let rvDelArm = '', rvDelTimer = null;
   // 카드 안의 리뷰 칸. spec = { k, n, la, lo }
-  function rvMount(box, spec) {
+  // v72: 카드의 '나만의 리뷰' 단추(btn)는 단추 줄(길찾기 등과 같은 크기의 한 칸)에 늘 있고, 쓴 리뷰·입력 칸(box)은 단추 줄 위에 펼쳐진다.
+  function rvMount(box, spec, btn) {
     if (!box) return;
     const draw = () => {
       const mine = rvFind(spec.k), d = rvDraft && rvDraft.k === spec.k ? rvDraft : null;
       if (d) {
         const n = rvChars(d.t).length;
         box.innerHTML = '<div class="mp-rv-form">' +
-          '<div class="mp-rv-h">' + (mine ? '리뷰 고치기' : '리뷰 남기기') + ' <small>이 기기에만 저장됩니다</small></div>' +
+          '<div class="mp-rv-h">' + (mine ? '나만의 리뷰 고치기' : '나만의 리뷰 남기기') + ' <small>이 기기에만 저장됩니다</small></div>' +
           '<div class="mp-rv-stars" role="radiogroup" aria-label="평점">' + [1, 2, 3, 4, 5].map((i) =>
             '<button type="button" class="mp-st' + (i <= d.r ? ' on' : '') + '" data-r="' + i + '" role="radio" aria-checked="' + (i === d.r ? 'true' : 'false') + '" aria-label="' + i + '점">' + (i <= d.r ? '★' : '☆') + '</button>').join('') +
             '<span class="mp-rv-sc">' + (d.r ? d.r + '점' : '별을 눌러 평점을 고르세요') + '</span></div>' +
@@ -4035,12 +4036,17 @@
           '<button type="button" class="mp-rb" data-a="cancel">취소</button>' +
           (mine ? '<button type="button" class="mp-rb" data-a="del">' + (rvDelArm === spec.k ? '한 번 더 누르면 삭제' : '삭제') + '</button>' : '') + '</div></div>';
       } else if (mine) {
-        box.innerHTML = '<div class="mp-rv-row"><span class="mp-rv-s" role="img" aria-label="내 평점 ' + mine.r + '점">' + rvStars(mine.r) + '</span><b>내 리뷰</b><span class="mp-rv-sp"></span>' +
+        box.innerHTML = '<div class="mp-rv-row"><span class="mp-rv-s" role="img" aria-label="내 평점 ' + mine.r + '점">' + rvStars(mine.r) + '</span><b>나만의 리뷰</b><span class="mp-rv-sp"></span>' +
           '<button type="button" class="mp-rv-ch" data-a="edit">수정</button></div>' + (mine.t ? '<div class="mp-rv-t">' + esc(mine.t) + '</div>' : '');
       } else {
-        box.innerHTML = '<button type="button" class="mp-rv-add" data-a="new" aria-label="리뷰 남기기">☆ 리뷰</button>';
+        box.innerHTML = '';
       }
-      box.classList.toggle('open', !!(d || mine));   // 접힌 상태는 길찾기·내 장소로 추가 단추 줄에 한 칸으로 끼어 카드 높이를 늘리지 않는다
+      box.hidden = !(d || mine);   // 리뷰도 입력 중인 글도 없으면 칸 자체를 접어 카드 높이를 늘리지 않는다
+      if (btn) {
+        btn.classList.toggle('on', !!d);
+        btn.setAttribute('aria-expanded', d ? 'true' : 'false');
+        btn.setAttribute('aria-label', mine ? '나만의 리뷰 고치기' : '나만의 리뷰 남기기');
+      }
       bind();
       if (typeof mpCardFit === 'function' && mpEl) mpCardFit();
       if (d) requestAnimationFrame(() => { const f = box.querySelector('.mp-rv-form'); if (f && f.scrollIntoView) f.scrollIntoView({ block: 'nearest' }); });   // 카드가 작은 화면에서는 입력 칸이 보이게 카드를 스크롤
@@ -4070,6 +4076,11 @@
         }
       }));
     };
+    if (btn) btn.addEventListener('click', () => {   // 이미 쓰는 중이면 입력 칸으로, 아니면 새로(또는 쓴 글을 고치러) 연다
+      if (rvDraft && rvDraft.k === spec.k) { const t = box.querySelector('.mp-rv-in'); if (t) t.focus(); return; }
+      const mine = rvFind(spec.k);
+      rvDraft = { k: spec.k, r: mine ? mine.r : 0, t: mine ? mine.t : '' }; rvDelArm = ''; draw();
+    });
     draw();
   }
   // 관리자 화면: 이 기기 + 불러온 다른 기기의 리뷰를 모두 합친 목록
@@ -4670,6 +4681,26 @@
     }
     return out.sort((x, y) => x[1] - y[1] || x[0] - y[0]).map((x) => x[0]);
   }
+  // 카드의 '정보 보기'(v72). 예전에는 주소 밑 한 줄(분류 · 공공데이터 기준 · 영업 여부·시간은 지도 앱에서 확인하세요)로 늘 보였는데,
+  // 그 줄을 없애고 이 단추를 눌러야 펼쳐지는 칸으로 옮겼다. 카드를 다시 그리면 접힌 상태로 돌아간다.
+  function mpInfoHtml(kind, asof) {
+    return '<div class="mp-info" id="mp-info" hidden>' +
+      '<div class="mp-c-l"><b>분류</b> ' + esc(kind) + '</div>' +
+      '<div class="mp-c-l"><b>자료</b> 공공데이터(상가정보)' + (asof ? ' ' + esc(asof) + ' 기준' : '') + '</div>' +
+      '<div class="mp-c-l">영업 여부·시간은 지도 앱에서 확인하세요.</div></div>';
+  }
+  function mpInfoBind(c) {
+    const b = c.querySelector('.mp-lk[data-o="info"]'), box = c.querySelector('#mp-info');
+    if (!b || !box) return;
+    b.addEventListener('click', () => {
+      const open = box.hidden;
+      box.hidden = !open;
+      b.textContent = open ? '정보 닫기' : '정보 보기';
+      b.setAttribute('aria-expanded', open ? 'true' : 'false');
+      b.classList.toggle('on', open);
+      if (open && box.scrollIntoView) box.scrollIntoView({ block: 'nearest' });   // 카드가 낮은 화면에서는 펼친 칸이 보이게 카드를 스크롤
+    });
+  }
   function mpBgSelect(i) {
     if (mpPicking || mpView === 'form' || !mpBgDB || !mpBgDB.r[i]) return;
     mpSelect(null);                       // 내 장소·카페 선택과 카드를 먼저 닫는다(여기서 보드게임 선택도 풀린다)
@@ -4682,17 +4713,21 @@
         '<button type="button" class="mp-c-x" id="mp-c-x" aria-label="닫기">✕</button></div>' +
       (r[2] ? '<div class="mp-c-l">' + esc(r[2]) + '</div>' : '') +
       (near.length ? '<div class="mp-c-l mp-c-near">같은 자리 근처 보드게임 카페 ' + near.length + '곳 ' + near.slice(0, 20).map((j) => '<button type="button" class="mp-nb" data-j="' + j + '">' + esc(mpBgDB.r[j][1]) + '</button>').join('') + (near.length > 20 ? ' 외 ' + (near.length - 20) + '곳' : '') + '</div>' : '') +
-      '<div class="mp-c-l mp-c-src">보드게임 카페 · 공공데이터(상가정보)' + (mpBgDB.asof ? ' ' + esc(mpBgDB.asof) + ' 기준' : '') + ' · 영업 여부·시간은 지도 앱에서 확인하세요</div>' +
+      mpInfoHtml('보드게임 카페', mpBgDB.asof) +
+      '<div class="mp-rv" id="mp-rv" hidden></div>' +
       '<div class="mp-c-b">' +
-      '<div class="mp-rv" id="mp-rv"></div>' +
+        '<button type="button" class="mp-lk" data-o="info" aria-expanded="false">정보 보기</button>' +
         '<button type="button" class="mp-lk" data-o="route">길찾기</button>' +
+        '<button type="button" class="mp-lk mp-rv-add" data-o="rv">나만의 리뷰</button>' +
         '<button type="button" class="mp-lk edit" data-o="add"' + (have ? ' disabled' : '') + '>' + (have ? '내 장소에 있음' : '내 장소로 추가') + '</button></div>';
     c.hidden = false;
-    rvMount(mpS('#mp-rv'), { k: rvKey('b', r[1], r[3], r[4]), n: r[1], la: r[3], lo: r[4] });
+    rvMount(mpS('#mp-rv'), { k: rvKey('b', r[1], r[3], r[4]), n: r[1], la: r[3], lo: r[4] }, c.querySelector('.mp-rv-add'));
+    mpInfoBind(c);
     mpS('#mp-c-x').addEventListener('click', () => { mpBgClearSel(); mpRenderCard(null); });
     c.querySelectorAll('.mp-nb').forEach((b) => b.addEventListener('click', () => mpBgSelect(+b.dataset.j)));
     c.querySelectorAll('.mp-lk').forEach((b) => b.addEventListener('click', () => {
       const o = b.dataset.o;
+      if (o === 'info' || o === 'rv') return;   // 정보 보기·나만의 리뷰는 위에서 따로 연결했다
       if (o === 'add') { mpOpenForm({ name: r[1], addr: r[2], tel: '', hours: '', cap: 0, memo: '', amen: [], col: 0, lat: r[3], lng: r[4] }, true); return; }
       mpOpen(lk[o][0], lk[o][1]);
     }));
@@ -4731,17 +4766,21 @@
         '<button type="button" class="mp-c-x" id="mp-c-x" aria-label="닫기">✕</button></div>' +
       (r[2] ? '<div class="mp-c-l">' + esc(r[2]) + '</div>' : '') +
       (near.length ? '<div class="mp-c-l mp-c-near">같은 자리 근처 카페 ' + near.length + '곳 ' + near.slice(0, 40).map((j) => '<button type="button" class="mp-nb" data-j="' + j + '">' + esc(mpBrDB.r[j][1]) + '</button>').join('') + (near.length > 40 ? ' 외 ' + (near.length - 40) + '곳' : '') + '</div>' : '') +
-      '<div class="mp-c-l mp-c-src">' + (brand ? esc(brand) + ' 매장' : '개인 카페') + ' · 공공데이터(상가정보)' + (mpBrDB.asof ? ' ' + esc(mpBrDB.asof) + ' 기준' : '') + ' · 영업 여부·시간은 지도 앱에서 확인하세요</div>' +
+      mpInfoHtml(brand ? brand + ' 매장' : '개인 카페', mpBrDB.asof) +
+      '<div class="mp-rv" id="mp-rv" hidden></div>' +
       '<div class="mp-c-b">' +
-      '<div class="mp-rv" id="mp-rv"></div>' +
+        '<button type="button" class="mp-lk" data-o="info" aria-expanded="false">정보 보기</button>' +
         '<button type="button" class="mp-lk" data-o="route">길찾기</button>' +
+        '<button type="button" class="mp-lk mp-rv-add" data-o="rv">나만의 리뷰</button>' +
         '<button type="button" class="mp-lk edit" data-o="add"' + (have ? ' disabled' : '') + '>' + (have ? '내 장소에 있음' : '내 장소로 추가') + '</button></div>';
     c.hidden = false;
-    rvMount(mpS('#mp-rv'), { k: rvKey('c', r[1], r[3], r[4]), n: r[1], la: r[3], lo: r[4] });
+    rvMount(mpS('#mp-rv'), { k: rvKey('c', r[1], r[3], r[4]), n: r[1], la: r[3], lo: r[4] }, c.querySelector('.mp-rv-add'));
+    mpInfoBind(c);
     mpS('#mp-c-x').addEventListener('click', () => { mpBrClearSel(); mpRenderCard(null); });
     c.querySelectorAll('.mp-nb').forEach((b) => b.addEventListener('click', () => mpBrSelect(+b.dataset.j)));
     c.querySelectorAll('.mp-lk').forEach((b) => b.addEventListener('click', () => {
       const o = b.dataset.o;
+      if (o === 'info' || o === 'rv') return;   // 정보 보기·나만의 리뷰는 위에서 따로 연결했다
       if (o === 'add') { mpOpenForm({ name: r[1], addr: r[2], tel: '', hours: '', cap: 0, memo: '', amen: [], col: 0, lat: r[3], lng: r[4] }, true); return; }
       mpOpen(lk[o][0], lk[o][1]);
     }));
@@ -4837,16 +4876,18 @@
       (p.tel ? '<div class="mp-c-l">전화 · ' + esc(p.tel) + '</div>' : '') +
       (p.amen.length || p.cap ? '<div class="mp-tags">' + mpTags(p) + '</div>' : '') +
       (p.memo ? '<div class="mp-c-m">' + esc(p.memo) + '</div>' : '') +
+      '<div class="mp-rv" id="mp-rv" hidden></div>' +
       '<div class="mp-c-b">' +
-      '<div class="mp-rv" id="mp-rv"></div>' +
         '<button type="button" class="mp-lk" data-o="route">길찾기</button>' +
+        '<button type="button" class="mp-lk mp-rv-add" data-o="rv">나만의 리뷰</button>' +
         (p.tel ? '<button type="button" class="mp-lk" data-o="tel">전화</button>' : '') +
         '<button type="button" class="mp-lk edit" data-o="edit">수정</button></div>';
     c.hidden = false;
-    rvMount(mpS('#mp-rv'), { k: 'm:' + p.id, n: p.name, la: p.lat, lo: p.lng });
+    rvMount(mpS('#mp-rv'), { k: 'm:' + p.id, n: p.name, la: p.lat, lo: p.lng }, c.querySelector('.mp-rv-add'));
     mpS('#mp-c-x').addEventListener('click', () => mpSelect(null));
     c.querySelectorAll('.mp-lk').forEach((b) => b.addEventListener('click', () => {
       const o = b.dataset.o;
+      if (o === 'rv') return;   // 나만의 리뷰는 rvMount 가 연결했다
       if (o === 'edit') { mpOpenForm(p); return; }
       if (o === 'tel') { mpOpen('tel:' + p.tel.replace(/[^\d+]/g, '')); return; }
       mpOpen(lk[o][0], lk[o][1]);

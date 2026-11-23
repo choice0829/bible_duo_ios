@@ -756,7 +756,9 @@ body.theme-night .mp-pin.sel .pn { fill: #4fb3bf; }
 .mp-swb.on { box-shadow: 0 0 0 2px var(--bg), 0 0 0 5px var(--fg); }
 .mp-swb.on::after { content: "✓"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; color: #fff; text-shadow: 0 0 2px rgba(0, 0, 0, .55); }
 .mp-bd { flex: none; align-self: center; width: 11px; height: 11px; border-radius: 50%; box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--line); }
-.mp-c-src { font-size: 12px; }
+.mp-info { margin-top: 8px; padding: 6px 12px 8px; border-radius: 10px; background: var(--chip); }   /* v72: 정보 보기를 누르면 펼쳐지는 칸(분류·자료·영업 안내) */
+.mp-info[hidden] { display: none; }
+.mp-info .mp-c-l b { color: var(--fg); font-weight: 700; margin-right: 4px; }
 .mp-c-near { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; max-height: 96px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .mp-nb { max-width: 100%; padding: 4px 10px; border-radius: 999px; background: var(--chip); color: var(--fg); font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mp-card, .mp-pick {
@@ -769,15 +771,16 @@ body.theme-night .mp-pin.sel .pn { fill: #4fb3bf; }
 .mp-c-x { flex: none; width: 32px; height: 32px; margin: -6px -8px -6px 0; font-size: 16px; color: var(--muted); }
 .mp-c-l { margin-top: 4px; font-size: 13.5px; line-height: 1.45; color: var(--muted); }
 .mp-c-m { margin-top: 8px; font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
-.mp-c-b { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.mp-lk { flex: 1 1 auto; padding: 10px 10px; border-radius: 10px; background: var(--chip); font-size: 14px; font-weight: 700; white-space: nowrap; }
-.mp-lk.edit { color: var(--accent); }
+/* v72: 단추 줄은 모두 같은 크기(같은 너비·같은 높이)로 한 줄에 균일하게 늘어선다. 글자가 길면(예: 내 장소로 추가) 단어 단위로 줄을 바꾸고, 그 줄의 모든 단추가 가장 높은 단추에 맞춰 같은 높이가 된다 */
+.mp-c-b { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; margin-top: 10px; }
+.mp-lk { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 6px 4px; border-radius: 10px; background: var(--chip); font-size: 14px; font-weight: 700; line-height: 1.25; text-align: center; word-break: keep-all; }
+.mp-lk.edit, .mp-lk.mp-rv-add { color: var(--accent); }
+.mp-lk.on { box-shadow: inset 0 0 0 2px var(--accent); }   /* 펼쳐 둔 단추(정보 보기·나만의 리뷰 입력 중) */
 .mp-lk:disabled { opacity: .4; }
 /* v63: 장소 리뷰(카드 안) */
-/* 접힌 상태('☆ 리뷰')는 카드 아래 단추 줄(.mp-c-b)의 첫 칸. 쓰는 중·쓴 뒤(.open)에만 단추 줄 위에 한 줄(전체 너비)로 펼쳐진다 */
-.mp-rv { flex: 0 0 auto; display: flex; }
-.mp-rv.open { flex: 1 0 100%; order: -1; display: block; margin-bottom: 4px; }
-.mp-rv-add { flex: 1 1 auto; padding: 10px 12px; border-radius: 10px; background: var(--chip); color: var(--accent); font-size: 14px; font-weight: 700; white-space: nowrap; }
+/* v72: 쓴 리뷰·입력 칸(.mp-rv)은 단추 줄 위에 한 줄(전체 너비)로 펼쳐진다. 나만의 리뷰 단추는 단추 줄의 한 칸이다 */
+.mp-rv { margin-top: 10px; }
+.mp-rv[hidden] { display: none; }
 .mp-rv-row { display: flex; align-items: center; gap: 8px; }
 .mp-rv-row b { font-size: 12.5px; color: var(--muted); font-weight: 600; }
 .mp-rv-sp { flex: 1; }
@@ -799,10 +802,9 @@ body.theme-night .mp-pin.sel .pn { fill: #4fb3bf; }
 .mp-rb:disabled { opacity: .4; }
 /* 리뷰 칸에 글을 쓰는 중 키보드가 올라오면(.kbup): 카드를 키보드 위로 올리고 이름·리뷰 칸만 남긴다(주소·출처·같은 자리 목록·길찾기 단추는 키보드를 내리면 돌아온다) */
 .mp-card.kbup { bottom: var(--kb-bottom, 28px) !important; max-height: var(--kb-max, 58%) !important; z-index: 1100; }
-.mp-card.kbup > :not(.mp-c-top):not(.mp-c-b), .mp-card.kbup .mp-lk { display: none; }
+.mp-card.kbup > :not(.mp-c-top):not(.mp-rv) { display: none; }
 .mp-card.kbup { padding: 8px 12px; }
-.mp-card.kbup .mp-c-b { margin-top: 6px; }
-.mp-card.kbup .mp-rv.open { margin-bottom: 0; }
+.mp-card.kbup .mp-rv { margin-top: 6px; }
 /* 낮은 화면(듀오 펼침)에서 키보드 위 공간에 다 들어가도록 폼을 간추린다: 제목 줄 없음 · 별 오른쪽에 글자 수 · 단추 낮게 */
 .mp-card.kbup .mp-rv-form { display: grid; grid-template-columns: 1fr auto; gap: 6px 8px; padding: 8px 10px; }
 .mp-card.kbup .mp-rv-h { display: none; }
