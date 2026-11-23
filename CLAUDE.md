@@ -18,6 +18,7 @@
 | `NOTES.md` | 진행 기록 + 실기기 확인 목록(버전마다 한 줄 추가) |
 | `docs/HANDOFF-map-theme.md` | 진행 예정 작업(지도 그림을 앱 테마에 맞추기)의 인수 메모 |
 | `docs/HANDOFF-brand-cafes.md` | 모임 장소 지도의 **카페 층**(서울 모든 카페·프랜차이즈/개인 걸러 보기·내 장소 핀 색)과 **보드게임 카페 층**(별도 단추·서울)의 인수 메모 |
+| `docs/SUPPORT-SETUP.md` | **문의하기(메일 작성 창)·후원하기(앱 안 결제)** 설정 안내: 받는 메일 주소(`INQUIRY_EMAIL`), App Store Connect 후원 상품 ID, 세무·법률 상담 권고, 실기기 확인표 |
 | `docs/emergency-raster/` | **비상용 래스터(A) 지도**(v68에서 앱에서 삭제). v67의 래스터 코드·CSS·시험(map4)과 되살리는 순서(README). 앱에는 들어가지 않음 |
 | `scripts/filter-cafes.py` | 공공데이터 상가정보 CSV에서 서울 모든 카페 + 서울 밖 스타벅스·투썸을 걸러 `cafes.json` 을, 이름에 '보드게임'이 든(또는 브랜드·'○○보드카페' 이름인) 서울 가게를 걸러 `boardgame.json` 을 함께 만드는 PC용 스크립트(시험: `tests/filter-cafes-test.py`) |
 

@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v68';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v69';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -1957,9 +1957,13 @@
       '<div class="row"><span>화면 구성</span>' + seg(LAYOUTS, settings.layout, 'layout') + '</div>' +
       '<button class="row rowlink" id="go-tr" type="button"><span>번역 선택 <small class="sub">' + (settings.std ? 'AI 표준어 번역 켜짐' : '개역한글만 보기') + '</small></span><span class="chev">›</span></button>' +
       '<button class="row rowlink" id="go-adv" type="button"><span>고급설정 <small class="sub">여백 · 위치 · 백업 · 화면 맞추기</small></span><span class="chev">›</span></button>' +
+      '<button class="row rowlink" id="go-ask" type="button"><span>문의하기 <small class="sub">제목 · 내용 · 사진을 메일로 보내기</small></span><span class="chev">›</span></button>' +
+      '<button class="row rowlink" id="go-sup" type="button"><span>후원하기 <small class="sub">번역본 추가 · 세계로 가는 앱 개발</small></span><span class="chev">›</span></button>' +
       '<p class="credit" aria-label="앱 제작자 SEONHAN">© SEONHAN</p>';   // v62: 설정 화면 맨 아래 제작자 표시
     $('#go-tr').addEventListener('click', () => { showTranslations(); sheetBody.scrollTop = 0; });
     $('#go-adv').addEventListener('click', () => { advHelpOpen = {}; showAdvanced(); sheetBody.scrollTop = 0; });
+    $('#go-ask').addEventListener('click', () => { showInquiry(); sheetBody.scrollTop = 0; });
+    $('#go-sup').addEventListener('click', () => { showSupport(); sheetBody.scrollTop = 0; });
     sheetBody.querySelectorAll('[data-f]').forEach((b) => b.addEventListener('click', () => {
       const next = Math.min(FONT_MAX, Math.max(FONT_MIN, settings.fontSize + (+b.dataset.f)));
       if (next !== settings.fontSize) changeSettings({ fontSize: next });
@@ -1968,6 +1972,206 @@
       b.addEventListener('click', () => {
         changeSettings({ [b.dataset.k]: b.dataset.v });
       }));
+  }
+
+  // ---------- 문의하기 · 후원하기 (v69) ----------
+  // 받는 메일 주소: 이 한 줄만 고치면 됩니다. 비워 두면 '아직 설정되지 않음'으로 보이고 보내기가 꺼집니다.
+  const INQUIRY_EMAIL = '';
+  const ASK_MAX_PHOTOS = 3, ASK_MAX_TITLE = 80, ASK_MAX_BODY = 2000;
+  const ASK_PHOTO_EDGE = 1600, ASK_PHOTO_BYTES = 1200000;   // 사진은 긴 변 1600px·약 1.2MB 안쪽으로 줄여서 붙인다
+  let askDraft = { title: '', body: '', photos: [] };       // 화면을 닫았다 열어도 쓰던 글이 남도록 메모리에 둔다(앱을 끄면 사라짐)
+  let askBusy = false, askPhotoBusy = false;
+
+  // 앱(껍데기)에 요청을 보내고 답을 기다린다. 앱이 답을 window.bfMail / window.bfSupport 로 돌려준다.
+  const nativeBridge = () => (NATIVE && window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.bf) || null;
+  let nativeSeq = 0;
+  const nativeWait = {};
+  const nativeCall = (msg, timeoutMs) => new Promise((resolve) => {
+    const br = nativeBridge();
+    if (!br) { resolve({ result: 'nobridge' }); return; }
+    const id = ++nativeSeq;
+    let timer = null;
+    nativeWait[id] = (r) => { clearTimeout(timer); resolve(r || { result: 'fail' }); };
+    if (timeoutMs) timer = setTimeout(() => { delete nativeWait[id]; resolve({ result: 'timeout' }); }, timeoutMs);
+    try { br.postMessage(Object.assign({ id }, msg)); } catch (e) { delete nativeWait[id]; clearTimeout(timer); resolve({ result: 'fail' }); }
+  });
+  const nativeReply = (r) => { const f = r && nativeWait[r.id]; if (f) { delete nativeWait[r.id]; f(r); } };
+  window.bfMail = nativeReply;
+  window.bfSupport = (r) => {
+    if (r && r.id === 0) { if (r.result === 'thanks') showToastLine('후원해 주셔서 진심으로 감사드립니다.'); return; }   // 승인 대기였던 결제가 나중에 끝난 경우
+    nativeReply(r);
+  };
+
+  async function copyToClipboard(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch (e) { /* 아래 방법으로 */ }
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+      document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+      const ok = document.execCommand('copy'); ta.remove(); return ok;
+    } catch (e) { return false; }
+  }
+
+  // 휴대폰 사진은 크므로 메일에 붙일 만큼만 줄인다(긴 변 1600px, JPEG)
+  async function askShrink(file) {
+    let src = null;
+    if (window.createImageBitmap) { try { src = await createImageBitmap(file, { imageOrientation: 'from-image' }); } catch (e) { src = null; } }
+    if (!src) {
+      const url = URL.createObjectURL(file);
+      src = await new Promise((res, rej) => {
+        const im = new Image();
+        im.onload = () => res(im);
+        im.onerror = () => rej(new Error('이미지를 읽지 못했습니다'));
+        im.src = url;
+      });
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    }
+    const iw = src.width || src.naturalWidth, ih = src.height || src.naturalHeight;
+    if (!iw || !ih) throw new Error('빈 이미지');
+    const k = Math.min(1, ASK_PHOTO_EDGE / Math.max(iw, ih));
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round(iw * k)); cv.height = Math.max(1, Math.round(ih * k));
+    const cx = cv.getContext('2d');
+    cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);   // 투명한 그림이 검게 나오지 않도록 흰 바탕
+    cx.drawImage(src, 0, 0, cv.width, cv.height);
+    if (src.close) src.close();
+    let q = 0.82, url = cv.toDataURL('image/jpeg', q);
+    while (url.length * 0.75 > ASK_PHOTO_BYTES && q > 0.45) { q -= 0.12; url = cv.toDataURL('image/jpeg', q); }
+    const b64 = url.slice(url.indexOf(',') + 1);
+    return { b64, url, bytes: Math.round(b64.length * 0.75) };
+  }
+
+  function showInquiry() {
+    sheetTitle.textContent = '문의하기';
+    setSheetAct(null);
+    backBtn.hidden = false;
+    sheetBack = () => { showSettings(); sheetBody.scrollTop = 0; };
+    sheetBody.innerHTML =
+      '<p class="note tight">불편한 점·오류·바라는 점을 보내 주세요. 사진은 ' + ASK_MAX_PHOTOS + '장까지 붙일 수 있습니다. ' +
+      '「메일로 보내기」를 누르면 아이폰의 <b>메일 작성 창</b>이 열리고, 내용을 확인한 뒤 거기서 한 번 더 보내기를 누르면 전달됩니다. ' +
+      '앱 버전과 화면 크기가 메일 끝에 함께 적힙니다.</p>' +
+      (INQUIRY_EMAIL ? '' : '<p class="ask-warn">받는 메일 주소가 아직 설정되지 않아 보낼 수 없습니다.</p>') +
+      '<label class="ask-lab" for="ask-title">제목</label>' +
+      '<input id="ask-title" class="ask-in" type="text" maxlength="' + ASK_MAX_TITLE + '" placeholder="예) 모임 장소 화면에서 글자가 겹칩니다" autocomplete="off">' +
+      '<label class="ask-lab" for="ask-body">내용 <small class="sub" id="ask-count"></small></label>' +
+      '<textarea id="ask-body" class="ask-in" rows="7" maxlength="' + ASK_MAX_BODY + '" placeholder="어떤 화면에서 무엇을 했을 때 어떤 일이 생겼는지 적어 주세요."></textarea>' +
+      '<div class="ask-lab">사진 <small class="sub" id="ask-pcount"></small></div>' +
+      '<div class="ask-photos" id="ask-photos"></div>' +
+      '<div class="row ask-send"><span id="ask-msg" class="sub" role="status" aria-live="polite">&nbsp;</span><button class="seg-btn on" id="ask-send" type="button">메일로 보내기</button></div>' +
+      '<div id="ask-fb" class="ask-fb" hidden></div>';
+    const ti = $('#ask-title'), bo = $('#ask-body'), msg = $('#ask-msg'), send = $('#ask-send'), box = $('#ask-photos'), fb = $('#ask-fb');
+    ti.value = askDraft.title; bo.value = askDraft.body;
+    const say = (t) => { msg.textContent = t || ' '; };
+    const counts = () => { $('#ask-count').textContent = '(' + bo.value.length + '/' + ASK_MAX_BODY + ')'; $('#ask-pcount').textContent = '(' + askDraft.photos.length + '/' + ASK_MAX_PHOTOS + ')'; };
+    const photos = () => {
+      box.innerHTML = askDraft.photos.map((p, i) =>
+        '<div class="ask-ph"><img src="' + p.url + '" alt="첨부 사진 ' + (i + 1) + '"><button type="button" data-rm="' + i + '" aria-label="사진 ' + (i + 1) + ' 빼기">×</button></div>').join('') +
+        (askDraft.photos.length < ASK_MAX_PHOTOS ? '<label class="ask-add">＋<small>사진 추가</small><input id="ask-file" type="file" accept="image/*" multiple></label>' : '');
+      box.querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => { askDraft.photos.splice(+b.dataset.rm, 1); say(''); photos(); counts(); }));
+      const fi = $('#ask-file');
+      if (fi) fi.addEventListener('change', async (e) => {
+        const files = [...(e.target.files || [])]; e.target.value = '';
+        const room = ASK_MAX_PHOTOS - askDraft.photos.length;
+        if (!files.length || room <= 0) return;
+        if (files.length > room) say('사진은 ' + ASK_MAX_PHOTOS + '장까지 붙일 수 있어 ' + room + '장만 담았습니다.');
+        askPhotoBusy = true; send.disabled = true;
+        let bad = 0;
+        for (const f of files.slice(0, room)) {
+          if (files.length <= room) say('사진을 줄이는 중…');
+          try { askDraft.photos.push(await askShrink(f)); } catch (err) { bad++; }
+        }
+        askPhotoBusy = false; send.disabled = false;
+        if (!document.body.contains(box)) return;
+        if (bad) say('읽지 못한 사진이 ' + bad + '장 있습니다. 다른 사진으로 다시 시도해 주세요.');
+        else if (files.length <= room) say('');
+        photos(); counts();
+      });
+    };
+    ti.addEventListener('input', () => { askDraft.title = ti.value; say(''); fb.hidden = true; });
+    bo.addEventListener('input', () => { askDraft.body = bo.value; say(''); fb.hidden = true; counts(); });
+    photos(); counts();
+
+    // 메일 작성 창을 열 수 없을 때(메일 계정이 없거나 PC 화면): 주소·내용을 복사하거나 기본 메일 앱으로 넘긴다
+    const fallback = (subject, text, why) => {
+      const mailto = 'mailto:' + INQUIRY_EMAIL + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(text.slice(0, 1500));
+      fb.hidden = false;
+      fb.innerHTML =
+        '<p class="adv-desc">' + esc(why) + '</p>' +
+        '<p class="adv-desc">받는 주소: <b class="ask-addr">' + esc(INQUIRY_EMAIL) + '</b></p>' +
+        '<div class="adv-btns"><button class="seg-btn" id="ask-c-addr" type="button">주소 복사</button><button class="seg-btn" id="ask-c-text" type="button">제목·내용 복사</button></div>' +
+        '<a class="seg-btn ask-mailto" href="' + esc(mailto).replace(/"/g, '&quot;') + '">기본 메일 앱으로 열기 (사진은 붙지 않음)</a>';
+      $('#ask-c-addr').addEventListener('click', async () => { say((await copyToClipboard(INQUIRY_EMAIL)) ? '주소를 복사했습니다.' : '복사가 안 됐습니다. 주소를 길게 눌러 복사하세요.'); });
+      $('#ask-c-text').addEventListener('click', async () => { say((await copyToClipboard(subject + '\n\n' + text)) ? '제목과 내용을 복사했습니다.' : '복사가 안 됐습니다. 내용 칸을 길게 눌러 복사하세요.'); });
+    };
+
+    send.addEventListener('click', async () => {
+      if (askBusy) return;
+      const title = askDraft.title.trim(), text = askDraft.body.trim();
+      if (!INQUIRY_EMAIL) { say('받는 메일 주소가 설정되지 않아 보낼 수 없습니다.'); return; }
+      if (!title) { say('제목을 입력해 주세요.'); ti.focus(); return; }
+      if (!text) { say('내용을 입력해 주세요.'); bo.focus(); return; }
+      if (askPhotoBusy) { say('사진을 줄이는 중입니다. 잠시 뒤 다시 눌러 주세요.'); return; }
+      const subject = '[앱 문의] ' + title;
+      const full = text + '\n\n— — —\n앱 ' + APP_VER + ' · 화면 ' + window.innerWidth + '×' + window.innerHeight;
+      if (!nativeBridge()) { fallback(subject, full, '이 화면(아이폰 앱이 아닌 곳)에서는 메일 작성 창을 열 수 없습니다.'); return; }
+      askBusy = true; send.disabled = true; fb.hidden = true; say('메일 작성 창을 여는 중…');
+      const r = await nativeCall({ mail: { to: INQUIRY_EMAIL, subject, body: full, photos: askDraft.photos.map((p) => ({ data: p.b64 })) } });
+      askBusy = false;
+      if (r.result === 'sent') askDraft = { title: '', body: '', photos: [] };
+      if (!document.body.contains(send)) { if (r.result === 'sent') showToastLine('문의를 보냈습니다. 감사합니다.'); return; }
+      send.disabled = false;
+      if (r.result === 'sent') { ti.value = ''; bo.value = ''; photos(); counts(); say('문의를 보냈습니다. 감사합니다.'); }
+      else if (r.result === 'saved') say('임시 보관함에 저장했습니다. 메일 앱에서 보내 주세요.');
+      else if (r.result === 'cancelled') say('보내기를 취소했습니다. 작성한 내용은 그대로 있습니다.');
+      else if (r.result === 'unavailable') { say(''); fallback(subject, full, '이 아이폰에는 메일 계정이 없어 메일 작성 창을 열 수 없습니다. 설정 › 메일에서 계정을 추가하면 사진까지 바로 보낼 수 있습니다. 아래 방법으로도 보낼 수 있습니다.'); }
+      else if (r.result === 'busy') say('다른 창이 열려 있습니다. 닫은 뒤 다시 눌러 주세요.');
+      else say('메일을 보내지 못했습니다. 잠시 뒤 다시 시도해 주세요.');
+    });
+  }
+
+  function showSupport() {
+    sheetTitle.textContent = '후원하기';
+    setSheetAct(null);
+    backBtn.hidden = false;
+    sheetBack = () => { showSettings(); sheetBody.scrollTop = 0; };
+    sheetBody.innerHTML =
+      '<p class="note tight">이 앱은 개인이 만들어 무료로 배포합니다. 후원은 <b>전적으로 선택</b>이며, 후원하지 않으셔도 모든 기능을 똑같이 쓰실 수 있습니다.</p>' +
+      '<div class="adv-head">후원금은 이렇게 쓰입니다</div>' +
+      '<ul class="sup-list">' +
+      '<li><b>개역개정과 다양한 번역본 추가</b><span>번역본마다 저작권자의 사용 허락과 이용 비용이 필요합니다. 그 비용과 화면 작업에 씁니다.</span></li>' +
+      '<li><b>세계 어디서나 쓸 수 있는 앱 개발</b><span>여러 언어 지원, 나라별 번역본 연결, 안정적인 운영에 필요한 개발비로 씁니다.</span></li></ul>' +
+      '<p class="adv-desc">후원이 특정 번역본의 추가나 그 시기를 약속하는 것은 아닙니다. 번역본은 저작권자의 허락을 받은 경우에만 넣을 수 있습니다. 후원으로 기능이 열리거나 광고가 사라지는 일은 없습니다.</p>' +
+      '<div class="adv-head">후원하기</div>' +
+      '<div class="sup-box" id="sup-box"><p class="sup-state" id="sup-state" role="status" aria-live="polite">후원 상품을 불러오는 중…</p></div>' +
+      '<p class="adv-desc">결제는 Apple ID로 이루어지고, Apple 수수료를 뺀 금액이 개발자에게 전달됩니다. 기부금 영수증은 발급되지 않습니다.</p>';
+    const box = $('#sup-box'), state = $('#sup-state');
+    const alive = () => document.body.contains(box);
+    nativeCall({ support: 'list' }, 10000).then((r) => {
+      if (!alive()) return;
+      if (r.result === 'nobridge') { state.textContent = '후원은 아이폰 앱에서만 할 수 있습니다.'; return; }
+      if (r.result === 'timeout' || r.result === 'fail') { state.textContent = '후원 상품을 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 이 화면을 다시 열어 주세요.'; return; }
+      const items = Array.isArray(r.items) ? r.items : [];
+      if (!items.length) { state.textContent = '지금은 후원할 수 있는 상품이 없습니다. 후원은 App Store에서 설치한 앱에서 사용할 수 있으며, 직접 설치(사이드로드)한 앱에서는 열리지 않습니다.'; return; }
+      state.textContent = '후원 금액을 골라 주세요. 누르면 Apple 결제 창이 열립니다.';
+      const list = document.createElement('div');
+      list.className = 'sup-btns';
+      list.innerHTML = items.map((it) => '<button class="sup-btn" type="button" data-pid="' + esc(String(it.id)) + '"><span>' + esc(String(it.name || '후원')) + '</span><b>' + esc(String(it.price || '')) + '</b></button>').join('');
+      box.appendChild(list);
+      list.querySelectorAll('.sup-btn').forEach((b) => b.addEventListener('click', async () => {
+        if (list.dataset.busy) return;
+        list.dataset.busy = '1'; list.querySelectorAll('.sup-btn').forEach((x) => { x.disabled = true; });
+        state.textContent = 'Apple 결제 창을 여는 중…';
+        const res = await nativeCall({ support: 'buy', pid: b.dataset.pid });
+        if (!alive()) { if (res.result === 'thanks') showToastLine('후원해 주셔서 진심으로 감사드립니다.'); return; }
+        delete list.dataset.busy; list.querySelectorAll('.sup-btn').forEach((x) => { x.disabled = false; });
+        state.textContent = ({
+          thanks: '후원해 주셔서 진심으로 감사드립니다. 주신 뜻을 소중히 쓰겠습니다.',
+          cancelled: '결제를 취소했습니다.',
+          pending: '결제 승인을 기다리는 중입니다. 승인되면 자동으로 처리됩니다.',
+          unavailable: '이 상품을 지금은 불러올 수 없습니다. 잠시 뒤 다시 시도해 주세요.',
+        })[res.result] || '결제를 마치지 못했습니다. 잠시 뒤 다시 시도해 주세요.';
+      }));
+    });
   }
 
   // ---------- 고급설정: 여백 · 위치 · 백업 · 화면 맞추기 ----------

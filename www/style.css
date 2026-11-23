@@ -295,6 +295,37 @@ html.kb #sheet.tall .panel { height: 100%; }
   border: 1.5px solid var(--muted); border-radius: 50%; color: var(--muted); font-size: 12px; font-weight: 700; line-height: 1; touch-action: manipulation; }   /* ⓘ: 누르면 그 항목의 설명이 펼쳐진다 */
 .qm::after { content: ''; position: absolute; top: -12px; right: -12px; bottom: -12px; left: -12px; }   /* 누르는 자리를 크게(약 44px) */
 .qm[aria-expanded="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+/* v69: 문의하기 · 후원하기 */
+.ask-lab { display: block; margin: 16px 0 6px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.ask-in { display: block; width: 100%; box-sizing: border-box; font: inherit; font-size: 16px; line-height: 1.5; padding: 11px 12px; border-radius: 11px; border: 1px solid var(--line);
+  background: var(--chip); color: var(--fg); outline: none; resize: none; -webkit-user-select: text; user-select: text; -webkit-appearance: none; appearance: none; }
+.ask-in:focus { border-color: var(--accent); }
+.ask-warn { margin: 10px 0 0; padding: 9px 12px; border-radius: 10px; background: var(--chip); color: var(--accent); font-size: 13px; font-weight: 600; line-height: 1.5; }
+.ask-photos { display: flex; flex-wrap: wrap; gap: 10px; }
+.ask-ph, .ask-add { position: relative; width: 84px; height: 84px; border-radius: 11px; overflow: hidden; background: var(--chip); }
+.ask-ph img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.ask-ph button { position: absolute; top: 3px; right: 3px; width: 26px; height: 26px; border-radius: 50%; background: rgba(0, 0, 0, .62); color: #fff; font-size: 17px; line-height: 1; }
+.ask-ph button::after { content: ''; position: absolute; top: -9px; right: -9px; bottom: -9px; left: -9px; }
+.ask-add { display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1.5px dashed var(--muted); background: transparent; color: var(--muted); font-size: 24px; line-height: 1.1; cursor: pointer; }
+.ask-add small { font-size: 11px; }
+.ask-add input { position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; font-size: 0; cursor: pointer; }   /* 입력 칸이 상자를 덮어 눌러도 바로 사진 고르기가 열린다 */
+.ask-send { border-bottom: 0; margin-top: 6px; }
+.ask-send .sub { flex: 1 1 auto; min-width: 0; line-height: 1.5; }
+.ask-send .seg-btn { flex: 0 0 auto; padding: 12px 18px; }
+.ask-fb[hidden] { display: none; }
+.ask-fb { margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--line); }
+.ask-addr { color: var(--fg); -webkit-user-select: text; user-select: text; word-break: break-all; }
+.ask-mailto { display: block; text-align: center; text-decoration: none; color: var(--fg); margin-top: 6px; }
+.sup-list { list-style: none; margin: 8px 0 10px; padding: 0; }
+.sup-list li { padding: 11px 12px; margin-bottom: 8px; border-radius: 11px; background: var(--chip); }
+.sup-list b { display: block; font-size: 15px; }
+.sup-list span { display: block; margin-top: 3px; font-size: 12.5px; line-height: 1.6; color: var(--muted); }
+.sup-box { margin: 6px 0 12px; }
+.sup-state { margin: 0 0 10px; font-size: 13px; line-height: 1.6; color: var(--muted); }
+.sup-btns { display: flex; flex-direction: column; gap: 8px; }
+.sup-btn { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 14px 16px; border-radius: 11px; background: var(--chip); font-size: 15px; text-align: left; }
+.sup-btn b { color: var(--accent); }
+.sup-btn:disabled { opacity: .45; }
 .seg-btn:disabled { opacity: .45; }
 .seg-btn.on { background: var(--accent); color: var(--bg); font-weight: 700; }
 .bk-text {
