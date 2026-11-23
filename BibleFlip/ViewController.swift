@@ -16,7 +16,6 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
     private var theme: String = UserDefaults.standard.string(forKey: "bf.theme") ?? "paper"
     private var errorShown = false
     private let places = LocationBridge()   // 모임 장소 지도: 현재 위치·주소 찾기
-    private let support = SupportBridge()   // 후원하기: 앱 안 결제(StoreKit 2)
     private var mailId = 0                  // 문의하기: 지금 열려 있는 메일 작성 창의 요청 번호
 
     // Mac 없이도 문제를 알 수 있도록: 웹에서 난 오류를 앱이 한 번 화면에 띄운다 (진단용)
@@ -41,7 +40,7 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         config.setURLSchemeHandler(BundleSchemeHandler(), forURLScheme: "bibleflip")
         config.allowsInlineMediaPlayback = true
         // 지도 바탕(OpenStreetMap) 서버가 앱을 알아볼 수 있도록 앱 이름을 접속 정보(User-Agent)에 덧붙인다
-        config.applicationNameForUserAgent = "BibleFlip/69"
+        config.applicationNameForUserAgent = "BibleFlip/70"
         let controller = WKUserContentController()
         controller.add(WeakMessageHandler(self), name: "bf")
         controller.addUserScript(WKUserScript(source: ViewController.diagScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
@@ -77,8 +76,6 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillHide(_:)),
                                                name: UIResponder.keyboardWillHideNotification, object: nil)
         places.onFix = { [weak self] r in self?.sendToWeb("bfLocation", r) }
-        support.onEvent = { [weak self] r in self?.sendToWeb("bfSupport", r) }
-        support.startListening()
         load()
     }
 
@@ -152,16 +149,6 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         }
         // 문의하기: 아이폰 기본 메일 작성 창(받는 사람·제목·내용·사진이 채워진 채)
         if let m = body["mail"] as? [String: Any] { composeMail(m, id: (body["id"] as? Int) ?? 0); return }
-        // 후원하기: 상품 목록 · 결제
-        if let action = body["support"] as? String {
-            let id = (body["id"] as? Int) ?? 0
-            if action == "list" {
-                support.list(id: id)
-            } else if action == "buy", let pid = body["pid"] as? String {
-                support.buy(id: id, productID: pid)
-            }
-            return
-        }
         if let u = body["open"] as? String { openExternal(u, fallback: body["fallback"] as? String); return }
         guard let t = body["theme"] as? String else { return }
         UserDefaults.standard.set(t, forKey: "bf.theme")

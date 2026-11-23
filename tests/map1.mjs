@@ -40,12 +40,12 @@ for (const [name,w,h,si,KB] of DEV) {
   // ---- 머리줄: 순서·개수·배치 ----
   const hdr=await p.evaluate(()=>[...document.querySelectorAll('.menu-row button')].map(e=>{const r=e.getBoundingClientRect(); return {id:e.id,l:r.left,t:r.top,r:r.right,b:r.bottom}}));
   const order=[...hdr].sort((a,c)=>Math.round(a.t/10)-Math.round(c.t/10)||a.l-c.l).map(x=>x.id);
-  ok(name+': 머리줄 순서 = 검색·하이라이트·노트·바이블 포토 카드·지도·설정', JSON.stringify(order)==='["btn-search","btn-hl","btn-notes","btn-card","btn-map","btn-settings"]', order.join(','));
+  ok(name+': 머리줄 순서 = 검색·하이라이트·노트·바이블 포토 카드·지도·문의하기·설정', JSON.stringify(order)==='["btn-search","btn-hl","btn-notes","btn-card","btn-map","btn-ask","btn-settings"]', order.join(','));
   ok(name+': 번역 단추는 머리줄에 없다', (await p.evaluate(()=>!document.querySelector('#btn-easy'))));
-  ok(name+': 단추 6개가 화면 안에 있다', hdr.length===6 && hdr.every(x=>x.l>=0&&x.r<=w&&x.t>=0&&x.b<=h), JSON.stringify(hdr.map(x=>[Math.round(x.l),Math.round(x.t)])));
+  ok(name+': 단추 7개가 화면 안에 있다', hdr.length===7 && hdr.every(x=>x.l>=0&&x.r<=w&&x.t>=0&&x.b<=h), JSON.stringify(hdr.map(x=>[Math.round(x.l),Math.round(x.t)])));
   const rows=new Set(hdr.map(x=>Math.round(x.t/10)));
   const spread=await p.evaluate(()=>document.body.classList.contains('is-spread'));
-  ok(name+': 배치 모양('+(spread?'펼침 한 줄':'한 쪽 3×2')+')', spread?rows.size===1:rows.size===2, 'rows='+rows.size);
+  ok(name+': 배치 모양('+(spread?'펼침 한 줄':'한 쪽 윗줄 3·아랫줄 4')+')', spread?rows.size===1:rows.size===2, 'rows='+rows.size);
   const ttl=await p.evaluate(R('#btn-pick')); const minL=Math.min(...hdr.map(x=>x.l));
   ok(name+': 책 이름과 메뉴가 겹치지 않는다', ttl.r<=minL+1, `title.r=${Math.round(ttl.r)} menu.l=${Math.round(minL)}`);
   await p.screenshot({path:`map1-${SN[name]}-header.png`,clip:{x:0,y:0,width:w,height:Math.min(h,170)}});
