@@ -321,7 +321,7 @@ html.kb #sheet.tall .panel { height: 100%; }
 .chnav button:disabled { opacity: 0; pointer-events: none; }
 
 /* ---------- 설교노트 ---------- */
-/* 펼친 화면: 책 왼쪽 옆면(무대 밖 왼쪽 여백)에 붙는 인덱스 탭. 제목 앞 6글자가 세로로 적히고, 누르면 그 노트가 열린다. */
+/* 펼친 화면: 책 옆면(무대 밖 왼쪽·오른쪽 여백)에 붙는 인덱스 탭(왼쪽 쪽의 노트는 왼쪽, 오른쪽 쪽의 노트는 오른쪽). 제목 앞 6글자가 세로로 적히고, 누르면 그 노트가 열린다. */
 #note-tabs { position: fixed; left: 0; top: 0; width: 0; height: 0; z-index: 9; transition: opacity .15s; }
 #note-tabs.moving { opacity: 0; pointer-events: none; }
 .nt-tab {
@@ -332,6 +332,9 @@ html.kb #sheet.tall .panel { height: 100%; }
 #note-tabs.spot .nt-tab { transition: transform .15s, opacity .15s, box-shadow .15s; }
 #note-tabs.spot .nt-tab:not(.sel) { opacity: .45; }
 #note-tabs.spot .nt-tab.sel { transform: translateX(4px); box-shadow: -3px 2px 8px rgba(0, 0, 0, .35); }
+/* 오른쪽 쪽의 노트: 화면 오른쪽 끝에 붙는 탭(왼쪽 탭의 거울상, v67) */
+.nt-tab.nt-r { border-radius: 0 9px 9px 0; box-shadow: 1px 1px 2px rgba(0, 0, 0, .18); }
+#note-tabs.spot .nt-tab.nt-r.sel { transform: translateX(-4px); box-shadow: 3px 2px 8px rgba(0, 0, 0, .35); }
 /* 스포트라이트: 눌린 노트의 본문(JS가 규칙을 덧붙여 opacity 1로 되돌린다)만 남기고 나머지 글은 흐리게 */
 #stage.spot p[data-k], #stage.spot p[data-s], #stage.spot h2.ch { opacity: .2; transition: opacity .18s; }
 /* 노트 미리보기 카드 */
@@ -357,6 +360,7 @@ html.kb #sheet.tall .panel { height: 100%; }
 .pk-fold { background: var(--chip); }
 .pk-hint { margin-left: auto; color: var(--muted); font-size: 12px; }
 .nt-tab::after { content: ''; position: absolute; top: -4px; bottom: -4px; left: -14px; right: 0; }   /* 눌리는 영역을 왼쪽·위아래로 넓힌다 */
+.nt-tab.nt-r::after { left: 0; right: -14px; }   /* 오른쪽 탭은 눌리는 영역을 오른쪽·위아래로 넓힌다 */
 .nt-tab b {
   writing-mode: vertical-rl; -webkit-writing-mode: vertical-rl; text-orientation: upright; -webkit-text-orientation: upright;
   font: 700 11.5px/1 var(--sans); letter-spacing: .04em; color: #fff; pointer-events: none; white-space: nowrap;

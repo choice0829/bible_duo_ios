@@ -20,7 +20,7 @@
   const SPREAD_MIN_SHIFT = 28;     // 그 밖의 기기: 책 왼쪽에 최소로 남기는 폭 (노트 탭이 붙는 자리)
   const BOTTOM_SPREAD_DEFAULT = 20;
   // 아이폰 앱(껍데기) 전용 — 펼친 화면의 책을 '카드'로 둔다: 좌우 여백을 같게, 아래도 화면 끝에서 띄운다.
-  const NATIVE_TEXT_OUT = 26;           // 앱 펼침: 화면 바깥쪽 가장자리에서 본문 글자까지(px). 책 카드 없이 화면 전체를 책장으로 쓴다 (v41, v64: 30 → 24, v65: 노트 탭이 답답해 보여 24 → 26)
+  const NATIVE_TEXT_OUT = 38;           // 앱 펼침: 화면 바깥쪽 가장자리에서 본문 글자까지(px). 책 카드 없이 화면 전체를 책장으로 쓴다 (v41, v64: 30 → 24, v65: 26, v66: 노트 탭이 화면 끝에서 10px 떨어지고 본문과도 10px 띄우도록 38)
   const NATIVE_SIDE_SINGLE = 24;        // 앱 한 쪽(접은·세로) 화면: 본문 좌우 여백(px). 웹앱은 8 (v43)
   const NATIVE_TEXT_IN = 22;            // 앱 펼침: 가운데(책등) 쪽 글자 여백(px). 두 쪽 사이 간격은 이 값의 두 배
   const NATIVE_BOTTOM_GAP = 12;         // 앱 펼침: 본문 아래 끝과 화면 맨 아래 사이(px, 안전영역이 더 크면 그만큼). 낮은 화면(가로로 돌린 아이폰)은 10
@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v65';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v67';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -208,7 +208,7 @@
     const headR = Math.max(Math.round(W - bookRight + padOut), Math.round(si.right) + (spread ? 8 : 14), 14);
     return {
       W, H, spread, compact, duo, sym, pageW, pageH, bookW: spread ? pageW * 2 : pageW,
-      padX: full ? padOut : padX, padOut, padIn, full, tabEdge: full ? Math.max(padOut - 9, 0) : shiftX,
+      padX: full ? padOut : padX, padOut, padIn, full, tabEdge: full ? Math.max(padOut - 10, 0) : shiftX,
       padTop, padBottom, si, shiftX, eff, stageTop, txtTop, headR, intoPill,
       textW: pageW - padOut - padIn, textH: pageH - txtTop - padBottom,
     };
@@ -2454,11 +2454,17 @@
     tabsEl.innerHTML = '';
     tabsEl.classList.remove('moving');
     if (!bible || !pg || scroller || !flip || !pg.g || !pg.g.spread) return;
-    const edge = pg.g.tabEdge != null ? pg.g.tabEdge : pg.g.shiftX;   // 노트 탭의 오른쪽 끝(책 왼쪽 가장자리, 앱 펼침은 본문 왼쪽 끝 9px 앞 — v65: 탭과 본문 사이를 넉넉하게)
-    const tw = Math.min(23, pg.g.full ? edge : edge - 2);   // 앱 펼침은 탭이 화면 왼쪽 끝에 붙는다(왼쪽 0px)
-    if (tw < 16) return;   // 왼쪽 여백이 너무 좁으면 탭은 생략하고 본문의 절 번호 배지만 보인다
-    // 지금 펼쳐진 두 쪽(왼쪽 L, 오른쪽 L+1)만 읽는 순서대로 본다. 그 노트 본문이 처음 나오는 줄의 높이를 잡는다.
-    const W = window.innerWidth, top = {};
+    // 노트 탭은 그 노트 본문이 처음 나오는 쪽 가장자리에 붙는다: 왼쪽 쪽의 노트는 화면 왼쪽, 오른쪽 쪽의 노트는 화면 오른쪽 (v67)
+    // 왼쪽: 탭의 오른쪽 끝이 책 왼쪽 가장자리(앱 펼침은 본문 왼쪽 끝 10px 앞)에 닿는다. 오른쪽: 탭의 왼쪽 끝이 책 오른쪽 가장자리(본문 오른쪽 끝 10px 뒤)에 닿는다.
+    const full = !!pg.g.full;
+    const edgeL = pg.g.tabEdge != null ? pg.g.tabEdge : pg.g.shiftX;
+    const edgeR = full ? edgeL : Math.max(0, window.innerWidth - (pg.g.shiftX + pg.g.bookW));
+    const twL = Math.min(23, full ? edgeL - 10 : edgeL - 2);   // 앱 펼침은 탭이 화면 끝에서 10px 떨어진다(v66: 끝에 붙이면 답답해 보임)
+    const twR = Math.min(23, full ? edgeR - 10 : edgeR - 2);
+    const okL = twL >= 16, okR = twR >= 16;   // 여백이 너무 좁은 쪽은 탭을 생략한다(그 쪽 노트는 반대쪽에 붙이고, 양쪽 다 좁으면 본문의 절 번호 배지만 보인다)
+    if (!okL && !okR) return;
+    // 지금 펼쳐진 두 쪽(왼쪽 L, 오른쪽 L+1)만 읽는 순서대로 본다. 그 노트 본문이 처음 나오는 줄의 높이와 쪽을 잡는다.
+    const W = window.innerWidth, top = {}, where = {};
     const L = flip.getCurrentPageIndex(), all = stage.querySelectorAll('.page');
     const want = [all[L], all[L + 1]].filter(Boolean);
     const shown = want.map((el) => ({ el, r: el.getBoundingClientRect() }))
@@ -2466,37 +2472,46 @@
     // 쪽이 아직 자리를 잡기 전이면 잠시 뒤 다시 시도한다 (책을 막 만든 직후·책장이 막 넘어간 직후·느린 기기)
     if (shown.length < want.length && (tries || 0) < 8) { tabsTimer = setTimeout(() => refreshTabs((tries || 0) + 1), 150); return; }
     shown.forEach((x) => {
+      const side = x.r.left + x.r.width / 2 < W / 2 ? 'L' : 'R';
       x.el.querySelectorAll('p.nt').forEach((p) => {
         const y = p.getBoundingClientRect().top;
-        (p.dataset.n || '').split(' ').forEach((id) => { if (id && !(id in top)) top[id] = y; });
+        (p.dataset.n || '').split(' ').forEach((id) => { if (id && !(id in top)) { top[id] = y; where[id] = side; } });
       });
     });
     const items = Object.keys(top).filter((id) => noteById(id)).map((id) => {
       const n = noteById(id);
       const label = Array.from(n.title.replace(/\s+/g, '')).slice(0, 6).join('');   // 제목 앞 6글자 (v64: 5 → 6)
-      return { id, y0: top[id], label, title: n.title, h: Math.round(Array.from(label).length * 12.5 + 24) };   // 글자 위아래 여유 12px(v65, 전 9px)
+      const side = where[id] === 'R' ? (okR ? 'R' : 'L') : (okL ? 'L' : 'R');
+      return { id, y0: top[id], label, title: n.title, side, h: Math.round(Array.from(label).length * 12.5 + 24) };   // 글자 위아래 여유 12px(v65, 전 9px)
     }).sort((p, q) => p.y0 - q.y0);
-    // 겹치지 않게 위에서부터 쌓고, 아래로 넘치면 위로 당긴다. 그래도 안 들어가면 나머지는 "+N" 하나로 줄인다.
-    const topLim = 60, botLim = window.innerHeight - 10, gap = 5;
-    const stack = (list) => {
+    // 겹치지 않게 위에서부터 쌓고, 아래로 넘치면 위로 당긴다. 그래도 안 들어가면 나머지는 "+N" 하나로 줄인다. (왼쪽·오른쪽을 따로 쌓는다)
+    // 오른쪽 탭은 듀오 오른쪽 위의 상태 알약(시계·배터리) 아래에서만 놓는다.
+    const botLim = window.innerHeight - 10, gap = 5;
+    const stack = (list, topLim) => {
       let y = -1e9;
       list.forEach((it) => { it.y = Math.max(it.y0, y, topLim); y = it.y + it.h + gap; });
       let lim = botLim;
       for (let i = list.length - 1; i >= 0; i--) { list[i].y = Math.min(list[i].y, lim - list[i].h); lim = list[i].y - gap; }
       return !list.length || list[0].y >= topLim;
     };
-    let list = items;
-    for (let keep = items.length; keep >= 0; keep--) {
-      list = items.slice(0, keep).map((it) => Object.assign({}, it));
-      if (keep < items.length) list.push({ more: items.length - keep, label: '+' + (items.length - keep), title: '설교노트 목록', y0: botLim, h: 34 });
-      if (stack(list)) break;
-    }
-    const left = edge - tw;   // 탭의 오른쪽 끝이 책 왼쪽 가장자리에 붙는다
-    tabsEl.innerHTML = list.map((it) =>
-      '<button type="button" class="nt-tab" ' + (it.more ? 'data-more="1"' : 'data-note="' + it.id + '"') +
-      ' aria-label="' + (it.more ? '설교노트 더 보기: ' : '설교노트: ') + esc(it.title).replace(/"/g, '&quot;') + '" ' +
-      'style="--n1:' + (it.more ? '#7A7A7A' : noteColor(it.id)) + ';left:' + left + 'px;top:' + Math.round(it.y) + 'px;width:' + tw + 'px;height:' + it.h + 'px">' +
-      '<b>' + esc(it.label) + '</b></button>').join('');
+    const layout = (all2, side) => {
+      const topLim = side === 'R' && pg.g.intoPill ? Math.max(60, NATIVE_PILL_BOTTOM + 4) : 60;
+      let list = all2;
+      for (let keep = all2.length; keep >= 0; keep--) {
+        list = all2.slice(0, keep).map((it) => Object.assign({}, it, { side }));
+        if (keep < all2.length) list.push({ more: all2.length - keep, label: '+' + (all2.length - keep), title: '설교노트 목록', y0: botLim, h: 34, side });
+        if (stack(list, topLim)) break;
+      }
+      return list;
+    };
+    const list = layout(items.filter((it) => it.side === 'L'), 'L').concat(layout(items.filter((it) => it.side === 'R'), 'R'));
+    tabsEl.innerHTML = list.map((it) => {
+      const right = it.side === 'R', tw = right ? twR : twL, left = right ? W - edgeR : edgeL - tw;   // 왼쪽 탭은 오른쪽 끝이, 오른쪽 탭은 왼쪽 끝이 책 가장자리에 닿는다
+      return '<button type="button" class="nt-tab' + (right ? ' nt-r' : '') + '" ' + (it.more ? 'data-more="1"' : 'data-note="' + it.id + '"') +
+        ' aria-label="' + (it.more ? '설교노트 더 보기: ' : '설교노트: ') + esc(it.title).replace(/"/g, '&quot;') + '" ' +
+        'style="--n1:' + (it.more ? '#7A7A7A' : noteColor(it.id)) + ';left:' + left + 'px;top:' + Math.round(it.y) + 'px;width:' + tw + 'px;height:' + it.h + 'px">' +
+        '<b>' + esc(it.label) + '</b></button>';
+    }).join('');
   }
   tabsEl.addEventListener('click', (e) => {
     const b = e.target.closest('.nt-tab');
