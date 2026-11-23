@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v72';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v73';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -4230,12 +4230,23 @@
   // 길찾기(v61: 카드 단추는 '길찾기' 하나). 한국 안이면 네이버 지도 앱의 대중교통 길찾기로 열고, 출발지는 일부러 넣지 않는다 —
   // 네이버 지도 URL 스킴은 출발지(slat·slng·sname)를 생략하면 지금 내 위치를 출발지로 쓴다. 앱이 없어 안 열리면 네이버 지도 웹의 장소 검색 주소로 연다(웹 길찾기 주소는 공식 문서가 없다).
   // 한국 밖(네이버 지도가 길찾기를 못 하는 좌표)이면 구글 지도 길찾기로 연다.
+  // 정보 보기용 검색어(v73): 가게 이름 + 주소의 시·군·구(같은 이름의 다른 지점이 섞이지 않게). 예) "스타벅스 천호역점 강동구"
+  // 주소는 '서울특별시 강동구 강동대로 229'처럼 시·도로 시작하므로, 그 뒤에서 '시·군·구'로 끝나는 낱말을 앞에서부터 이어 붙이고 도로명이 나오면 멈춘다.
+  function mpInfoQuery(p) {
+    const w = (p.addr || '').trim().split(/\s+/).slice(1), reg = [];
+    for (const t of w) { if (/[시군구]$/.test(t)) reg.push(t); else break; }
+    return p.name + (reg.length ? ' ' + reg.join(' ') : '');
+  }
   function mpLinks(p) {
-    const n = encodeURIComponent(p.name), la = p.lat.toFixed(6), lo = p.lng.toFixed(6);
+    const n = encodeURIComponent(p.name), la = p.lat.toFixed(6), lo = p.lng.toFixed(6), q = encodeURIComponent(mpInfoQuery(p));
     return {
       route: mpInKorea(p)
         ? ['nmap://route/public?dlat=' + la + '&dlng=' + lo + '&dname=' + n + '&appname=com.choice0829.bibleflip', 'https://map.naver.com/p/search/' + n]
         : ['https://www.google.com/maps/dir/?api=1&destination=' + la + ',' + lo, ''],
+      // 정보 보기(v73): 지도 앱의 통합 검색으로 연다 — 영업 여부·시간·전화·사진·리뷰는 지도 앱이 보여 준다. 앱이 없으면 네이버 지도 웹 검색으로.
+      info: mpInKorea(p)
+        ? ['nmap://search?query=' + q + '&appname=com.choice0829.bibleflip', 'https://map.naver.com/p/search/' + q]
+        : ['https://www.google.com/maps/search/?api=1&query=' + q, ''],
     };
   }
   const mpLocErr = (e) => (e === 'denied'
@@ -4681,31 +4692,11 @@
     }
     return out.sort((x, y) => x[1] - y[1] || x[0] - y[0]).map((x) => x[0]);
   }
-  // 카드의 '정보 보기'(v72). 예전에는 주소 밑 한 줄(분류 · 공공데이터 기준 · 영업 여부·시간은 지도 앱에서 확인하세요)로 늘 보였는데,
-  // 그 줄을 없애고 이 단추를 눌러야 펼쳐지는 칸으로 옮겼다. 카드를 다시 그리면 접힌 상태로 돌아간다.
-  function mpInfoHtml(kind, asof) {
-    return '<div class="mp-info" id="mp-info" hidden>' +
-      '<div class="mp-c-l"><b>분류</b> ' + esc(kind) + '</div>' +
-      '<div class="mp-c-l"><b>자료</b> 공공데이터(상가정보)' + (asof ? ' ' + esc(asof) + ' 기준' : '') + '</div>' +
-      '<div class="mp-c-l">영업 여부·시간은 지도 앱에서 확인하세요.</div></div>';
-  }
-  function mpInfoBind(c) {
-    const b = c.querySelector('.mp-lk[data-o="info"]'), box = c.querySelector('#mp-info');
-    if (!b || !box) return;
-    b.addEventListener('click', () => {
-      const open = box.hidden;
-      box.hidden = !open;
-      b.textContent = open ? '정보 닫기' : '정보 보기';
-      b.setAttribute('aria-expanded', open ? 'true' : 'false');
-      b.classList.toggle('on', open);
-      if (open && box.scrollIntoView) box.scrollIntoView({ block: 'nearest' });   // 카드가 낮은 화면에서는 펼친 칸이 보이게 카드를 스크롤
-    });
-  }
   function mpBgSelect(i) {
     if (mpPicking || mpView === 'form' || !mpBgDB || !mpBgDB.r[i]) return;
     mpSelect(null);                       // 내 장소·카페 선택과 카드를 먼저 닫는다(여기서 보드게임 선택도 풀린다)
     mpBgSel = i; mpBgMarkSel();
-    const r = mpBgDB.r[i], pt = { name: r[1], lat: r[3], lng: r[4] };
+    const r = mpBgDB.r[i], pt = { name: r[1], addr: r[2], lat: r[3], lng: r[4] };
     const d = mpMe ? mpDist(mpMe, pt) : null, lk = mpLinks(pt), have = mpBrHave(r, ''), near = mpBgNear(i);
     const c = mpS('#mp-card');
     c.innerHTML =
@@ -4713,21 +4704,19 @@
         '<button type="button" class="mp-c-x" id="mp-c-x" aria-label="닫기">✕</button></div>' +
       (r[2] ? '<div class="mp-c-l">' + esc(r[2]) + '</div>' : '') +
       (near.length ? '<div class="mp-c-l mp-c-near">같은 자리 근처 보드게임 카페 ' + near.length + '곳 ' + near.slice(0, 20).map((j) => '<button type="button" class="mp-nb" data-j="' + j + '">' + esc(mpBgDB.r[j][1]) + '</button>').join('') + (near.length > 20 ? ' 외 ' + (near.length - 20) + '곳' : '') + '</div>' : '') +
-      mpInfoHtml('보드게임 카페', mpBgDB.asof) +
       '<div class="mp-rv" id="mp-rv" hidden></div>' +
       '<div class="mp-c-b">' +
-        '<button type="button" class="mp-lk" data-o="info" aria-expanded="false">정보 보기</button>' +
+        '<button type="button" class="mp-lk" data-o="info">정보 보기</button>' +
         '<button type="button" class="mp-lk" data-o="route">길찾기</button>' +
         '<button type="button" class="mp-lk mp-rv-add" data-o="rv">나만의 리뷰</button>' +
         '<button type="button" class="mp-lk edit" data-o="add"' + (have ? ' disabled' : '') + '>' + (have ? '내 장소에 있음' : '내 장소로 추가') + '</button></div>';
     c.hidden = false;
     rvMount(mpS('#mp-rv'), { k: rvKey('b', r[1], r[3], r[4]), n: r[1], la: r[3], lo: r[4] }, c.querySelector('.mp-rv-add'));
-    mpInfoBind(c);
     mpS('#mp-c-x').addEventListener('click', () => { mpBgClearSel(); mpRenderCard(null); });
     c.querySelectorAll('.mp-nb').forEach((b) => b.addEventListener('click', () => mpBgSelect(+b.dataset.j)));
     c.querySelectorAll('.mp-lk').forEach((b) => b.addEventListener('click', () => {
       const o = b.dataset.o;
-      if (o === 'info' || o === 'rv') return;   // 정보 보기·나만의 리뷰는 위에서 따로 연결했다
+      if (o === 'rv') return;                   // 나만의 리뷰는 위(rvMount)에서 따로 연결했다
       if (o === 'add') { mpOpenForm({ name: r[1], addr: r[2], tel: '', hours: '', cap: 0, memo: '', amen: [], col: 0, lat: r[3], lng: r[4] }, true); return; }
       mpOpen(lk[o][0], lk[o][1]);
     }));
@@ -4757,7 +4746,7 @@
     if (mpPicking || mpView === 'form' || !mpBrDB || !mpBrDB.r[i]) return;
     mpSelect(null);                       // 내 장소 선택·카드를 먼저 닫는다(여기서 매장 선택도 풀린다)
     mpBrSel = i; mpBrMarkSel();
-    const r = mpBrDB.r[i], brand = r[0] >= 0 ? mpBrDB.b[r[0]] || '' : '', pt = { name: r[1], lat: r[3], lng: r[4] };
+    const r = mpBrDB.r[i], brand = r[0] >= 0 ? mpBrDB.b[r[0]] || '' : '', pt = { name: r[1], addr: r[2], lat: r[3], lng: r[4] };
     const d = mpMe ? mpDist(mpMe, pt) : null, lk = mpLinks(pt), have = mpBrHave(r, brand);
     const near = mpBrNear(i);
     const c = mpS('#mp-card');
@@ -4766,21 +4755,19 @@
         '<button type="button" class="mp-c-x" id="mp-c-x" aria-label="닫기">✕</button></div>' +
       (r[2] ? '<div class="mp-c-l">' + esc(r[2]) + '</div>' : '') +
       (near.length ? '<div class="mp-c-l mp-c-near">같은 자리 근처 카페 ' + near.length + '곳 ' + near.slice(0, 40).map((j) => '<button type="button" class="mp-nb" data-j="' + j + '">' + esc(mpBrDB.r[j][1]) + '</button>').join('') + (near.length > 40 ? ' 외 ' + (near.length - 40) + '곳' : '') + '</div>' : '') +
-      mpInfoHtml(brand ? brand + ' 매장' : '개인 카페', mpBrDB.asof) +
       '<div class="mp-rv" id="mp-rv" hidden></div>' +
       '<div class="mp-c-b">' +
-        '<button type="button" class="mp-lk" data-o="info" aria-expanded="false">정보 보기</button>' +
+        '<button type="button" class="mp-lk" data-o="info">정보 보기</button>' +
         '<button type="button" class="mp-lk" data-o="route">길찾기</button>' +
         '<button type="button" class="mp-lk mp-rv-add" data-o="rv">나만의 리뷰</button>' +
         '<button type="button" class="mp-lk edit" data-o="add"' + (have ? ' disabled' : '') + '>' + (have ? '내 장소에 있음' : '내 장소로 추가') + '</button></div>';
     c.hidden = false;
     rvMount(mpS('#mp-rv'), { k: rvKey('c', r[1], r[3], r[4]), n: r[1], la: r[3], lo: r[4] }, c.querySelector('.mp-rv-add'));
-    mpInfoBind(c);
     mpS('#mp-c-x').addEventListener('click', () => { mpBrClearSel(); mpRenderCard(null); });
     c.querySelectorAll('.mp-nb').forEach((b) => b.addEventListener('click', () => mpBrSelect(+b.dataset.j)));
     c.querySelectorAll('.mp-lk').forEach((b) => b.addEventListener('click', () => {
       const o = b.dataset.o;
-      if (o === 'info' || o === 'rv') return;   // 정보 보기·나만의 리뷰는 위에서 따로 연결했다
+      if (o === 'rv') return;                   // 나만의 리뷰는 위(rvMount)에서 따로 연결했다
       if (o === 'add') { mpOpenForm({ name: r[1], addr: r[2], tel: '', hours: '', cap: 0, memo: '', amen: [], col: 0, lat: r[3], lng: r[4] }, true); return; }
       mpOpen(lk[o][0], lk[o][1]);
     }));

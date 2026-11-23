@@ -89,7 +89,7 @@ const DUO = ['Duo 펼침', 951, 669, { top: 0, right: 84, bottom: 34, left: 0 }]
   await tapAt(p, SB[0][3], SB[0][4]);
   ok('점을 누르면 그 매장 카드가 뜬다', (await cardName(p)) === SB[0][1], String(await cardName(p)));
   const card = await txt(p, '#mp-card');
-  ok('카드에 주소가 있고, 브랜드·자료 출처·기준 연월·영업 확인 안내는 정보 보기 칸 안에 들어 있다(v72: 주소 밑 줄은 삭제)', card.includes(SB[0][2]) && card.includes('스타벅스 매장') && card.includes('공공데이터') && card.includes('2026-10 기준') && card.includes('지도 앱에서 확인'), card.slice(0, 120));
+  ok('카드에 이름·주소가 있고, 분류·자료 출처·기준 연월·영업 확인 안내는 없다(v72: 주소 밑 줄 삭제, v73: 정보 칸 삭제 — 정보 보기는 지도 앱으로 연결)', card.includes(SB[0][1]) && card.includes(SB[0][2]) && !/공공데이터|2026-10 기준|영업 여부|지도 앱에서 확인|분류/.test(card), card.slice(0, 120));
   ok('카드 단추 = 정보 보기·길찾기·나만의 리뷰·내 장소로 추가 네 개뿐(네이버·애플·구글 지도·수정·전화 없음, v61·v72)', JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('#mp-card .mp-lk')].map((x) => x.textContent))) === JSON.stringify(['정보 보기', '길찾기', '나만의 리뷰', '내 장소로 추가']));
   { const d = await dots(p), e = await expectIn(p, small);
     ok('선택하면 고리가 하나 생기고, 그려진 점 수 = 보이는 범위의 매장 수', d.ring === 1 && d.dot === e && e >= 10, JSON.stringify(d) + ' 기대 ' + e); }
