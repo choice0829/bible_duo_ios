@@ -89,7 +89,7 @@ async function openDev(dev, { cfg = null, data = 'ok', libFail = false, raster =
   });
   await p.evaluateOnNewDocument(seed.fn, cfg);
   await p.goto('http://localhost:8968/index.html?native=1'); await p.waitForFunction(() => document.querySelector('#loading')?.hidden === true, { timeout: 90000 }); await sleep(1500);
-  return { p, errs, log };
+  return { p, errs, log, setData: (v) => { data = v; } };   // setData: 시험 도중 지도 자료 서버의 응답 방식을 바꾼다(예: 처음엔 연결 실패 → 나중엔 정상)
 }
 const DUO = ['Duo 펼침', 951, 669, { top: 0, right: 84, bottom: 0, left: 0 }], PH = ['iPhone15 세로', 393, 852, { top: 59, right: 0, bottom: 34, left: 0 }];
 const openMap = async (p, narrowTab) => { await p.click('#btn-map'); await sleep(1600); if (narrowTab) { await p.click('.mp-tabs button[data-t="r"]'); await sleep(1200); } };
@@ -211,85 +211,82 @@ console.log('===== 벡터 · 테마 전환(종이 → 야간)');
   await p.close();
 }
 
-// ===== 4. 고급설정: 방식 고르기(A/B) =====
-console.log('===== 고급설정 · 지도 방식');
+// ===== 4. 지도 방식: 벡터(B) 하나뿐 (v68: 래스터(A)·열쇠 입력은 앱에서 삭제) =====
+console.log('===== 지도 방식(벡터 전용)');
 {
   const { p, errs, log } = await openDev(DUO, { cfg: { theme: 'paper', places: [PLACE] } });
   await p.click('#btn-settings'); await sleep(500); await p.click('#go-adv'); await sleep(500);
-  const st = () => p.evaluate(() => document.querySelector('#me-state').textContent);
-  const on = () => p.evaluate(() => ({ r: document.querySelector('#me-raster').classList.contains('on'), v: document.querySelector('#me-vector').classList.contains('on'), pr: document.querySelector('#me-raster').getAttribute('aria-pressed'), pv: document.querySelector('#me-vector').getAttribute('aria-pressed') }));
-  const o0 = await on();
-  ok('방식: 처음(저장값 없음)에는 벡터(B)가 기본으로 선택됨', !o0.r && o0.v && o0.pr === 'false' && o0.pv === 'true' && (await st()).includes('벡터(B) 사용 중') && (await st()).includes('기본'), await st());
-  ok('방식: 저장값이 없다(기본 = 벡터)', (await lsEng(p)) === null);
-  ok('방식: 단추 이름에 기본/비상용이 적혀 있다', await p.evaluate(() => /벡터 \(B\) · 기본/.test(document.querySelector('#me-vector').textContent) && /래스터 \(A\) · 비상용/.test(document.querySelector('#me-raster').textContent)));
+  ok('방식: 고급설정에 지도 방식 선택·열쇠 입력 화면이 없다', await p.evaluate(() => !document.querySelector('#me-raster, #me-vector, #me-state, #mk-in, #mk-save') && !/래스터|벡터|CARTO|열쇠/.test(document.querySelector('#sheet-body').innerText)));
   ok('방식: 지도를 열기 전에는 벡터 부품을 받지 않는다', !log.local.some((u) => /maplibre-gl\.js|mapstyle\.js/.test(u)), JSON.stringify(log.local.filter((u) => /maplibre|mapstyle/.test(u))));
   await p.click('#go-bk'); await sleep(400);
   const bk = await p.evaluate(() => document.querySelector('#bk-out').value);
-  ok('방식: 데이터 백업에 방식 선택값이 들어가지 않는다', !/mapeng/i.test(bk) && !/vector/i.test(bk) && !/raster/i.test(bk), bk.length + '자');
+  ok('방식: 데이터 백업에 지도 방식·열쇠 값이 들어가지 않는다', !/mapeng/i.test(bk) && !/mapkey/i.test(bk) && !/vector/i.test(bk) && !/raster/i.test(bk), bk.length + '자');
   await p.click('#sheet-back'); await sleep(300);
   await p.click('#sheet-close'); await sleep(400); await openMap(p); const up = await vecUp(p); await sleep(2500);
-  ok('방식: 아무것도 고르지 않고 연 지도가 벡터(기본)', up && JSON.stringify(await srcCls(p)) === '["mp-src-vec"]', JSON.stringify(await srcCls(p)));
+  ok('방식: 연 지도는 벡터이고 래스터 그림 조각은 받지 않는다', up && JSON.stringify(await srcCls(p)) === '["mp-src-vec"]' && log.raster.length === 0, JSON.stringify(await srcCls(p)) + ' 래스터 ' + log.raster.length + '개');
   ok('방식: 이때 부품 4개(css·js 2개·mapstyle)를 받았다', ['lib/maplibre-gl.css', 'lib/maplibre-gl.js', 'lib/leaflet-maplibre-gl.js', 'mapstyle.js'].every((f) => log.local.some((u) => u.startsWith(f))), JSON.stringify(log.local.filter((u) => /maplibre|mapstyle/.test(u))));
-  await closeMap(p);
-  // 비상용 래스터로: 지도를 다시 열면 OSM 타일을 받고 벡터 층은 없다
-  const r0 = log.raster.length;   // (바꾸는 즉시 지도가 이미 만들어져 있으면 그때 타일을 받으므로, 바꾸기 전에 센다)
-  await p.click('#btn-settings'); await sleep(500); await p.click('#go-adv'); await sleep(500); await p.click('#me-raster'); await sleep(300);
-  const o2 = await on();
-  ok('방식: 래스터(A)를 누르면 선택이 바뀌고 raster로 저장된다', (await lsEng(p)) === 'raster' && o2.r && !o2.v && (await st()).includes('래스터(A) 사용 중') && (await st()).includes('비상용'), await st());
-  await p.click('#sheet-close'); await sleep(400); await openMap(p); await sleep(1500);
-  ok('방식: 래스터로 바꾼 뒤 지도는 OSM 타일이고 벡터 캔버스가 없다', log.raster.length > r0 && JSON.stringify(await srcCls(p)) === '["mp-src-osm"]' && (await p.evaluate(() => document.querySelectorAll('.leaflet-gl-layer').length)) === 0 && (await p.evaluate(() => document.querySelectorAll('.leaflet-tile-pane img.leaflet-tile').length)) > 0, `래스터 ${log.raster.length - r0}개 · ${JSON.stringify(await srcCls(p))}`);
-  await closeMap(p);
-  // 다시 벡터로
-  await p.click('#btn-settings'); await sleep(500); await p.click('#go-adv'); await sleep(500); await p.click('#me-vector'); await sleep(300);
-  ok('방식: 벡터(B)로 다시 누르면 vector로 저장된다', (await lsEng(p)) === 'vector' && (await on()).v);
-  await p.click('#sheet-close'); await sleep(400); await openMap(p); const up2 = await vecUp(p); await sleep(2000);
-  ok('방식: 다시 연 지도가 벡터이고 래스터 타일층이 사라졌다', up2 && JSON.stringify(await srcCls(p)) === '["mp-src-vec"]' && (await p.evaluate(() => document.querySelectorAll('.leaflet-tile-pane img.leaflet-tile').length)) === 0, JSON.stringify(await srcCls(p)));
+  ok('방식: 성공했으니 실패 안내문은 없다', (await note(p)).hidden === true, JSON.stringify(await note(p)));
   ok('방식: 오류 없음', errs.length === 0, JSON.stringify(errs));
   await p.close();
 }
+{ // 예전(v67) 설정이 남은 기기: 래스터를 골라 두고 CARTO 열쇠를 넣어 둔 경우 — 업데이트 뒤에는 무시하고 벡터로 열린다
+  const { p, errs, log } = await openDev(DUO, { cfg: { theme: 'paper', places: [PLACE], eng: 'raster' } });
+  await p.evaluate(() => localStorage.setItem('bf.mapkey', 'TESTKEY1234'));
+  await openMap(p); const up = await vecUp(p); await sleep(2000);
+  ok('예전 설정: bf.mapeng=raster · 열쇠가 남아 있어도 벡터로 열린다(래스터 요청 0개)', up && JSON.stringify(await srcCls(p)) === '["mp-src-vec"]' && log.raster.length === 0, JSON.stringify(await srcCls(p)) + ' 래스터 ' + log.raster.length + '개');
+  ok('예전 설정: 남은 저장값은 건드리지 않는다(나중에 비상용을 되살릴 때 쓸 수 있음)', (await lsEng(p)) === 'raster' && (await p.evaluate(() => localStorage.getItem('bf.mapkey'))) === 'TESTKEY1234');
+  ok('예전 설정: 오류 없음', errs.length === 0, JSON.stringify(errs));
+  await p.close();
+}
 
-// ===== 5. 자동 복귀(벡터가 안 될 때 래스터로) =====
-console.log('===== 자동 복귀');
-const fallbackChecks = async (tag, { p, errs, log }, why, diagRe) => {
+// ===== 5. 벡터가 안 될 때: 래스터로 돌아가지 않고, 안내문 + 핀·목록은 그대로, 다시 열면 재시도 =====
+console.log('===== 벡터 실패');
+const failChecks = async (tag, { p, errs, log }, why, diagRe) => {
   const n = await note(p);
-  ok(`${tag}: 래스터로 돌아왔다(OSM 타일을 받고 mp-src-osm)`, log.raster.length > 0 && JSON.stringify(await srcCls(p)) === '["mp-src-osm"]', `${log.raster.length}개 · ${JSON.stringify(await srcCls(p))}`);
-  ok(`${tag}: 지하철 단추는 래스터에서는 숨는다(역은 벡터 지도에만 있음)`, await p.evaluate(() => getComputedStyle(document.querySelector('#mp-sw')).display === 'none'));
+  ok(`${tag}: 래스터로 돌아가지 않는다(그림 조각 요청 0개 · mp-src 클래스 없음)`, log.raster.length === 0 && JSON.stringify(await srcCls(p)) === '[]', `${log.raster.length}개 · ${JSON.stringify(await srcCls(p))}`);
+  ok(`${tag}: 지하철 단추는 숨는다(역은 벡터 지도에만 있음)`, await p.evaluate(() => getComputedStyle(document.querySelector('#mp-sw')).display === 'none'));
   ok(`${tag}: 벡터 캔버스가 남아 있지 않다`, (await p.evaluate(() => document.querySelectorAll('.leaflet-gl-layer').length)) === 0);
-  ok(`${tag}: 안내문이 뜬다(이유: ${why})`, n.hidden === false && n.t.includes(why) && n.t.includes('래스터'), n.t);
-  // 고급설정의 상태 줄에 '진단' 한 줄이 보인다(실기기에서 이유를 알려 줄 때 쓴다)
-  await closeMap(p); await p.click('#btn-settings'); await sleep(500); await p.click('#go-adv'); await sleep(500);
-  const t = await p.evaluate(() => document.querySelector('#me-state').textContent);
-  ok(`${tag}: 고급설정에 진단 한 줄이 보인다`, t.includes('진단:') && diagRe.test(t), t);
+  ok(`${tag}: 안내문이 뜬다(이유: ${why}) · 다시 여는 방법을 알려 준다 · 래스터 얘기는 없다`, n.hidden === false && n.t.includes(why) && n.t.includes('다시 열어') && !n.t.includes('래스터'), n.t);
+  ok(`${tag}: 안내문에 진단 한 줄이 붙는다(실기기에서 이유를 알려 줄 때 쓴다)`, diagRe.test(n.t), n.t);
+  ok(`${tag}: 핀(내 장소)은 그대로 보인다`, (await p.evaluate(() => document.querySelectorAll('#mp .leaflet-marker-icon.mp-pin').length)) >= 1);
+  ok(`${tag}: 목록에 내 장소가 그대로 있다`, await p.evaluate(() => document.querySelector('#mp-list').innerText.includes('가나 카페')));
   ok(`${tag}: 오류 없음`, errs.length === 0, JSON.stringify(errs));
 };
 { // (a) WebGL2 없음 — 부품을 받지도 않는다
-  const o = await openDev(DUO, { cfg: { theme: 'paper', places: [PLACE], eng: 'vector', noGL2: true } });
+  const o = await openDev(DUO, { cfg: { theme: 'paper', places: [PLACE], noGL2: true } });
   await openMap(o.p); await sleep(2000);
-  await fallbackChecks('WebGL 없음', o, 'WebGL', /WebGL2/);
+  await failChecks('WebGL 없음', o, 'WebGL', /WebGL2/);
   ok('WebGL 없음: 벡터 부품 파일을 받지 않았다', !o.log.local.some((u) => /maplibre-gl\.js/.test(u)), JSON.stringify(o.log.local.filter((u) => /maplibre/.test(u))));
-  // 설정에 이유가 보이고, 다시 누르면 한 번 더 시도한다(여전히 안 되면 다시 복귀)
-  const t = await o.p.evaluate(() => document.querySelector('#me-state').textContent);
-  ok('WebGL 없음: 고급설정에 "선택됨 · 이번에는 래스터" 이유가 보인다', t.includes('벡터(B) 선택됨') && t.includes('WebGL'), t);
+  await sleep(10500);   // 예전에는 9초 뒤 사라졌다. 이제는 지도를 닫았다 다시 열 때까지 남는다.
+  ok('WebGL 없음: 10초 넘게 지나도 안내문이 남아 있다', (await note(o.p)).hidden === false);
+  // 다시 열어도 여전히 안 되면 안내문이 다시 뜬다
+  await closeMap(o.p); await openMap(o.p); await sleep(1500);
+  ok('WebGL 없음: 닫았다 다시 열면 한 번 더 시도하고, 여전히 안 되면 안내문이 다시 뜬다', (await note(o.p)).hidden === false && (await note(o.p)).t.includes('WebGL'));
   await o.p.close();
 }
 { // (b) 부품 파일을 못 받음
-  const o = await openDev(DUO, { cfg: { theme: 'paper', places: [PLACE], eng: 'vector' }, libFail: true });
+  const o = await openDev(DUO, { cfg: { theme: 'paper', places: [PLACE] }, libFail: true });
   await openMap(o.p); await sleep(2500);
-  await fallbackChecks('부품 실패', o, '부품', /받지 못한 파일: maplibre-gl\.js/);
+  await failChecks('부품 실패', o, '부품', /받지 못한 파일: maplibre-gl\.js/);
   await o.p.close();
 }
-{ // (c) 지도 자료 주소 연결 실패 — 바로 실패로 본다
-  const o = await openDev(DUO, { cfg: { theme: 'paper', places: [PLACE], eng: 'vector' }, data: 'fail' });
+{ // (c) 지도 자료 주소 연결 실패 — 바로 실패로 본다. 그 뒤 서버가 살아나면 지도를 다시 열 때 벡터가 뜬다.
+  const o = await openDev(DUO, { cfg: { theme: 'paper', places: [PLACE] }, data: 'fail' });
   await openMap(o.p); await sleep(3500);
-  await fallbackChecks('자료 연결 실패', o, '자료', /스타일 . · 자료 주소 × · 타일 0개/);
+  await failChecks('자료 연결 실패', o, '자료', /스타일 . · 자료 주소 × · 타일 0개/);
+  o.setData('ok');
+  await closeMap(o.p); await openMap(o.p); const up = await vecUp(o.p); await sleep(2500);
+  ok('자료 연결 실패 → 서버 복구: 지도를 다시 열면 벡터가 뜨고 안내문이 사라진다', up && (await note(o.p)).hidden === true && JSON.stringify(await srcCls(o.p)) === '["mp-src-vec"]', JSON.stringify(await note(o.p)) + JSON.stringify(await srcCls(o.p)));
+  ok('자료 연결 실패 → 서버 복구: 지하철 단추가 다시 보인다', await o.p.evaluate(() => getComputedStyle(document.querySelector('#mp-sw')).display !== 'none'));
+  ok('자료 연결 실패 → 서버 복구: 캔버스가 하나만', (await o.p.evaluate(() => document.querySelectorAll('.leaflet-gl-layer').length)) === 1);
   await o.p.close();
 }
 { // (d) 응답이 없어 제때 안 그려짐 — 15초 뒤 실패로 본다
-  const o = await openDev(DUO, { cfg: { theme: 'paper', places: [PLACE], eng: 'vector' }, data: 'hang' });
+  const o = await openDev(DUO, { cfg: { theme: 'paper', places: [PLACE] }, data: 'hang' });
   await openMap(o.p); await sleep(5000);
-  ok('응답 없음: 15초 전에는 아직 복귀하지 않는다', (await o.p.evaluate(() => document.querySelectorAll('.leaflet-gl-layer').length)) === 1 && o.log.raster.length === 0, `래스터 ${o.log.raster.length}개`);
+  ok('응답 없음: 15초 전에는 아직 실패로 보지 않는다', (await o.p.evaluate(() => document.querySelectorAll('.leaflet-gl-layer').length)) === 1 && (await note(o.p)).hidden === true, `래스터 ${o.log.raster.length}개`);
   await sleep(12000);
-  await fallbackChecks('응답 없음', o, '제때', /스타일 . · 자료 주소 × · 타일 0개/);
+  await failChecks('응답 없음', o, '제때', /스타일 . · 자료 주소 × · 타일 0개/);
   await o.p.close();
 }
 

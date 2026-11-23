@@ -49,7 +49,7 @@ const seed = { fn: (cfg) => {
   let _L; Object.defineProperty(window, 'L', { configurable: true, get() { return _L; }, set(v) { _L = v; try { v.Map.addInitHook(function () { window.__mpMap = this; }); } catch (e) { /* 무시 */ } } });
   window.__msgs = []; window.__clip = ''; try { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t) => { window.__clip = String(t); } } }); } catch (e) { /* 무시 */ } window.__loc = { lat: 37.5301, lng: 127.1238, acc: 30 };
   window.webkit = { messageHandlers: { bf: { postMessage: (m) => { window.__msgs.push(m); if (m.loc) setTimeout(() => window.bfLocation && window.bfLocation(window.__loc), 40); } } } };
-  if (!sessionStorage.getItem('s')) { sessionStorage.setItem('s', '1'); localStorage.clear(); localStorage.setItem('bf.mapeng', 'raster'); localStorage.setItem('bf.pos', JSON.stringify({ book: 0, chapter: 0, verse: 1 }));
+  if (!sessionStorage.getItem('s')) { sessionStorage.setItem('s', '1'); localStorage.clear(); localStorage.setItem('bf.pos', JSON.stringify({ book: 0, chapter: 0, verse: 1 }));
     if (cfg && cfg.places) localStorage.setItem('bf.places', JSON.stringify(cfg.places));
     if (cfg && cfg.theme) localStorage.setItem('bf.settings', JSON.stringify({ theme: cfg.theme }));
     if (cfg && cfg.cafeOff) localStorage.setItem('bf.mapbrand', 'off');

@@ -5,6 +5,7 @@
 // 사용: node map9.mjs   (스크린샷은 /tmp/map9shots/). 카페 자료는 시험용 가짜를 요청 가로채기로 넣는다.
 import zlib from 'node:zlib'; import fs from 'node:fs';
 import { serve, launch, sleep } from './devlib.mjs';
+import { fakeVector } from './vtscene.mjs';   // v68: 벡터 지도 자료 서버 흉내(래스터 지도가 없어졌으므로)
 serve(8973); const b = await launch(); let fails = 0; const ok = (n, c, x = '') => { console.log((c ? 'ok  ' : 'FAIL') + ' ' + n + ' ' + x); if (!c) fails++; };
 fs.mkdirSync('/tmp/map9shots', { recursive: true });
 
@@ -42,7 +43,7 @@ const seed = { fn: (cfg) => {
   let _L; Object.defineProperty(window, 'L', { configurable: true, get() { return _L; }, set(v) { _L = v; try { v.Map.addInitHook(function () { window.__mpMap = this; }); } catch (e) { /* 무시 */ } } });
   window.__msgs = []; window.__loc = { lat: 37.5301, lng: 127.1238, acc: 30 };
   window.webkit = { messageHandlers: { bf: { postMessage: (m) => { window.__msgs.push(m); if (m.loc) setTimeout(() => window.bfLocation && window.bfLocation(window.__loc), 40); } } } };
-  if (!sessionStorage.getItem('s')) { sessionStorage.setItem('s', '1'); localStorage.clear(); localStorage.setItem('bf.mapeng', 'raster'); localStorage.setItem('bf.pos', JSON.stringify({ book: 0, chapter: 0, verse: 1 }));
+  if (!sessionStorage.getItem('s')) { sessionStorage.setItem('s', '1'); localStorage.clear(); localStorage.setItem('bf.pos', JSON.stringify({ book: 0, chapter: 0, verse: 1 }));
     if (cfg && cfg.places) localStorage.setItem('bf.places', JSON.stringify(cfg.places));
     if (cfg && cfg.theme) localStorage.setItem('bf.settings', JSON.stringify({ theme: cfg.theme }));
     if (cfg && cfg.off) localStorage.setItem('bf.mapbrand', 'off');
@@ -58,6 +59,7 @@ async function openDev(dev, { data = v2, mode = 'ok', cfg = {}, places = [MINE, 
   const cdp = await p.createCDPSession(); try { await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: si }); } catch (e) {}
   await p.setRequestInterception(true);
   p.on('request', (r) => { const u = r.url();
+    if (fakeVector(u, r)) return;
     if (u.startsWith('https://tile.openstreetmap.org/') || u.startsWith('https://basemaps.cartocdn.com/')) r.respond({ status: 200, contentType: 'image/png', body: TILE, headers: { 'access-control-allow-origin': '*' } });
     else if (u.endsWith('/data/cafes.json')) { if (mode === 'ok') r.respond({ status: 200, contentType: 'application/json', body: JSON.stringify(data) }); else if (mode === 'none') r.respond({ status: 404, body: 'x' }); else r.respond({ status: 200, contentType: 'application/json', body: '{"r": oops' }); }
     else if (u.endsWith('/data/boardgame.json')) r.respond({ status: 404, body: 'x' });   // 보드게임 층은 이 시험의 대상이 아니다(map10)

@@ -10,11 +10,11 @@ const seed={fn:(cfg)=>{
     else if(m.geocode!==undefined){ setTimeout(()=>window.bfGeo&&window.bfGeo({id:m.id,results:window.__geo.q}),40); }
     else if(m.rgeo){ setTimeout(()=>window.bfGeo&&window.bfGeo({id:m.id,results:window.__geo.r.map(x=>Object.assign({},x,{lat:m.rgeo.lat,lng:m.rgeo.lng}))}),40); }
   }}}};
-  if(!sessionStorage.getItem('s')){ sessionStorage.setItem('s','1'); localStorage.clear(); localStorage.setItem('bf.mapeng','raster'); localStorage.setItem('bf.pos',JSON.stringify({book:0,chapter:0,verse:1})); if(cfg&&cfg.places) localStorage.setItem('bf.places',JSON.stringify(cfg.places)); if(cfg&&cfg.theme) localStorage.setItem('bf.settings',JSON.stringify({theme:cfg.theme})); }
+  if(!sessionStorage.getItem('s')){ sessionStorage.setItem('s','1'); localStorage.clear();  localStorage.setItem('bf.pos',JSON.stringify({book:0,chapter:0,verse:1})); if(cfg&&cfg.places) localStorage.setItem('bf.places',JSON.stringify(cfg.places)); if(cfg&&cfg.theme) localStorage.setItem('bf.settings',JSON.stringify({theme:cfg.theme})); }
 }, arg:null};
 async function openDev(dev,{query='?native=1',cfg=null,tiles='ok'}={}) {
   const [name,w,h,si]=dev; const p=await b.newPage(); const errs=[]; const tileUrls=[]; const tileHeaders=[];
-  p.on('pageerror',e=>errs.push('pageerror '+e.message)); p.on('console',m=>{if(m.type()==='error'&&!/\/data\/(brandcafes|cafes|boardgame)\.json$/.test((m.location()||{}).url||''))errs.push(m.text())});   // 매장 자료(v54)가 아직 저장소에 없으면 404 가 나는데, 앱은 그대로 동작하므로 오류로 세지 않는다
+  p.on('pageerror',e=>errs.push('pageerror '+e.message)); p.on('console',m=>{if(m.type()==='error'&&!/\/data\/(brandcafes|cafes|boardgame)\.json$/.test((m.location()||{}).url||'')&&!/openfreemap\.org/.test((m.location()||{}).url||''))errs.push(m.text())});   // v68: 이 시험은 지도 자료 서버에 닿지 않으므로(벡터 지도 실패 안내가 뜸) 그 주소의 접속 오류는 세지 않는다   // 매장 자료(v54)가 아직 저장소에 없으면 404 가 나는데, 앱은 그대로 동작하므로 오류로 세지 않는다
   await p.setViewport({width:w,height:h,deviceScaleFactor:2,isMobile:true,hasTouch:true});
   const cdp=await p.createCDPSession(); try{ await cdp.send('Emulation.setSafeAreaInsetsOverride',{insets:si}); }catch(e){}
   await p.setRequestInterception(true);
@@ -70,8 +70,7 @@ for (const [name,w,h,si,KB] of DEV) {
   ok(name+': 지도 화면이 열린다', await vis(p,'#mp'));
   ok(name+': '+(narrow?'좁은 화면(탭)':'펼친 화면(두 칸)')+' 배치', await p.evaluate((n)=>document.querySelector('#mp').classList.contains(n?'narrow':'two'),narrow));
   ok(name+': Leaflet 지도가 만들어졌다', await p.evaluate(()=>!!document.querySelector('#mp-map .leaflet-container, #mp-map.leaflet-container')));
-  ok(name+': 지도 바탕 주소가 OpenStreetMap 형식', tileUrls.length>0 && tileUrls.every(u=>/^https:\/\/tile\.openstreetmap\.org\/\d+\/\d+\/\d+\.png$/.test(u)), tileUrls.length+'개 '+tileUrls[0]);
-  ok(name+': 출처 표기(OpenStreetMap)', await p.evaluate(()=>/OpenStreetMap/.test(document.querySelector('.leaflet-control-attribution')?.textContent||'')));
+  ok(name+': 래스터(OpenStreetMap·CARTO) 그림 조각은 더 이상 받지 않는다(v68: 벡터 전용)', tileUrls.length===0, tileUrls.length+'개 '+(tileUrls[0]||''));
   let m=await msgs(p);
   ok(name+': 열면 앱에 위치를 요청한다', m.some(x=>x.loc), JSON.stringify(m));
   ok(name+': 내 위치 기준 안내', (await p.evaluate(()=>document.querySelector('#mp-loc').textContent)).includes('내 위치 기준'), await p.evaluate(()=>document.querySelector('#mp-loc').textContent));

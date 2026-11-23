@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v67';   // sw.js의 CACHE 숫자와 함께 올린다. 고급설정 → 화면 정보에 표시돼, 새 버전이 적용됐는지 확인할 수 있다.
+  const APP_VER = 'v68';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -831,7 +831,7 @@
     }
     const g = geometry();
     lastGeo = [g.W, g.H, g.si.top, g.si.bottom, g.si.left, g.si.right].join('x');
-    if (!launchSnapped) { launchSnapped = true; takeSnap('시작', g); afterRestartCheck(g); }
+    if (!launchSnapped) { launchSnapped = true; afterRestartCheck(g); }
     applyLook(g);
     await ensureFont();   // 글씨체 파일이 준비된 뒤에 쪽을 나눠야 쪽 경계가 맞는다
     if (gen !== generation) return;
@@ -1466,7 +1466,6 @@
   let rotPos = null;            // 회전 직전의 읽던 위치
   let posFreezeUntil = 0;       // 이 시각까지는 스크롤로 읽던 위치를 바꾸지 않는다
   let verifyTimers = [], verifyTries = 0;
-  let rotCount = 0, rotRebuilt = 0, rotLast = '';
   let scaleKicks = 0;
   const posFrozen = () => Date.now() < posFreezeUntil;
 
@@ -1494,7 +1493,6 @@
     if (settleSame >= 2 && orientOk && waited < 6000 && scaleOff() && scaleKicks < 3) {
       // 값은 안정됐는데 화면 배율이 1이 아니다 → 배율을 바로잡고 처음부터 다시 기다린다
       scaleKicks++;
-      rotLast = '배율 ' + (window.visualViewport.scale).toFixed(2) + ' → 바로잡기 ' + scaleKicks + '회';
       kickViewport(true);
       settleKey = ''; settleSame = 0;
       settleTimer = setTimeout(settleTick, 500);
@@ -1505,33 +1503,24 @@
       // 안정된 값이 '어긋난 상태'(가로인데 세로 때의 안전영역)이면 되돌려 본다: 1단계 → 2단계 → 앱 다시 시작(2분에 한 번)
       const bad = suspectGeo(g);
       if (!bad) {
-        if (recTries) addRecLog('정상 값으로 돌아옴(' + recTries + '단계 뒤)');
         recTries = 0; recGiveUp = {};
       } else if (key !== lastGeo && !recGiveUp[key]) {
         if (recTries < 2 && waited < 9000) {
           recTries++;
-          addRecLog(bad + ' → ' + recTries + '단계 되돌리기');
           doRecover(recTries);
-          rotLast = bad + ' → ' + recTries + '단계 되돌리기';
           settleKey = ''; settleSame = 0;
           settleTimer = setTimeout(settleTick, 800);
           return;
         }
         if (canAutoRestart()) { restartApp(bad, true); return; }
         recGiveUp[key] = true;
-        addRecLog('되돌리지 못함 → 그대로 둠 (' + bad + ')');
       }
       if (!bad && key !== lastGeo && softSuspect(g)) softNudge(g);
-      takeSnap('회전 뒤', g);
-      const target = rotPos || pos, n = settleSame, w = waited;
+      const target = rotPos || pos;
       settleStart = 0; rotPos = null;
-      rotCount++;
       if (key !== lastGeo) {
-        rotRebuilt++;
-        rotLast = g.W + '×' + g.H + ' 안전영역 ' + [g.si.top, g.si.right, g.si.bottom, g.si.left].join('/') + ' · ' + w + 'ms 기다림(' + n + ') → 다시 만듦';
         rebuild(target);   // 다 만든 뒤 확인은 rebuild 끝에서 예약한다
       } else {
-        rotLast = g.W + '×' + g.H + ' · ' + w + 'ms → 그대로';
         if (!building) { posFreezeUntil = 0; showLoading(false); scheduleVerify(); }
       }
       return;
@@ -1574,10 +1563,8 @@
       if (settleStart || building || !pg) return;
       const why = layoutProblem();
       if (!why) return;
-      healLast = '배치 어긋남: ' + why;
-      healCount++;
       if (scaleOff()) kickViewport(true);
-      if (verifyTries++ < 3) { rotRebuilt++; rotLast = healLast; verifying = true; rebuild(pos); }
+      if (verifyTries++ < 3) { verifying = true; rebuild(pos); }
     }, ms));
   }
   window.addEventListener('resize', onResize);
@@ -1589,8 +1576,8 @@
 
   // ---------- 화면이 밀려 올라갔을 때 바로잡기 ----------
   // 아이폰에서 드물게 화면 전체나 본문 쪽이 위로 밀려 올라가 위·아래가 비어 보이는 일이 있다.
-  // 밀린 것을 발견하면 제자리로 돌리고, 그래도 안 되면 책을 다시 만든다. 몇 번 있었는지는 설정의 '화면 진단'에 남는다.
-  let healCount = 0, healLast = '', healRebuilt = 0;
+  // 밀린 것을 발견하면 제자리로 돌리고, 그래도 안 되면 책을 다시 만든다.
+  let healRebuilt = 0;
   function pageShift() {
     const out = [];
     const vv = window.visualViewport;
@@ -1617,8 +1604,6 @@
       if (sel && bar.hidden) updateBar();   // 고른 낱말이 있는데 도구 상자가 안 보이는 경우
       return;
     }
-    healCount++;
-    healLast = found.join(' · ');
     if (found.some((f) => f.indexOf('배율') === 0)) kickViewport();
     try { window.scrollTo(0, 0); } catch (e) { /* 무시 */ }
     document.documentElement.scrollTop = 0; document.body.scrollTop = 0;
@@ -1650,17 +1635,13 @@
     return true;
   }
 
-  // ---------- 화면 기록 · 어긋남 복구 (v28) ----------
+  // ---------- 어긋남 복구 (v28) ----------
   // 아이폰 듀오는 가로 → 세로 → 가로로 돌린 뒤, 앱이 받는 화면 정보(안전영역 등)가 실제 화면과 맞지 않는 채 남는 일이 있다.
   // (예: 가로인데 안전영역이 세로 때의 '아래 34'로 읽히고 화면이 위로 올라가 있음) 이 값은 앱이 직접 고칠 수 없으므로
-  //  ① 그런 상태를 알아채면 viewport 태그 갈아 끼우기 → 문서 다시 계산시키기 → (마지막으로) 앱 다시 시작 순서로 되돌려 보고
-  //  ② 몇 번 돌렸는지와 회전 때마다의 화면 값을 '화면 진단'에 남겨, 정상일 때와 비교할 수 있게 한다.
-  const snaps = (() => { const s = store.get('bf.snaps', { list: [] }); return Array.isArray(s.list) ? s.list.slice(-8).map(String) : []; })();
-  const recLog = [];
+  // 그런 상태를 알아채면 viewport 태그 갈아 끼우기 → 문서 다시 계산시키기 → (마지막으로) 앱 다시 시작 순서로 되돌려 본다.
+  // (v68: 설정의 '화면 정보·화면 진단'과 그 기록은 없앴다. 예전 버전이 남긴 화면 기록은 아래에서 지운다.)
+  try { localStorage.removeItem('bf.snaps'); } catch (e) { /* 무시 */ }
   let recTries = 0, recGiveUp = {}, launchSnapped = false;
-  let touchMax = { x: 0, y: 0 }, touchOut = 0, touchLast = '';
-  const hms = () => { const d = new Date(); return [d.getHours(), d.getMinutes(), d.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':'); };
-  function addRecLog(msg) { recLog.push(hms() + ' ' + msg); while (recLog.length > 6) recLog.shift(); }
   // CSS 단위(vw·lvw·svw·dvw)로 잰 화면 크기. 어느 값이 실제 화면과 어긋나는지 보려는 용도다.
   function unitSizes() {
     const el = document.createElement('div');
@@ -1680,32 +1661,11 @@
     el.remove();
     return out;
   }
-  function unitProbe() {
-    const o = unitSizes();
-    return Object.keys(o).map((k) => k + ' ' + (o[k] ? o[k][0] + '×' + o[k][1] : '-')).join(' · ');
-  }
   // 바깥 창·큰 화면(lvh) 높이와 앱이 아는 높이(H)의 차. 가로 화면에서 이 차가 크면 앱이 아는 화면이 실제보다 낮다는 뜻이다.
   function heightGap(H) {
     const o = unitSizes();
     return Math.max(window.outerHeight || 0, o.lvw ? o.lvw[1] : 0, o.vw ? o.vw[1] : 0) - H;
   }
-  function takeSnap(tag, g0) {
-    try {
-      const g = g0 || geometry(), v = window.visualViewport;
-      const so = window.screen && screen.orientation ? screen.orientation.type.replace(/-(primary|secondary)/, '') + ' ' + screen.orientation.angle + '°' : '-';
-      snaps.push(hms() + ' ' + tag + ' · ' + (g.H >= g.W ? '세로' : '가로') + ' ' + g.W + '×' + g.H +
-        ' · 안전영역 ' + [g.si.top, g.si.right, g.si.bottom, g.si.left].map(Math.round).join('/') +
-        ' · 배율 ' + (v ? v.scale.toFixed(2) : '-') + ' · ' + unitProbe() +
-        ' · 바깥 ' + window.outerWidth + '×' + window.outerHeight + ' · 화면 ' + screen.width + '×' + screen.height + ' ' + so);
-      while (snaps.length > 8) snaps.shift();
-      store.set('bf.snaps', { list: snaps });
-    } catch (e) { /* 무시 */ }
-  }
-  // 손가락이 닿은 곳이 앱이 아는 화면 밖이면 기록해 둔다 (앱이 아는 화면이 실제보다 작다는 증거)
-  window.addEventListener('pointerdown', (e) => {
-    touchMax = { x: Math.max(touchMax.x, Math.round(e.clientX)), y: Math.max(touchMax.y, Math.round(e.clientY)) };
-    if (e.clientX >= window.innerWidth - 0.5 || e.clientY >= window.innerHeight - 0.5) { touchOut++; touchLast = Math.round(e.clientX) + ',' + Math.round(e.clientY); }
-  }, true);
   // 가로인데 앱이 아는 화면 높이가 바깥 창보다 확실히 낮으면 '어긋난 상태'로 본다. (세로 화면에서는 상태 표시줄 때문에 차이가 정상이다)
   // 이 기준에 걸릴 때만 1·2단계와 앱 다시 시작을 한다. (듀오는 정상 가로 화면에서도 안전영역이 0/0/34/0으로 읽히므로 그 값만으로는 판단하지 않는다)
   // (사파리 창에서는 주소창 때문에 차이가 정상이므로, 홈 화면에 설치해 연 앱(standalone)에서만 본다)
@@ -1727,7 +1687,6 @@
     nudgeUntil = Date.now() + 450;
     swapViewport(VIEWPORT_LOCK.replace('viewport-fit=cover', 'viewport-fit=contain'));
     setTimeout(() => swapViewport(VIEWPORT_LOCK), 250);
-    addRecLog('가벼운 확인 1회');
   }
   // 되돌리기 1·2단계 (앱을 껐다 켜지 않는 것들)
   function doRecover(level) {
@@ -1753,14 +1712,11 @@
       store.set('bf.pos', rotPos || pos);
       const rec = store.get('bf.rec', { t: 0, n: 0, noauto: false });
       store.set('bf.rec', { t: Date.now(), n: (rec.n || 0) + 1, noauto: !!rec.noauto, auto: !!auto, why: String(why || '') });
-      addRecLog('앱 다시 시작' + (auto ? '(자동)' : '(직접)'));
-      store.set('bf.snaps', { list: snaps });
     } catch (e) { /* 무시 */ }
     location.reload();
   }
   // 고급설정의 '다시 맞추기': 1·2단계를 차례로 하고 화면을 처음부터 다시 계산해 책을 새로 만든다
   function refitScreen() {
-    addRecLog('직접 다시 맞추기');
     doRecover(1);
     setTimeout(() => doRecover(2), 450);
     setTimeout(() => { lastGeo = ''; onResize(); }, 900);   // lastGeo를 비워 값이 같아도 책을 새로 만들게 한다
@@ -1771,9 +1727,6 @@
       const rec = store.get('bf.rec', { t: 0, n: 0, noauto: false });
       if (rec.t && Date.now() - rec.t < 30000 && suspectGeo(g)) {
         store.set('bf.rec', Object.assign({}, rec, { noauto: true }));
-        addRecLog('다시 시작 뒤에도 어긋난 값 → 자동 다시 시작 끔');
-      } else if (rec.t && Date.now() - rec.t < 30000) {
-        addRecLog('다시 시작 뒤 정상');
       }
     } catch (e) { /* 무시 */ }
   }
@@ -1798,7 +1751,7 @@
     try { st = flip.getState(); } catch (e) { /* 무시 */ }
     if (st === 'read') { stuckTicks = 0; return; }
     if (++stuckTicks >= 2) {
-      stuckTicks = 0; healCount++; healLast = '책장이 중간에 멈춤(' + st + ')';
+      stuckTicks = 0;
       rebuild(pos);
     }
   }
@@ -1934,34 +1887,6 @@
       }));
   }
 
-  // 화면 크기 진단: 접은 화면의 좌우 공백 원인을 찾기 위해 실제로 그려진 크기를 보여 준다.
-  function diagText() {
-    const R = (el) => { if (!el) return '-'; const r = el.getBoundingClientRect(); return Math.round(r.left) + '~' + Math.round(r.right) + ' (폭 ' + Math.round(r.width) + ') × 위 ' + Math.round(r.top) + '~' + Math.round(r.bottom); };
-    const vis = [...document.querySelectorAll('#stage .page')].find((el) => el.getBoundingClientRect().width > 0);
-    const v = window.visualViewport;
-    const g = pg && pg.g;
-    const rec = store.get('bf.rec', { t: 0, n: 0, noauto: false });
-    return [
-      '창 ' + window.innerWidth + '×' + window.innerHeight + ' · 보이는 영역 ' + (v ? Math.round(v.width) + '×' + Math.round(v.height) + ' 배율 ' + v.scale : '-'),
-      '화면 ' + screen.width + '×' + screen.height + ' · DPR ' + window.devicePixelRatio,
-      '계산 ' + (g ? '폭 ' + g.W + ' 쪽폭 ' + g.pageW + ' 좌우여백 ' + g.padX + ' 본문폭 ' + g.textW : '-'),
-      '무대 ' + R($('#stage')),
-      '쪽 ' + R(vis),
-      '본문 ' + R(vis && vis.querySelector('.txt')),
-      '밀림 바로잡음 ' + healCount + '번' + (healLast ? ' (마지막: ' + healLast + ')' : '') + ' · 스크롤 ' + Math.round(window.scrollY) + ' · 보이는 영역 위 ' + (v ? Math.round(v.offsetTop) : '-'),
-      '안전영역 위/오른/아래/왼 ' + (g ? [g.si.top, g.si.right, g.si.bottom, g.si.left].map(Math.round).join('/') : '-') + ' · 머리줄 아래 ' + (document.querySelector('.head-row') ? Math.round(document.querySelector('.head-row').getBoundingClientRect().bottom) : '-') + ' · 본문 시작 ' + (g ? g.padTop : '-'),
-      '회전·접기 ' + rotCount + '번(다시 만듦 ' + rotRebuilt + ')' + (rotLast ? ' · 마지막: ' + rotLast : ''),
-      '배율 ' + (v ? v.scale.toFixed(2) : '-') + ' · 보이는 영역 ' + (v ? Math.round(v.width) + '×' + Math.round(v.height) : '-') + ' · innerWidth ' + window.innerWidth + '×' + window.innerHeight + ' · 문서 폭 ' + document.documentElement.scrollWidth + ' · 기기 ' + screen.width + '×' + screen.height + ' · 배율 바로잡기 ' + kickTotal + '번',
-      '지금 단위 ' + unitProbe() + ' · 문서 ' + document.documentElement.clientWidth + '×' + document.documentElement.clientHeight +
-        ' · 바깥 ' + window.outerWidth + '×' + window.outerHeight + ' · 쓸 수 있는 화면 ' + screen.availWidth + '×' + screen.availHeight +
-        ' · 방향 ' + (screen.orientation ? screen.orientation.type + ' ' + screen.orientation.angle + '°' : '-'),
-      '앱이 아는 높이와 바깥 창 높이의 차 ' + (g ? Math.round(heightGap(g.H)) : '-') + ' (가로에서 40 이상이면 어긋남)',
-      '터치 최대 ' + touchMax.x + ',' + touchMax.y + ' · 앱이 아는 화면 밖 ' + touchOut + '번' + (touchLast ? ' (마지막 ' + touchLast + ')' : ''),
-      '어긋남 복구 ' + (recLog.length ? recLog.join(' / ') : '없음') + (rec.t ? ' · 앱 다시 시작 ' + (rec.n || 0) + '번' + (rec.noauto ? '(자동 끔)' : '') : ''),
-      '<b>최근 화면 기록</b> (오래된 것부터)<br>' + (snaps.length ? snaps.map((x) => '· ' + x).join('<br>') : '-'),
-    ].join('<br>');
-  }
-
   let settingsTimer = null;
   // view: 값을 바꾼 뒤 다시 그릴 화면(기본은 읽기 설정). 다시 그려도 보던 위치가 그대로 유지된다.
   function changeSettings(patch, view) {
@@ -2031,11 +1956,10 @@
       '</div></div>' +
       '<div class="row"><span>화면 구성</span>' + seg(LAYOUTS, settings.layout, 'layout') + '</div>' +
       '<button class="row rowlink" id="go-tr" type="button"><span>번역 선택 <small class="sub">' + (settings.std ? 'AI 표준어 번역 켜짐' : '개역한글만 보기') + '</small></span><span class="chev">›</span></button>' +
-      '<button class="row rowlink" id="go-adv" type="button"><span>고급설정 <small class="sub">여백 · 위치 · 지도 · 화면 정보</small></span><span class="chev">›</span></button>' +
-      '<p class="note">자동: 화면이 넓으면(펼친 상태) 두 쪽, 좁으면(접힌 상태) 한 쪽으로 보여 줍니다.<br>본문: 개역한글 (퍼블릭 도메인)</p>' +
+      '<button class="row rowlink" id="go-adv" type="button"><span>고급설정 <small class="sub">여백 · 위치 · 백업 · 화면 맞추기</small></span><span class="chev">›</span></button>' +
       '<p class="credit" aria-label="앱 제작자 SEONHAN">© SEONHAN</p>';   // v62: 설정 화면 맨 아래 제작자 표시
     $('#go-tr').addEventListener('click', () => { showTranslations(); sheetBody.scrollTop = 0; });
-    $('#go-adv').addEventListener('click', () => { showAdvanced(); sheetBody.scrollTop = 0; });
+    $('#go-adv').addEventListener('click', () => { advHelpOpen = {}; showAdvanced(); sheetBody.scrollTop = 0; });
     sheetBody.querySelectorAll('[data-f]').forEach((b) => b.addEventListener('click', () => {
       const next = Math.min(FONT_MAX, Math.max(FONT_MIN, settings.fontSize + (+b.dataset.f)));
       if (next !== settings.fontSize) changeSettings({ fontSize: next });
@@ -2046,26 +1970,31 @@
       }));
   }
 
-  // ---------- 고급설정: 여백 · 위치 · 화면 정보 ----------
+  // ---------- 고급설정: 여백 · 위치 · 백업 · 화면 맞추기 ----------
+  // 각 항목의 설명은 이름 옆 ⓘ(동그라미 물음표)를 눌러야 보인다. 열어 둔 설명은 값을 바꿔 화면이 다시 그려져도 그대로 열려 있다.
+  let advHelpOpen = {};
   function showAdvanced() {
     sheetTitle.textContent = '고급설정';
     backBtn.hidden = false;
     sheetBack = () => { showSettings(); sheetBody.scrollTop = 0; };
     const g = geometry();
     const topSp = g.eff.topSpread, topSi = g.eff.topSingle, shift = g.eff.shiftX, bot = g.eff.bottomSpread;
-    // 한 항목 = 이름 + 값 조절(− 값 +) + 설명
-    const item = (name, sub, key, step, val, minus, plus, desc) =>
-      '<div class="adv"><div class="row"><span>' + name + ' <small class="sub">' + sub + '</small></span><div class="stepper">' +
+    // ⓘ 단추와 접히는 설명. key 는 항목마다 다르게 준다.
+    const qm = (key) => '<button class="qm" type="button" data-q="' + key + '" aria-expanded="' + (advHelpOpen[key] ? 'true' : 'false') + '" aria-controls="adv-d-' + key + '" aria-label="설명 보기">?</button>';
+    const help = (key, text) => '<p class="adv-desc" id="adv-d-' + key + '"' + (advHelpOpen[key] ? '' : ' hidden') + '>' + text + '</p>';
+    // 한 항목 = 이름 + ⓘ + 값 조절(− 값 +) + (눌러야 보이는) 설명. extra 는 늘 보여야 하는 알림.
+    const item = (name, sub, key, step, val, minus, plus, desc, extra) =>
+      '<div class="adv"><div class="row"><span>' + name + ' <small class="sub">' + sub + '</small>' + qm(key) + '</span><div class="stepper">' +
       '<button data-adv="' + key + '" data-step="-' + step + '" aria-label="' + minus + '">' + (key === 'shiftX' ? '◂' : '−') + '</button><b>' + val + '</b>' +
       '<button data-adv="' + key + '" data-step="' + step + '" aria-label="' + plus + '">' + (key === 'shiftX' ? '▸' : '+') + '</button></div></div>' +
-      '<p class="adv-desc">' + desc + '</p></div>';
-    // 안전영역 때문에 실제 적용된 윗 여백이 설정값과 다른 경우만 알려 준다
+      help(key, desc) + (extra || '') + '</div>';
+    // 안전영역 때문에 실제 적용된 윗 여백이 설정값과 다른 경우만 알려 준다 (이 알림은 늘 보인다)
     const topNote = g.spread && g.padTop !== topSp
-      ? '<br><b>※ 지금 화면의 안전영역(위 ' + g.si.top + ') 때문에 실제로는 ' + g.padTop + 'px로 적용됩니다.</b>' : '';
+      ? '<p class="adv-desc"><b>※ 지금 화면의 안전영역(위 ' + g.si.top + ') 때문에 실제로는 ' + g.padTop + 'px로 적용됩니다.</b></p>' : '';
     sheetBody.innerHTML =
       '<div class="adv-head">펼친 화면 (두 쪽)</div>' +
       item('윗 여백', '(펼침)', 'topSpread', 4, topSp, '줄이기', '늘리기',
-        '화면 맨 위에서 본문이 시작되는 곳까지의 높이입니다. 이 안에 책 이름·메뉴 아이콘과 오른쪽 위 상태 아이콘이 들어갑니다. 줄이면 본문이 더 위로 올라와 한 쪽에 들어가는 줄 수가 늘어납니다.' + topNote) +
+        '화면 맨 위에서 본문이 시작되는 곳까지의 높이입니다. 이 안에 책 이름·메뉴 아이콘과 오른쪽 위 상태 아이콘이 들어갑니다. 줄이면 본문이 더 위로 올라와 한 쪽에 들어가는 줄 수가 늘어납니다.', topNote) +
       (NATIVE ? '' : item('가로 위치', '(오른쪽으로)', 'shiftX', 4, shift, '왼쪽으로', '오른쪽으로',
         '두 쪽 전체를 오른쪽으로 옮기는 양입니다. 아이폰 듀오를 펼치면 앱이 실제 화면보다 좁은 영역만 알려 받아 두 쪽이 왼쪽으로 쏠려 보입니다. 값을 키우면 가운데로 오지만, 옮긴 만큼 한 쪽의 폭이 좁아져 한 줄에 들어가는 글자가 줄어듭니다.')) +
       item('아래 여백', '(펼침)', 'bottomSpread', 4, bot, '줄이기', '늘리기',
@@ -2073,30 +2002,14 @@
       '<div class="adv-head">접은 화면 (한 쪽)</div>' +
       item('윗 여백', '(한 쪽)', 'topSingle', 4, topSi, '줄이기', '늘리기',
         '접은 상태에서 본문이 시작되는 높이입니다. 접은 화면은 책 이름 아래에 메뉴 아이콘이 한 줄 더 있어서, 너무 줄이면 본문과 겹칩니다.') +
-      '<div class="row"><span>여백 기본값으로 되돌리기</span><button class="seg-btn" id="adv-reset" type="button">되돌리기</button></div>' +
+      '<div class="row"><span>여백 기본값으로 되돌리기' + qm('defaults') + '</span><button class="seg-btn" id="adv-reset" type="button">되돌리기</button></div>' +
+      help('defaults', '기본값은 기기와 화면에 맞춰 자동으로 정해집니다(듀오 펼침: 윗 ' + TOP_DEFAULT.topSpread + ' · 가로 위치 ' + SHIFT_DEFAULT + ' · 아래 ' + BOTTOM_SPREAD_DEFAULT + ', 한 쪽 윗 ' + TOP_DEFAULT.topSingle + '). 가로로 돌린 아이폰은 머리줄이 작아지고 노치 쪽이 비워집니다.' +
+        '<br>값을 바꾸면 본문이 잠시 뒤에 새로 정렬됩니다. 읽던 위치는 그대로 유지됩니다.') +
       '<button class="row rowlink" id="go-bk" type="button"><span>데이터 백업 <small class="sub">하이라이트 · 설교노트 · 모임 장소 · 리뷰 내보내기/불러오기</small></span><span class="chev">›</span></button>' +
       '<button class="row rowlink" id="go-rv" type="button"><span>리뷰 모아 보기 <small class="sub">관리자용 · 내 리뷰 내보내기 · 다른 기기 리뷰 모으기</small></span><span class="chev">›</span></button>' +
-      '<p class="note">기본값은 기기와 화면에 맞춰 자동으로 정해집니다(듀오 펼침: 윗 ' + TOP_DEFAULT.topSpread + ' · 가로 위치 ' + SHIFT_DEFAULT + ' · 아래 ' + BOTTOM_SPREAD_DEFAULT + ', 한 쪽 윗 ' + TOP_DEFAULT.topSingle + '). 가로로 돌린 아이폰은 머리줄이 작아지고 노치 쪽이 비워집니다.' +
-      '<br>값을 바꾸면 본문이 잠시 뒤에 새로 정렬됩니다. 읽던 위치는 그대로 유지됩니다.</p>' +
-      '<div class="adv-head">모임 장소 지도 그림</div>' +
-      '<p class="adv-desc">지도를 그리는 방식을 고릅니다. <b>벡터(B)</b>는 도로·건물·글자를 앱이 직접 그려 테마 색이 정확하고 열쇠가 필요 없는 <b>기본 방식</b>입니다. <b>래스터(A)</b>는 그림 조각을 받아 보여 주는 비상용 방식입니다. ' +
-        '벡터가 이 기기에서 안 되면 자동으로 래스터로 돌아옵니다. 선택은 <b>이 기기에만</b> 저장되며 데이터 백업에는 들어가지 않습니다.</p>' +
-      '<div class="mk-btns"><button class="seg-btn" id="me-vector" type="button">벡터 (B) · 기본</button><button class="seg-btn" id="me-raster" type="button">래스터 (A) · 비상용</button></div>' +
-      '<p class="note tight" id="me-state"></p>' +
-      '<div class="adv-head">래스터(A) 지도 열쇠 (비상용)</div>' +
-      '<p class="adv-desc">비상용 래스터 방식에서 테마(종이·세피아·야간)에 맞춘 CARTO 지도를 쓰려면 무료 열쇠(API 키)가 필요합니다. 아래 단추로 받는 곳을 열어 이메일로 받은 열쇠를 붙여 넣어 주세요. ' +
-        '열쇠는 <b>이 기기에만</b> 저장되며 데이터 백업에는 들어가지 않습니다. 열쇠가 없으면 OpenStreetMap 지도에 테마 색조만 입혀 보여 줍니다. (벡터 방식에서는 쓰이지 않습니다)</p>' +
-      '<p class="note tight" id="mk-state"></p>' +
-      '<input id="mk-in" class="bk-text mk-in" type="text" inputmode="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="여기에 열쇠 붙여 넣기" aria-label="지도 열쇠">' +
-      '<div class="mk-btns"><button class="seg-btn" id="mk-open" type="button">받는 곳 열기</button><button class="seg-btn" id="mk-save" type="button">저장</button><button class="seg-btn" id="mk-clear" type="button">지우기</button></div>' +
-      '<p class="adv-desc" id="mk-msg">&nbsp;</p>' +
-      '<div class="adv-head">화면 정보</div>' +
-      '<p class="note tight">현재 화면 ' + g.W + ' × ' + g.H + ' px (창 ' + window.innerWidth + ' × ' + window.innerHeight + ') · ' + (g.spread ? '펼침(두 쪽)' : '한 쪽') +
-      ' (자동 기준: 폭 ' + AUTO_SPREAD_MIN_WIDTH + 'px 이상, 또는 가로 화면이면 ' + AUTO_SPREAD_MIN_LANDSCAPE + 'px 이상)<br>안전영역 위 ' + g.si.top + ' · 아래 ' + g.si.bottom + ' · 좌 ' + g.si.left + ' · 우 ' + g.si.right +
-      '<br>기기 화면 ' + screen.width + ' × ' + screen.height + ' · 배율 ' + (window.devicePixelRatio || 1) + ' · 앱 버전 ' + APP_VER + (NATIVE ? ' (아이폰 앱)' : '') + '</p>' +
-      '<div class="row"><span>화면이 위로 올라가거나 작게 보일 때 <small class="sub">값을 새로 읽고 책을 다시 만듭니다</small></span><button class="seg-btn" id="adv-refit" type="button">다시 맞추기</button></div>' +
-      '<div class="row"><span>앱 다시 시작 <small class="sub">읽던 위치는 그대로 · 안 고쳐지면 이걸로</small></span><button class="seg-btn" id="adv-restart" type="button">다시 시작</button></div>' +
-      '<p class="note diag"><b>화면 진단</b><br>' + diagText() + '</p>';
+      '<div class="adv-head">화면이 위로 올라가거나 작게 보일 때' + qm('recover') + '</div>' +
+      help('recover', '<b>다시 맞추기</b>는 화면 값을 새로 읽고 책을 다시 만듭니다. <b>앱 다시 시작</b>은 앱을 처음부터 다시 켭니다. 두 경우 모두 읽던 위치는 그대로입니다. 먼저 다시 맞추기를 눌러 보고, 그래도 고쳐지지 않으면 앱 다시 시작을 눌러 주세요.') +
+      '<div class="adv-btns"><button class="seg-btn" id="adv-refit" type="button">다시 맞추기</button><button class="seg-btn" id="adv-restart" type="button">앱 다시 시작</button></div>';
     const LIMITS = { topSpread: [TOP_MIN_SPREAD, TOP_MAX], topSingle: [TOP_MIN_SINGLE, TOP_MAX], shiftX: [0, 160], bottomSpread: [0, 80] };
     sheetBody.querySelectorAll('[data-adv]').forEach((b) => b.addEventListener('click', () => {
       const key = b.dataset.adv, cur = geometry().eff[key];
@@ -2105,50 +2018,13 @@
     }));
     $('#go-bk').addEventListener('click', () => { showBackup(); sheetBody.scrollTop = 0; });
     $('#go-rv').addEventListener('click', () => { showReviews(); sheetBody.scrollTop = 0; });
-    // 지도 방식(A 래스터 / B 벡터): 고르면 바로 저장하고, 지도가 열려 있든 아니든 바탕을 다시 맞춘다. 다시 고르면 '벡터 실패' 기록도 지워 한 번 더 시도한다.
-    const meState = () => {
-      const vec = mpEngGet() === 'vector';
-      $('#me-raster').classList.toggle('on', !vec); $('#me-vector').classList.toggle('on', vec);
-      $('#me-raster').setAttribute('aria-pressed', String(!vec)); $('#me-vector').setAttribute('aria-pressed', String(vec));
-      $('#me-state').innerHTML = !vec
-        ? '<b>래스터(A) 사용 중</b> · 비상용 방식입니다. 아래 열쇠가 있으면 테마별 CARTO 지도, 없으면 OpenStreetMap에 색조를 입혀 보입니다. 기본 방식으로 돌아가려면 위 \'벡터 (B)\'를 누르세요.'
-        : (mpVecFail
-          ? '<b>벡터(B) 선택됨</b> · ' + MP_VEC_WHY[mpVecFail] + ' 이번에는 래스터로 보입니다. 다시 눌러 한 번 더 시도할 수 있습니다.' + (mpVecInfo ? '<br><small>진단: ' + esc(mpVecInfo) + '</small>' : '')
-          : '<b>벡터(B) 사용 중</b> · 기본 방식입니다. 키 없는 공개 지도 서버(OpenFreeMap)에서 자료를 받아 테마 색으로 그립니다. (인터넷 연결 필요)');
-    };
-    const meSet = (v) => {
-      try { localStorage.setItem(MP_ENG_LS, v); } catch (e) { $('#me-state').textContent = '저장하지 못했습니다.'; return; }
-      mpVecFail = ''; mpVecInfo = '';
-      mpApplyTile(); meState();
-    };
-    meState();
-    $('#me-raster').addEventListener('click', () => meSet('raster'));
-    $('#me-vector').addEventListener('click', () => meSet('vector'));
-    // 지도 열쇠: 입력·저장·지우기. 저장한 열쇠는 화면에 다시 보여 주지 않는다. 바뀌면 지도가 열려 있든 아니든 바탕을 다시 맞춘다.
-    const mkMsg = (t) => { $('#mk-msg').textContent = t; };
-    const mkState = () => {
-      const has = !!mpKeyGet();
-      $('#mk-state').innerHTML = has
-        ? '<b>열쇠 입력됨</b> · 지도 그림이 테마에 맞는 CARTO 지도로 보입니다. (인터넷 연결 필요)'
-        : '<b>열쇠 없음</b> · 지금은 OpenStreetMap 지도에 테마 색조만 입혀 보입니다.';
-      $('#mk-clear').disabled = !has;
-    };
-    mkState();
-    $('#mk-open').addEventListener('click', () => mpOpen(MP_KEY_URL, MP_KEY_URL));
-    $('#mk-save').addEventListener('click', () => {
-      const v = $('#mk-in').value.trim();
-      if (!mpKeyOk(v)) { mkMsg('열쇠를 붙여 넣어 주세요. (공백 없이 6자 이상)'); return; }
-      try { localStorage.setItem(MP_KEY_LS, v); } catch (e) { mkMsg('저장하지 못했습니다.'); return; }
-      $('#mk-in').value = '';
-      mpApplyTile(); mkState();
-      mkMsg('저장했습니다. 지도 화면을 열어 확인하세요.');
-    });
-    $('#mk-clear').addEventListener('click', () => {
-      try { localStorage.removeItem(MP_KEY_LS); } catch (e) { /* 무시 */ }
-      $('#mk-in').value = '';
-      mpApplyTile(); mkState();
-      mkMsg('지웠습니다.');
-    });
+    // ⓘ: 누르면 그 항목의 설명을 펼치고, 다시 누르면 접는다
+    sheetBody.querySelectorAll('.qm').forEach((b) => b.addEventListener('click', () => {
+      const k = b.dataset.q, d = $('#adv-d-' + k);
+      if (!d) return;
+      const open = d.hidden;
+      d.hidden = !open; advHelpOpen[k] = open; b.setAttribute('aria-expanded', String(open));
+    }));
     $('#adv-refit').addEventListener('click', () => { closeSheet(); refitScreen(); });
     $('#adv-restart').addEventListener('click', () => restartApp('직접', false));
     // 되돌리기 = 저장한 값을 지워 기기에 맞는 자동값으로 돌아간다. (듀오는 예전 기본값 그대로)
@@ -3861,38 +3737,15 @@
 
   // ---------- 모임 장소(카페) 지도 ----------
   // 운영자(본인)가 아는 카페·모임 장소를 직접 등록하고, 내 위치 기준 가까운 순으로 보고, 지도에서 위치를 확인하고, 길찾기(네이버 지도)로 길을 찾는다.
-  // 장소는 이 기기(bf.places)에만 저장하며 데이터 백업에 함께 들어간다. 지도 바탕은 Leaflet(lib/에 포함)이 인터넷에서 받아 오므로 인터넷이 있어야 보이고(열쇠가 있으면 테마별 CARTO, 없으면 OpenStreetMap),
+  // 장소는 이 기기(bf.places)에만 저장하며 데이터 백업에 함께 들어간다. 지도 그림은 벡터 방식(MapLibre, lib/에 포함)이 공개 지도 자료(OpenFreeMap)를 인터넷에서 받아 그리므로 인터넷이 있어야 보이고,
   // 인터넷이 없어도 목록·등록·거리 계산은 된다. 내 위치·주소 찾기·다른 지도 앱 열기는 아이폰 앱(껍데기)이 맡는다(window.bfLocation / bfGeo).
   const MP_AMEN = [['out', '콘센트'], ['wifi', '와이파이'], ['group', '단체석'], ['quiet', '조용함'], ['park', '주차'], ['room', '별실']];
   const MP_AMEN_NAME = {}; MP_AMEN.forEach((a) => { MP_AMEN_NAME[a[0]] = a[1]; });
   const MP_MAX = 500;
   const MP_VIEW0 = { lat: 37.5665, lng: 126.978, z: 12 };   // 장소도 내 위치도 아직 없을 때의 첫 화면: 서울 중심
-  const MP_TILE = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';   // 열쇠가 없을 때의 바탕(OpenStreetMap). CSS 색조로만 테마에 맞춘다.
-  const MP_ATTR = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
-  // 열쇠(CARTO 무료 API 키)가 있으면 테마에 맞는 CARTO 바탕을 쓴다: 종이·세피아 = Positron(밝고 옅은 도로) + 색조, 야간 = Dark Matter.
-  // 열쇠는 이 기기(bf.mapkey)에만 저장하고 데이터 백업에는 넣지 않는다. 입력은 설정 → 고급설정에서 한다.
-  const MP_CARTO = 'https://basemaps.cartocdn.com/rastertiles/';
-  const MP_CARTO_STYLE = { paper: 'light_all', sepia: 'light_all', night: 'dark_all' };
-  const MP_CARTO_ATTR = MP_ATTR + ', © <a href="https://carto.com/attribution/">CARTO</a>';
-  const MP_KEY_LS = 'bf.mapkey', MP_KEY_URL = 'https://carto.com/basemaps/apikey/';
-  const mpKeyOk = (k) => /^\S{6,200}$/.test(k);
-  const mpKeyGet = () => { try { const k = (localStorage.getItem(MP_KEY_LS) || '').trim(); return mpKeyOk(k) ? k : ''; } catch (e) { return ''; } };
-  // 지금 테마·열쇠에 맞는 바탕 설정. nz = 그 서비스가 실제로 주는 가장 큰 확대 단계(그 이상은 늘려서 보여 준다)
-  function mpTileCfg() {
-    const key = mpKeyGet();
-    return key
-      ? { src: 'carto', url: MP_CARTO + (MP_CARTO_STYLE[settings.theme] || 'light_all') + '/{z}/{x}/{y}.png?key=' + encodeURIComponent(key), attr: MP_CARTO_ATTR, nz: 18 }
-      : { src: 'osm', url: MP_TILE, attr: MP_ATTR, nz: 19 };
-  }
-  const MP_NOTE = {
-    osm: '지도 바탕을 불러오지 못했습니다. 인터넷 연결을 확인해 주세요. 목록과 핀 위치는 그대로 쓸 수 있습니다.',
-    carto: '지도 바탕을 불러오지 못했습니다. 인터넷 연결과, 설정 → 고급설정에 입력한 지도 열쇠를 확인해 주세요. 목록과 핀 위치는 그대로 쓸 수 있습니다.',
-    vec: '지도 자료를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요. 목록과 핀 위치는 그대로 쓸 수 있습니다.',
-  };
-  // 지도 방식: 'vector'(B, 기본 — 도로·건물·글자를 MapLibre가 직접 그림. 키 없는 OpenFreeMap 자료) / 'raster'(A, 비상용 — 그림 조각 타일).
-  // v52부터 기본은 B. B가 안 되면(이 기기에서 WebGL이 안 됨·부품/자료를 못 받음·제때 안 그려짐) 그 실행 동안은 자동으로 A로 돌아간다. 선택값(bf.mapeng)은 이 기기에만 저장하고 데이터 백업에는 넣지 않는다. 저장값이 없으면 B.
-  const MP_ENG_LS = 'bf.mapeng';
-  const mpEngGet = () => { try { return localStorage.getItem(MP_ENG_LS) === 'raster' ? 'raster' : 'vector'; } catch (e) { return 'vector'; } };
+  // 지도 그림은 벡터 방식(B) 하나뿐이다: 도로·건물·글자를 MapLibre가 직접 그리고, 키 없는 공개 자료(OpenFreeMap)를 쓴다. 테마(종이·세피아·야간)마다 스타일(mapstyle.js)이 따로 있다.
+  // v68: 그림 조각(타일)을 받아 보여 주는 래스터(A) 방식과 CARTO 열쇠 입력은 앱에서 없앴다. 문제가 생겨 필요해지면 docs/emergency-raster/README.md 의 순서대로 되살린다.
+  const MP_NOTE_VEC = '지도 자료를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요. 목록과 핀 위치는 그대로 쓸 수 있습니다.';
   const MP_VEC_ATTR = '<a href="https://openfreemap.org">OpenFreeMap</a> <a href="https://www.openmaptiles.org/">© OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
   const MP_VEC_WAIT = 15000;   // 이 시간 안에 첫 그림이 안 나오면 실패로 본다(ms)
   const MP_VEC_WHY = {
@@ -3901,8 +3754,7 @@
     net: '벡터 지도 자료를 받지 못해',
     time: '벡터 지도가 제때 그려지지 않아',
   };
-  let mpVecFail = '', mpVecInfo = '';   // 벡터가 안 된 이유(MP_VEC_WHY의 키)와 진단 한 줄. 값이 있으면 이번 실행에서는 A로 보여 준다. 설정에서 방식을 다시 고르면 비운다.
-  const mpWantVec = () => mpEngGet() === 'vector' && !mpVecFail;
+  let mpVecFail = '', mpVecInfo = '';   // 벡터가 안 된 이유(MP_VEC_WHY의 키)와 진단 한 줄. 값이 있으면 지도 바탕은 비어 있다(핀·목록은 그대로). 지도를 다시 열 때마다 비우고 한 번 더 시도한다.
   const MP_COLOR_NAME = ['기본', '빨강', '주황', '노랑', '초록', '청록', '파랑', '보라', '분홍'];   // 내 장소 핀 색(0 = 테마 강조색). 실제 색은 style.css 의 --pc1~8 (테마별)
   const MP_PIN = '<svg viewBox="0 0 36 44" aria-hidden="true"><path class="pn" d="M18 43C18 43 3 27.6 3 17.4 3 8.9 9.7 2.5 18 2.5s15 6.4 15 14.9C33 27.6 18 43 18 43z"/>' +
     '<g class="cup"><path d="M11 13.2h12v5.4a4.8 4.8 0 0 1-4.8 4.8h-2.4a4.8 4.8 0 0 1-4.8-4.8z"/><path d="M23 14.6h1a2.3 2.3 0 0 1 0 4.6h-1.2"/><path d="M14 9.6v1.6M17 9.6v1.6M20 9.6v1.6"/></g></svg>';
@@ -4200,7 +4052,7 @@
     : '현재 위치를 가져오지 못했습니다. 잠시 뒤 다시 눌러 보세요. (실내·지하에서는 늦을 수 있습니다)');
 
   // ----- 화면 상태 -----
-  let mpEl = null, mpMap = null, mpTile = null, mpVec = null, mpVecP = null, mpNoteHold = 0, mpTileSig = '', mpPinLayer = null, mpMeLayer = null, mpDraftMk = null, mpLeafP = null, mpZoomCtl = null, mpPlacedTwo = null;
+  let mpEl = null, mpMap = null, mpVec = null, mpVecP = null, mpNoteHold = 0, mpTileSig = '', mpPinLayer = null, mpMeLayer = null, mpDraftMk = null, mpLeafP = null, mpZoomCtl = null, mpPlacedTwo = null;
   const mpMk = {};                        // 장소 id → 지도 핀
   let mpMe = null;                        // 내 위치 { lat, lng, acc }
   let mpLocState = 'idle';                // idle | busy | ok | denied | fail
@@ -4271,32 +4123,23 @@
     if (off > 0) c = mpMap.unproject(mpMap.project(c, zoom).subtract([off, 0]), zoom);
     mpMap.setView(c, zoom, { animate: false });
   }
-  // 지금 테마·열쇠에 맞는 바탕으로 맞춘다. #mp의 mp-src-carto / mp-src-osm 클래스는 CSS가 바탕 그림의 색조(필터)를 고르는 데 쓴다.
-  // 바탕 주소가 그대로면 지도를 건드리지 않는다. 바뀌면(테마 변경·열쇠 입력·삭제) 바탕 층만 새로 만든다.
+  // 지금 테마에 맞는 벡터 바탕으로 맞춘다. #mp 의 mp-src-vec 클래스는 벡터 바탕이 살아 있을 때만 붙고, 지하철 단추가 이 클래스를 본다.
+  // 바탕이 그대로면(같은 테마) 지도를 건드리지 않는다. 테마가 바뀌면 바탕 층만 새로 만든다. 벡터가 안 되는 동안(mpVecFail)은 바탕 없이 핀·목록만 쓴다.
   function mpApplyTile() {
     if (!mpEl) return;
-    const vec = mpWantVec();
-    const c = mpTileCfg();
-    mpEl.classList.toggle('mp-src-vec', vec);
-    mpEl.classList.toggle('mp-src-carto', !vec && c.src === 'carto');
-    mpEl.classList.toggle('mp-src-osm', !vec && c.src === 'osm');
-    if (!mpMap || !window.L) return;
-    const sig = vec ? 'vec|' + settings.theme : c.url;
-    if ((mpTile || mpVec) && mpTileSig === sig) return;
-    if (vec && !mpVecReady()) {   // 벡터 부품은 처음 쓸 때 받는다. 받는 동안은 지금 보이는 바탕을 그대로 둔다.
-      mpLoadVector().then(() => { if (mpWantVec()) mpApplyTile(); }, (e) => (e && e.message === 'webgl' ? mpVecFailed('gl', '이 웹뷰에서 WebGL2를 쓸 수 없음') : mpVecFailed('lib', '받지 못한 파일: ' + String(e && e.message || '').replace(/^.*\//, ''))));
+    mpEl.classList.toggle('mp-src-vec', !mpVecFail);
+    if (!mpMap || !window.L || mpVecFail) return;
+    const sig = 'vec|' + settings.theme;
+    if (mpVec && mpTileSig === sig) return;
+    if (!mpVecReady()) {   // 벡터 부품은 처음 쓸 때 받는다. 받는 동안은 지금 보이는 바탕을 그대로 둔다.
+      mpLoadVector().then(() => { if (!mpVecFail) mpApplyTile(); }, (e) => (e && e.message === 'webgl' ? mpVecFailed('gl', '이 웹뷰에서 WebGL2를 쓸 수 없음') : mpVecFailed('lib', '받지 못한 파일: ' + String(e && e.message || '').replace(/^.*\//, ''))));
       return;
     }
-    if (mpTile) { mpMap.removeLayer(mpTile); mpTile = null; }
     if (mpVec) { const old = mpVec; mpVec = null; try { mpMap.removeLayer(old); } catch (e) { /* 무시 */ } }
     mpTileSig = sig; mpTileErr = 0;
     const note = mpS('#mp-note');
-    if (Date.now() >= mpNoteHold) { note.textContent = MP_NOTE[vec ? 'vec' : c.src]; note.hidden = true; }
-    if (vec) { mpAddVector(); return; }
-    mpTile = L.tileLayer(c.url, { maxZoom: 19, maxNativeZoom: c.nz, attribution: c.attr });
-    mpTile.on('tileerror', () => { if (++mpTileErr >= 2 && Date.now() >= mpNoteHold) mpS('#mp-note').hidden = false; });
-    mpTile.on('tileload', () => { mpTileErr = 0; if (Date.now() >= mpNoteHold) mpS('#mp-note').hidden = true; });
-    mpTile.addTo(mpMap);
+    if (Date.now() >= mpNoteHold) { note.textContent = MP_NOTE_VEC; note.hidden = true; }
+    mpAddVector();
   }
   // ----- 벡터 지도(B): maplibre-gl + 플러그인 + 테마 스타일(mapstyle.js)을 '벡터'를 골랐을 때만 불러온다 -----
   const mpVecReady = () => !!(window.maplibregl && window.L && L.MaplibreGL && window.bfMapStyle);
@@ -4312,18 +4155,19 @@
       .then(() => { if (!mpVecReady()) throw new Error('init'); }, (e) => { mpVecP = null; throw e; });
     return mpVecP;
   }
-  // 벡터를 못 쓰는 이유를 기억하고 A(래스터)로 돌아간다. 안내 글은 몇 초 동안 띄운다.
+  // 벡터를 못 쓰는 이유를 기억하고, 바탕 층을 치우고, 안내문을 띄워 둔다. (래스터로 돌아가지 않는다 — 핀·목록은 그대로 쓸 수 있다)
+  // 안내문은 지도를 닫았다 다시 열 때(openMp)까지 남는다. 다시 열면 한 번 더 시도한다.
   function mpVecFailed(why, info) {
     if (mpVecFail) return;   // 처음 실패한 이유만 기억한다
     mpVecFail = why; mpVecInfo = info || '';
-    mpNoteHold = 0;
-    mpApplyTile();
+    if (mpVec) { const old = mpVec; mpVec = null; try { if (mpMap) mpMap.removeLayer(old); } catch (e) { /* 무시 */ } }
+    mpTileSig = '';
     if (!mpEl) return;
+    mpEl.classList.remove('mp-src-vec');
     const n = mpS('#mp-note');
-    n.textContent = (MP_VEC_WHY[why] || MP_VEC_WHY.time) + ' 기본(래스터) 지도로 보여 드립니다. 설정 → 고급설정에서 방식을 다시 고를 수 있습니다.';
+    n.innerHTML = esc((MP_VEC_WHY[why] || MP_VEC_WHY.time) + ' 지도 그림이 보이지 않습니다. 인터넷 연결을 확인한 뒤 지도를 닫았다가 다시 열어 주세요. 목록과 핀은 그대로 쓸 수 있습니다.') + (mpVecInfo ? '<br><small>' + esc(mpVecInfo) + '</small>' : '');
     n.hidden = false;
-    mpNoteHold = Date.now() + 9000;
-    setTimeout(() => { if (mpEl && Date.now() >= mpNoteHold) mpS('#mp-note').hidden = true; }, 9100);
+    mpNoteHold = Number.MAX_SAFE_INTEGER;
   }
   function mpAddVector() {
     const Layer = L.MaplibreGL.extend({ getAttribution() { return this.options.attribution; } });   // 출처 표시는 우리가 정한 글(MP_VEC_ATTR)로 고정
@@ -5231,7 +5075,8 @@
     if (!mpEl) buildMp();
     mpEl.hidden = false;
     mpUserMoved = false;
-    mpApplyTile();   // 설정에서 열쇠를 넣거나 지웠을 수 있으니, 열 때마다 바탕을 다시 맞춘다
+    mpVecFail = ''; mpVecInfo = ''; mpNoteHold = 0;   // 지난번에 벡터가 안 됐어도 지도를 열 때마다 한 번 더 시도한다
+    mpApplyTile();   // 열 때마다 바탕을 다시 맞춘다
     mpTab('l');
     layoutMp();
     mpShowView(mpView);
