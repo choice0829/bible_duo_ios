@@ -1,28 +1,28 @@
-// v69 — 문의하기 · 후원하기 시험:
-//  ① 설정에 '문의하기'·'후원하기' 줄이 고급설정 아래·제작자 표시 위에 있다
-//  ② 문의하기: 제목·내용 검사, 앱(메일 작성 창)으로 보내는 내용(받는 사람·제목·본문·사진), 결과별 안내(보냄·취소·저장·실패·계정 없음·다른 창),
-//     사진 추가(최대 3장·큰 사진은 줄임·빼기), 쓰던 글 유지, 받는 주소가 비어 있을 때 / 앱이 아닌 화면일 때의 대체 방법
-//  ③ 후원하기: 후원 목적 글, 상품 단추(앱이 준 이름·가격), 결제 결과별 안내, 상품이 없을 때(사이드로드)·앱이 아닐 때 안내, 늦게 도착한 결제 소식
-// 주의: PC 크롬 모의다. 실제 아이폰의 메일 작성 창·사진 고르기·Apple 결제 창은 실기기(App Store/TestFlight 설치)에서 확인한다.
+// v70 — 문의하기(머리줄 아이콘) 시험. (v69에서 설정 안에 있던 문의하기를 머리줄의 별도 아이콘으로 옮기고, 후원하기는 삭제했다.)
+//  ① 머리줄 아이콘 7개(검색·하이라이트·노트·바이블 포토 카드·지도·문의하기·설정) — 한 쪽(접힘·세로) 화면은 윗줄 3개·아랫줄 4개, 펼친 화면은 한 줄
+//  ② 설정에는 문의하기·후원하기 줄이 없고, 화면 어디에도 '후원' 글자가 없다
+//  ③ 문의하기: 제목·내용 검사, 앱(메일 작성 창)으로 보내는 내용(받는 사람·제목·본문·사진), 결과별 안내(보냄·취소·저장·실패·계정 없음·다른 창),
+//     사진 추가(최대 3장·큰 사진은 줄임·빼기), 쓰던 글 유지, 받는 주소가 비어 있을 때 / 앱이 아닐 때의 대체 방법
+// 주의: PC 크롬 모의다. 실제 아이폰의 메일 작성 창·사진 고르기는 실기기에서 확인한다.
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path';
 import { serve, launch, sleep, DEVICES } from './devlib.mjs';
 serve(8985); const b = await launch(); let fails = 0;
 const ok = (n, c, x = '') => { if (!c) fails++; console.log((c ? 'ok   ' : 'FAIL ') + n + (x ? ' — ' + x : '')); };
 const PICK = ['SE3 세로', '15 세로', '14 가로', 'Duo 펼침', 'Duo 접힘'];
+const HEAD_PICK = ['SE3 세로', '12mini 세로', '15 세로', '16ProMax 세로', 'SE3 가로', '14 가로', '15Plus 가로', 'iPad mini 세로', 'Duo 펼침', 'Duo 접힘'];
 const MAIL = 'test@example.com';
+const IDS = ['btn-search', 'btn-hl', 'btn-notes', 'btn-card', 'btn-map', 'btn-ask', 'btn-settings'];
 
-// 앱(껍데기) 모의: 보낸 메시지를 __msgs 에 모으고, 메일·후원 요청에는 __mailResult / __supItems / __buyResult 대로 답한다.
+// 앱(껍데기) 모의: 보낸 메시지를 __msgs 에 모으고, 메일 요청에는 __mailResult 대로 답한다.
 const seed = { fn: () => {
-  window.__msgs = []; window.__mailResult = 'sent'; window.__supItems = []; window.__buyResult = 'thanks'; window.__supSilent = false;
+  window.__msgs = []; window.__mailResult = 'sent';
   window.webkit = { messageHandlers: { bf: { postMessage: (m) => {
     window.__msgs.push(JSON.parse(JSON.stringify(m)));
     if (m.mail) setTimeout(() => window.bfMail && window.bfMail({ id: m.id, result: window.__mailResult }), 60);
-    if (m.support === 'list' && !window.__supSilent) setTimeout(() => window.bfSupport && window.bfSupport({ kind: 'list', id: m.id, items: window.__supItems }), 60);
-    if (m.support === 'buy') setTimeout(() => window.bfSupport && window.bfSupport({ kind: 'buy', id: m.id, result: window.__buyResult }), 60);
   } } } };
-  localStorage.setItem('bf.pos', JSON.stringify({ bi: 0, ch: 1 }));
+  localStorage.setItem('bf.pos', JSON.stringify({ book: 0, chapter: 0, verse: 1 }));
 } };
-const open = async (dev, { addr = MAIL, native = true } = {}) => {
+const open = async (dev, { addr = MAIL, native = true, book = null } = {}) => {
   const [, w, h, si] = dev; const p = await b.newPage(); const errs = [];
   p.on('pageerror', (e) => errs.push(e.message)); p.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
   await p.setViewport({ width: w, height: h, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
@@ -41,16 +41,18 @@ const open = async (dev, { addr = MAIL, native = true } = {}) => {
   // 서비스 워커가 예전에 저장해 둔 app.js(원본 주소)를 내주면 바꿔 끼운 주소가 무시되므로, 시험 화면에서는 서비스 워커를 쓰지 않는다
   await p.evaluateOnNewDocument(() => { try { Object.defineProperty(navigator, 'serviceWorker', { value: { register: () => Promise.reject(new Error('시험에서는 사용 안 함')), controller: null }, configurable: true }); } catch (e) { /* 무시 */ } });
   await p.evaluateOnNewDocument(seed.fn);
+  if (book !== null) await p.evaluateOnNewDocument((bk) => { localStorage.setItem('bf.pos', JSON.stringify({ book: bk, chapter: 0, verse: 1 })); }, book);
   await p.goto('http://localhost:8985/index.html' + (native ? '?native=1' : ''));
   await p.waitForFunction(() => document.querySelector('#loading')?.hidden === true, { timeout: 90000 }); await sleep(1500);
   return { p, errs };
 };
 const body = (p) => p.evaluate(() => document.querySelector('#sheet-body').innerText);
 const msgs = (p) => p.evaluate(() => window.__msgs);
-const settings = async (p) => { await p.click('#btn-settings'); await sleep(500); };
 const typeIn = async (p, sel, text) => { await p.click(sel); await p.evaluate((s) => { document.querySelector(s).value = ''; }, sel); await p.type(sel, text); };
 const msgText = (p) => p.evaluate(() => document.querySelector('#ask-msg')?.textContent.trim());
 const inSheet = (p, sel) => p.evaluate((s) => { const e = document.querySelector(s), sh = document.querySelector('#sheet'); if (!e || !sh) return false; e.scrollIntoView({ block: 'center' }); const a = e.getBoundingClientRect(), c = sh.getBoundingClientRect(); return a.top >= c.top - 1 && a.bottom <= c.bottom + 1 && a.left >= c.left - 1 && a.right <= c.right + 1; }, sel);
+const openAsk = async (p) => { await p.click('#btn-ask'); await sleep(450); };
+const closeSheet = async (p) => { await p.click('#sheet-close'); await sleep(300); };
 
 // 큰 사진 파일(3000×2000)과 작은 사진 파일 만들기
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ask1-'));
@@ -62,20 +64,68 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ask1-'));
   await p.close();
 }
 
+// ① 머리줄 아이콘 배열 (기기 여러 가지)
+for (const name of HEAD_PICK) {
+  const dev = DEVICES.find((d) => d[0] === name);
+  const { p, errs } = await open(dev);
+  const r = await p.evaluate(() => {
+    const bs = [...document.querySelectorAll('.menu-row > button')].map((e) => { const r = e.getBoundingClientRect(); return { id: e.id, l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height }; });
+    const ti = document.querySelector('#btn-pick').getBoundingClientRect();
+    const hh = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--headh')) || 0;
+    return { bs, ti: { r: ti.right, b: ti.bottom }, spread: document.body.classList.contains('is-spread'), headh: hh, W: innerWidth, H: innerHeight, hr: document.querySelector('.head-row').getBoundingClientRect().bottom };
+  });
+  const rows = {}; r.bs.forEach((x) => { const k = Math.round(x.t / 6); (rows[k] = rows[k] || []).push(x); });
+  const rowList = Object.keys(rows).map(Number).sort((a, c) => a - c).map((k) => rows[k].sort((a, c) => a.l - c.l));
+  ok(name + ': 아이콘 7개가 순서대로(검색·하이라이트·노트·포토 카드·지도·문의하기·설정)', JSON.stringify(r.bs.map((x) => x.id)) === JSON.stringify(IDS), r.bs.map((x) => x.id).join(','));
+  ok(name + ': 모두 화면 안에 있다', r.bs.every((x) => x.l >= 0 && x.r <= r.W && x.t >= 0 && x.b <= r.H));
+  const overlap = r.bs.some((a, i) => r.bs.some((c, j) => j > i && a.l < c.r - 0.5 && c.l < a.r - 0.5 && a.t < c.b - 0.5 && c.t < a.b - 0.5));
+  ok(name + ': 아이콘끼리 겹치지 않는다', !overlap);
+  ok(name + ': 책 이름과 아이콘이 겹치지 않는다', r.ti.r <= Math.min(...r.bs.map((x) => x.l)) + 1, 'title.r=' + Math.round(r.ti.r) + ' menu.l=' + Math.round(Math.min(...r.bs.map((x) => x.l))));
+  if (r.spread) {
+    ok(name + ': 펼친 화면은 한 줄', rowList.length === 1, 'rows=' + rowList.length);
+  } else {
+    ok(name + ': 한 쪽 화면은 두 줄 — 윗줄 3개 · 아랫줄 4개', rowList.length === 2 && rowList[0].length === 3 && rowList[1].length === 4, rowList.map((x) => x.length).join('+'));
+    if (rowList.length === 2 && rowList[0].length === 3 && rowList[1].length === 4) {
+      ok(name + ': 윗줄은 검색·하이라이트·노트, 아랫줄은 포토 카드·지도·문의하기·설정', rowList[0].map((x) => x.id).join() === 'btn-search,btn-hl,btn-notes' && rowList[1].map((x) => x.id).join() === 'btn-card,btn-map,btn-ask,btn-settings');
+      const top = rowList[0], bot = rowList[1];
+      ok(name + ': 두 줄 모두 오른쪽 끝이 같다(오른쪽 맞춤)', Math.abs(top[2].r - bot[3].r) < 1.5, Math.round(top[2].r) + ' / ' + Math.round(bot[3].r));
+      ok(name + ': 윗줄 아이콘이 아랫줄 둘째~넷째 칸 위에 줄 맞춰 있다', [0, 1, 2].every((i) => Math.abs(top[i].l - bot[i + 1].l) < 1.5), top.map((x) => Math.round(x.l)).join(',') + ' / ' + bot.map((x) => Math.round(x.l)).join(','));
+      ok(name + ': 아랫줄 간격이 고르다', Math.abs((bot[1].l - bot[0].r) - (bot[3].l - bot[2].r)) < 1.5);
+    }
+    ok(name + ': 머리줄이 본문 시작 높이(--headh)를 넘지 않는다', r.hr <= r.headh + 0.5, 'head.bottom=' + Math.round(r.hr) + ' headh=' + Math.round(r.headh));
+  }
+  ok(name + ': 아이콘 누르는 크기 32px 이상', r.bs.every((x) => x.w >= 37 && x.h >= 32), r.bs.map((x) => Math.round(x.w) + '×' + Math.round(x.h))[0]);
+  ok(name + ': 문의하기 아이콘에 이름표(aria-label)가 있다', await p.evaluate(() => document.querySelector('#btn-ask').getAttribute('aria-label') === '문의하기' && !!document.querySelector('#btn-ask svg')));
+  ok(name + ': 화면 오류 없음', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await p.close();
+}
+
+// 긴 책 이름도 잘리지 않는다(이름이 길면 글자가 자동으로 줄어듦). 아이콘이 4열이 되어 책 이름 자리가 좁아진 한 쪽 화면에서 확인한다.
+for (const name of ['SE3 세로', '16ProMax 세로', 'Duo 접힘']) {
+  const dev = DEVICES.find((d) => d[0] === name);
+  for (const [bk, nm] of [[52, '데살로니가후서'], [65, '요한계시록'], [45, '고린도전서']]) {
+    const { p } = await open(dev, { book: bk });
+    const t = await p.evaluate(() => { const e = document.querySelector('#loc-book'); const ti = document.querySelector('#btn-pick').getBoundingClientRect(); const ml = Math.min(...[...document.querySelectorAll('.menu-row > button')].map((x) => x.getBoundingClientRect().left)); return { txt: e.textContent, cut: e.scrollWidth > e.clientWidth + 1, fs: parseFloat(getComputedStyle(e).fontSize), gap: ml - ti.right }; });
+    ok(name + ': 책 이름 "' + nm + '"이 잘리지 않고 아이콘과 겹치지 않는다', t.txt === nm && !t.cut && t.fs >= 16 && t.gap >= -1, JSON.stringify(t));
+    await p.close();
+  }
+}
+
+// ②·③ 문의하기
 for (const name of PICK) {
   const dev = DEVICES.find((d) => d[0] === name);
   const { p, errs } = await open(dev);
-  // ① 설정 줄
-  await settings(p);
-  let order = await p.evaluate(() => [...document.querySelectorAll('#sheet-body > *')].map((e) => e.id || e.className.split(' ')[0]));
-  const iAdv = order.indexOf('go-adv'), iAsk = order.indexOf('go-ask'), iSup = order.indexOf('go-sup'), iCr = order.indexOf('credit');
-  ok(name + ': 설정에서 고급설정 → 문의하기 → 후원하기 → 제작자 표시 순서', iAdv >= 0 && iAsk === iAdv + 1 && iSup === iAsk + 1 && iCr === iSup + 1, order.join(','));
+  // ② 설정에는 문의하기·후원하기가 없다
+  await p.click('#btn-settings'); await sleep(500);
+  const order = await p.evaluate(() => [...document.querySelectorAll('#sheet-body > *')].map((e) => e.id || e.className.split(' ')[0]));
   const t0 = await body(p);
-  ok(name + ': 줄 설명에 "문의하기"·"후원하기"가 보인다', t0.includes('문의하기') && t0.includes('후원하기'));
+  ok(name + ': 설정에는 문의하기·후원하기 줄이 없고 고급설정 다음에 제작자 표시가 온다', !order.includes('go-ask') && !order.includes('go-sup') && order.indexOf('credit') === order.indexOf('go-adv') + 1 && !t0.includes('문의하기') && !t0.includes('후원'), order.join(','));
+  await closeSheet(p);
 
-  // ② 문의하기
-  await p.click('#go-ask'); await sleep(400);
-  ok(name + ': 문의하기 화면 제목과 돌아가기 단추', await p.evaluate(() => document.querySelector('#sheet-title').textContent === '문의하기' && !document.querySelector('#sheet-back').hidden));
+  // ③ 문의하기
+  await openAsk(p);
+  ok(name + ': 문의하기 아이콘 → 제목 "문의하기"이고 돌아가기 없이 닫기만 있다', await p.evaluate(() => !document.querySelector('#sheet').hidden && document.querySelector('#sheet-title').textContent === '문의하기' && document.querySelector('#sheet-back').hidden));
+  ok(name + ': 화면 어디에도 "후원" 글자가 없다', !(await p.evaluate(() => document.body.innerText)).includes('후원') && await p.evaluate(() => typeof window.bfSupport === 'undefined'));
   ok(name + ': 받는 주소가 설정되어 있으면 경고가 없다', await p.evaluate(() => !document.querySelector('.ask-warn')));
   ok(name + ': 가로로 넘치지 않는다', await p.evaluate(() => { const b = document.querySelector('#sheet-body'); return b.scrollWidth <= b.clientWidth + 1; }));
   ok(name + ': 보내기 단추가 창 안에서 눌린다', await inSheet(p, '#ask-send'));
@@ -86,16 +136,15 @@ for (const name of PICK) {
   ok(name + ': 내용이 비면 안내하고 보내지 않는다', (await msgText(p)).includes('내용') && (await msgs(p)).filter((m) => m.mail).length === 0);
   await typeIn(p, '#ask-body', '모임 장소 화면에서 카드 글자가 겹쳐 보입니다.\n두 번째 줄.');
   ok(name + ': 글자 수가 보인다', (await p.evaluate(() => document.querySelector('#ask-count').textContent)).includes('/2000'));
-  // 쓰던 글은 뒤로 갔다 와도 남는다
-  await p.click('#sheet-back'); await sleep(300); await p.click('#go-ask'); await sleep(300);
-  ok(name + ': 뒤로 갔다 와도 쓰던 제목·내용이 남아 있다', await p.evaluate(() => document.querySelector('#ask-title').value === '글자가 겹칩니다' && document.querySelector('#ask-body').value.includes('두 번째 줄')));
+  // 쓰던 글은 닫았다 다시 열어도 남는다
+  await closeSheet(p); await openAsk(p);
+  ok(name + ': 닫았다 다시 열어도 쓰던 제목·내용이 남아 있다', await p.evaluate(() => document.querySelector('#ask-title').value === '글자가 겹칩니다' && document.querySelector('#ask-body').value.includes('두 번째 줄')));
   // 취소
   await p.evaluate(() => { window.__mailResult = 'cancelled'; });
   await p.click('#ask-send'); await sleep(400);
   let m = (await msgs(p)).filter((x) => x.mail);
-  ok(name + ': 앱으로 보낸 메시지: 받는 사람·제목 머리말·본문·앱 버전', m.length === 1 && m[0].mail.to === MAIL && m[0].mail.subject === '[앱 문의] 글자가 겹칩니다' && m[0].mail.body.includes('카드 글자가 겹쳐') && m[0].mail.body.includes('앱 v69') && Array.isArray(m[0].mail.photos) && m[0].mail.photos.length === 0 && typeof m[0].id === 'number', JSON.stringify(m[0] && m[0].mail).slice(0, 200));
+  ok(name + ': 앱으로 보낸 메시지: 받는 사람·제목 머리말·본문·앱 버전', m.length === 1 && m[0].mail.to === MAIL && m[0].mail.subject === '[앱 문의] 글자가 겹칩니다' && m[0].mail.body.includes('카드 글자가 겹쳐') && m[0].mail.body.includes('앱 v70') && Array.isArray(m[0].mail.photos) && m[0].mail.photos.length === 0 && typeof m[0].id === 'number', JSON.stringify(m[0] && m[0].mail).slice(0, 200));
   ok(name + ': 취소하면 안내하고 쓰던 글은 그대로', (await msgText(p)).includes('취소') && await p.evaluate(() => document.querySelector('#ask-title').value !== '' && !document.querySelector('#ask-send').disabled));
-  // 임시 저장 · 실패 · 다른 창
   for (const [res, word] of [['saved', '임시 보관함'], ['failed', '보내지 못했습니다'], ['busy', '다른 창']]) {
     await p.evaluate((r) => { window.__mailResult = r; }, res); await p.click('#ask-send'); await sleep(400);
     ok(name + ': 결과 ' + res + ' → "' + word + '" 안내', (await msgText(p)).includes(word) && await p.evaluate(() => !document.querySelector('#ask-send').disabled));
@@ -112,7 +161,7 @@ for (const name of PICK) {
   // 보냄 → 내용 비움
   await p.evaluate(() => { window.__mailResult = 'sent'; }); await p.click('#ask-send'); await sleep(400);
   ok(name + ': 보내면 감사 안내가 나오고 제목·내용이 비워진다', (await msgText(p)).includes('보냈습니다') && await p.evaluate(() => document.querySelector('#ask-title').value === '' && document.querySelector('#ask-body').value === ''));
-  await p.click('#sheet-back'); await sleep(300); await p.click('#go-ask'); await sleep(300);
+  await closeSheet(p); await openAsk(p);
   ok(name + ': 보낸 뒤 다시 열어도 비어 있다(쓰던 글 초기화)', await p.evaluate(() => document.querySelector('#ask-title').value === ''));
 
   // 사진
@@ -129,56 +178,24 @@ for (const name of PICK) {
   const pl = m[0] && m[0].mail.photos;
   ok(name + ': 사진 3장이 JPEG(base64)로, 한 장 1.3MB 이하로 전달된다', pl && pl.length === 3 && pl.every((x) => x.data.startsWith('/9j/') && x.data.length * 0.75 < 1300000), pl && pl.map((x) => Math.round(x.data.length * 0.75 / 1000) + 'KB').join(','));
   ok(name + ': 보낸 뒤 사진도 비워진다', await p.evaluate(() => document.querySelectorAll('.ask-ph').length === 0));
-  // 사진 빼기
   await (await p.$('#ask-file')).uploadFile(path.join(tmp, 's1.png'), path.join(tmp, 's2.png')); await sleep(1200);
   await p.click('.ask-ph button[data-rm="0"]'); await sleep(200);
   ok(name + ': × 를 누르면 그 사진이 빠진다', await p.evaluate(() => document.querySelectorAll('.ask-ph').length === 1 && document.querySelector('#ask-pcount').textContent.includes('1/3')));
-  await p.click('#sheet-back'); await sleep(300);
-  ok(name + ': 돌아가기 → 설정 화면', await p.evaluate(() => document.querySelector('#sheet-title').textContent === '설정'));
-
-  // ③ 후원하기 — 상품 있음
-  await p.evaluate(() => { window.__supItems = [{ id: 'com.choice0829.bibleflip.support.small', name: '작은 후원', price: '₩1,500' }, { id: 'com.choice0829.bibleflip.support.medium', name: '보통 후원', price: '₩5,000' }]; window.__msgs.length = 0; });
-  await p.click('#go-sup'); await sleep(500);
-  const st = await body(p);
-  ok(name + ': 후원 목적 글 — 개역개정·다양한 번역본, 세계에서 쓸 수 있는 앱 개발', st.includes('개역개정') && st.includes('다양한 번역본') && st.includes('세계') && st.includes('앱 개발'));
-  ok(name + ': 후원은 선택이며 기능과 무관하고, 번역본 추가를 약속하지 않는다고 밝힌다', st.includes('전적으로 선택') && st.includes('약속하는 것은 아닙니다') && st.includes('기능이 열리거나 광고가 사라지는 일은 없습니다'));
-  ok(name + ': 기부금 영수증 미발급 안내', st.includes('기부금 영수증은 발급되지 않습니다'));
-  const sb = await p.evaluate(() => [...document.querySelectorAll('.sup-btn')].map((x) => x.innerText.replace(/\s+/g, ' ')));
-  ok(name + ': 상품 단추 — 앱이 준 이름과 가격', sb.length === 2 && sb[0].includes('작은 후원') && sb[0].includes('₩1,500') && sb[1].includes('₩5,000'), JSON.stringify(sb));
-  ok(name + ': 가로로 넘치지 않고 단추가 창 안에서 눌린다', await p.evaluate(() => { const b = document.querySelector('#sheet-body'); return b.scrollWidth <= b.clientWidth + 1; }) && await inSheet(p, '.sup-btn'));
-  for (const [res, word] of [['cancelled', '취소'], ['pending', '승인을 기다리는'], ['failed', '마치지 못했습니다'], ['unavailable', '불러올 수 없습니다'], ['thanks', '감사드립니다']]) {
-    await p.evaluate((r) => { window.__buyResult = r; window.__msgs.length = 0; }, res);
-    await p.click('.sup-btn[data-pid$="medium"]'); await sleep(450);
-    const sent = (await msgs(p)).filter((x) => x.support === 'buy');
-    ok(name + ': 결제 결과 ' + res + ' → "' + word + '" 안내', sent.length === 1 && sent[0].pid === 'com.choice0829.bibleflip.support.medium' && (await p.evaluate(() => document.querySelector('#sup-state').textContent)).includes(word) && await p.evaluate(() => [...document.querySelectorAll('.sup-btn')].every((x) => !x.disabled)));
-  }
-  // 늦게 도착한 결제 소식(id 0)
-  await p.evaluate(() => window.bfSupport({ kind: 'buy', id: 0, result: 'thanks' })); await sleep(200);
-  ok(name + ': 늦게 도착한 결제 소식이면 감사 안내(토스트)가 나온다', await p.evaluate(() => (document.getElementById('infotoast')?.textContent || '').includes('감사')));
   ok(name + ': 화면 오류 없음', errs.length === 0, errs.join(' | ').slice(0, 200));
   await p.close();
 }
 
-// 상품이 없을 때(사이드로드) · 응답이 없을 때 · 앱이 아닐 때 · 받는 주소가 비어 있을 때
+// 앱이 아닐 때 · 받는 주소가 비어 있을 때
 {
   const dev = DEVICES.find((d) => d[0] === '15 세로');
-  let { p, errs } = await open(dev); await settings(p); await p.click('#go-sup'); await sleep(500);
-  let t = await body(p);
-  ok('상품이 없으면 App Store 설치 앱에서만 후원할 수 있다고 안내', t.includes('App Store에서 설치한 앱') && t.includes('사이드로드') && !(await p.$('.sup-btn')));
-  await p.close();
-  ({ p, errs } = await open(dev)); await p.evaluate(() => { window.__supSilent = true; }); await settings(p); await p.click('#go-sup'); await sleep(10600);
-  t = await body(p);
-  ok('앱이 10초 안에 답하지 않으면 불러오지 못했다고 안내', t.includes('불러오지 못했습니다') && t.includes('인터넷 연결'));
-  await p.close();
-  ({ p, errs } = await open(dev, { native: false })); await settings(p); await p.click('#go-sup'); await sleep(400);
-  ok('앱이 아닌 화면에서 후원하기: 아이폰 앱에서만 가능하다고 안내', (await body(p)).includes('아이폰 앱에서만'));
-  await p.click('#sheet-back'); await sleep(300); await p.click('#go-ask'); await sleep(300);
+  let { p, errs } = await open(dev, { native: false });
+  await openAsk(p);
   await typeIn(p, '#ask-title', '제목'); await typeIn(p, '#ask-body', '내용'); await p.click('#ask-send'); await sleep(300);
   const f2 = await p.evaluate(() => ({ shown: !document.querySelector('#ask-fb').hidden, txt: document.querySelector('#ask-fb').innerText, sent: window.__msgs.filter((m) => m.mail).length }));
   // 앱이 아닌 화면에서는 모의 앱 메시지(webkit)가 있어도 NATIVE 가 아니므로 보내지 않는다
   ok('앱이 아닌 화면에서 문의하기: 앱으로 보내지 않고 대체 방법(주소 복사·mailto)을 보여 준다', f2.shown && f2.txt.includes('아이폰 앱이 아닌 곳') && f2.sent === 0, JSON.stringify(f2).slice(0, 200));
   await p.close();
-  ({ p, errs } = await open(dev, { addr: '' })); await settings(p); await p.click('#go-ask'); await sleep(400);
+  ({ p, errs } = await open(dev, { addr: '' })); await openAsk(p);
   const eb = await body(p);
   ok('받는 주소가 비어 있으면 경고가 보인다', eb.includes('받는 메일 주소가 아직 설정되지 않아'), eb.slice(0, 120).replace(/\n/g, ' '));
   await typeIn(p, '#ask-title', '제목'); await typeIn(p, '#ask-body', '내용'); await p.click('#ask-send'); await sleep(300);
