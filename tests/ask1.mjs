@@ -32,11 +32,14 @@ const open = async (dev, { addr = MAIL, native = true } = {}) => {
   p.on('request', async (req) => {
     if (/\/app\.js(\?|$)/.test(req.url())) {
       let t = fs.readFileSync(new URL('../www/app.js', import.meta.url), 'utf8');
-      if (!t.includes("const INQUIRY_EMAIL = '';")) throw new Error('INQUIRY_EMAIL 줄을 찾지 못했습니다');
-      t = t.replace("const INQUIRY_EMAIL = '';", "const INQUIRY_EMAIL = '" + addr + "';");
+      const re = /const INQUIRY_EMAIL = '[^']*';/;
+      if (!re.test(t)) throw new Error('INQUIRY_EMAIL 줄을 찾지 못했습니다');
+      t = t.replace(re, "const INQUIRY_EMAIL = '" + addr + "';");   // 시험용 주소로 바꿔 끼운다(실제 주소로 메일이 가지 않음)
       req.respond({ status: 200, contentType: 'text/javascript; charset=utf-8', body: t });
     } else req.continue();
   });
+  // 서비스 워커가 예전에 저장해 둔 app.js(원본 주소)를 내주면 바꿔 끼운 주소가 무시되므로, 시험 화면에서는 서비스 워커를 쓰지 않는다
+  await p.evaluateOnNewDocument(() => { try { Object.defineProperty(navigator, 'serviceWorker', { value: { register: () => Promise.reject(new Error('시험에서는 사용 안 함')), controller: null }, configurable: true }); } catch (e) { /* 무시 */ } });
   await p.evaluateOnNewDocument(seed.fn);
   await p.goto('http://localhost:8985/index.html' + (native ? '?native=1' : ''));
   await p.waitForFunction(() => document.querySelector('#loading')?.hidden === true, { timeout: 90000 }); await sleep(1500);
@@ -176,7 +179,8 @@ for (const name of PICK) {
   ok('앱이 아닌 화면에서 문의하기: 앱으로 보내지 않고 대체 방법(주소 복사·mailto)을 보여 준다', f2.shown && f2.txt.includes('아이폰 앱이 아닌 곳') && f2.sent === 0, JSON.stringify(f2).slice(0, 200));
   await p.close();
   ({ p, errs } = await open(dev, { addr: '' })); await settings(p); await p.click('#go-ask'); await sleep(400);
-  ok('받는 주소가 비어 있으면 경고가 보인다', (await body(p)).includes('받는 메일 주소가 아직 설정되지 않아'));
+  const eb = await body(p);
+  ok('받는 주소가 비어 있으면 경고가 보인다', eb.includes('받는 메일 주소가 아직 설정되지 않아'), eb.slice(0, 120).replace(/\n/g, ' '));
   await typeIn(p, '#ask-title', '제목'); await typeIn(p, '#ask-body', '내용'); await p.click('#ask-send'); await sleep(300);
   ok('받는 주소가 비어 있으면 보내지 않고 안내한다', (await msgText(p)).includes('설정되지 않아') && (await msgs(p)).filter((x) => x.mail).length === 0);
   ok('화면 오류 없음', errs.length === 0, errs.join(' | ').slice(0, 200));

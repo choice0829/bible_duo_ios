@@ -1976,7 +1976,7 @@
 
   // ---------- 문의하기 · 후원하기 (v69) ----------
   // 받는 메일 주소: 이 한 줄만 고치면 됩니다. 비워 두면 '아직 설정되지 않음'으로 보이고 보내기가 꺼집니다.
-  const INQUIRY_EMAIL = '';
+  const INQUIRY_EMAIL = 'choice.seon@gmail.com';
   const ASK_MAX_PHOTOS = 3, ASK_MAX_TITLE = 80, ASK_MAX_BODY = 2000;
   const ASK_PHOTO_EDGE = 1600, ASK_PHOTO_BYTES = 1200000;   // 사진은 긴 변 1600px·약 1.2MB 안쪽으로 줄여서 붙인다
   let askDraft = { title: '', body: '', photos: [] };       // 화면을 닫았다 열어도 쓰던 글이 남도록 메모리에 둔다(앱을 끄면 사라짐)
