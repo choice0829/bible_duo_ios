@@ -1,5 +1,6 @@
 import UIKit
 import WebKit
+import MessageUI
 
 /// 웹 메시지를 받는 쪽이 ViewController를 붙잡고 있지 않도록(순환 참조 방지) 약하게 이어 주는 중간 다리
 private final class WeakMessageHandler: NSObject, WKScriptMessageHandler {
@@ -10,11 +11,13 @@ private final class WeakMessageHandler: NSObject, WKScriptMessageHandler {
     }
 }
 
-final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
+final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate, MFMailComposeViewControllerDelegate {
     private var webView: WKWebView!
     private var theme: String = UserDefaults.standard.string(forKey: "bf.theme") ?? "paper"
     private var errorShown = false
     private let places = LocationBridge()   // 모임 장소 지도: 현재 위치·주소 찾기
+    private let support = SupportBridge()   // 후원하기: 앱 안 결제(StoreKit 2)
+    private var mailId = 0                  // 문의하기: 지금 열려 있는 메일 작성 창의 요청 번호
 
     // Mac 없이도 문제를 알 수 있도록: 웹에서 난 오류를 앱이 한 번 화면에 띄운다 (진단용)
     private static let diagScript = """
@@ -38,7 +41,7 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         config.setURLSchemeHandler(BundleSchemeHandler(), forURLScheme: "bibleflip")
         config.allowsInlineMediaPlayback = true
         // 지도 바탕(OpenStreetMap) 서버가 앱을 알아볼 수 있도록 앱 이름을 접속 정보(User-Agent)에 덧붙인다
-        config.applicationNameForUserAgent = "BibleFlip/68"
+        config.applicationNameForUserAgent = "BibleFlip/69"
         let controller = WKUserContentController()
         controller.add(WeakMessageHandler(self), name: "bf")
         controller.addUserScript(WKUserScript(source: ViewController.diagScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
@@ -74,6 +77,8 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillHide(_:)),
                                                name: UIResponder.keyboardWillHideNotification, object: nil)
         places.onFix = { [weak self] r in self?.sendToWeb("bfLocation", r) }
+        support.onEvent = { [weak self] r in self?.sendToWeb("bfSupport", r) }
+        support.startListening()
         load()
     }
 
@@ -145,6 +150,18 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
             }
             return
         }
+        // 문의하기: 아이폰 기본 메일 작성 창(받는 사람·제목·내용·사진이 채워진 채)
+        if let m = body["mail"] as? [String: Any] { composeMail(m, id: (body["id"] as? Int) ?? 0); return }
+        // 후원하기: 상품 목록 · 결제
+        if let action = body["support"] as? String {
+            let id = (body["id"] as? Int) ?? 0
+            if action == "list" {
+                support.list(id: id)
+            } else if action == "buy", let pid = body["pid"] as? String {
+                support.buy(id: id, productID: pid)
+            }
+            return
+        }
         if let u = body["open"] as? String { openExternal(u, fallback: body["fallback"] as? String); return }
         guard let t = body["theme"] as? String else { return }
         UserDefaults.standard.set(t, forKey: "bf.theme")
@@ -196,6 +213,60 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
             pop.permittedArrowDirections = []
         }
         present(vc, animated: true)
+    }
+
+    // MARK: 문의하기 (웹이 만든 제목·내용·사진 → 아이폰 메일 작성 창)
+    // 결과는 웹의 window.bfMail({id, result}) 로 돌려준다. result: sent | saved | cancelled | failed | unavailable | busy | invalid
+    private func composeMail(_ m: [String: Any], id: Int) {
+        func reply(_ r: String) { sendToWeb("bfMail", ["id": id, "result": r]) }
+        guard let to = m["to"] as? String, ViewController.looksLikeEmail(to),
+              let subject = m["subject"] as? String, let text = m["body"] as? String else { reply("invalid"); return }
+        // 메일 계정이 없으면 작성 창을 열 수 없다 → 웹이 주소·내용 복사 등 다른 방법을 안내한다
+        guard MFMailComposeViewController.canSendMail() else { reply("unavailable"); return }
+        if presentedViewController != nil { reply("busy"); return }   // 이미 다른 창이 떠 있으면 겹쳐 띄우지 않는다
+        let vc = MFMailComposeViewController()
+        vc.mailComposeDelegate = self
+        vc.setToRecipients([to.trimmingCharacters(in: .whitespaces)])
+        vc.setSubject(String(subject.prefix(200)))
+        vc.setMessageBody(String(text.prefix(6000)), isHTML: false)
+        var n = 0
+        if let photos = m["photos"] as? [[String: Any]] {
+            for p in photos.prefix(5) {
+                guard let b64 = p["data"] as? String,
+                      let data = Data(base64Encoded: b64, options: .ignoreUnknownCharacters),
+                      !data.isEmpty, data.count <= 4_000_000 else { continue }
+                n += 1
+                vc.addAttachmentData(data, mimeType: "image/jpeg", fileName: "photo\(n).jpg")
+            }
+        }
+        mailId = id
+        present(vc, animated: true)
+    }
+
+    func mailComposeController(_ controller: MFMailComposeViewController,
+                               didFinishWith result: MFMailComposeResult, error: Error?) {
+        let r: String
+        switch result {
+        case .sent: r = "sent"
+        case .saved: r = "saved"
+        case .cancelled: r = "cancelled"
+        case .failed: r = "failed"
+        @unknown default: r = "failed"
+        }
+        let id = mailId
+        controller.dismiss(animated: true) { [weak self] in
+            self?.sendToWeb("bfMail", ["id": id, "result": r])
+        }
+    }
+
+    /// 아주 느슨한 형식 검사(공백·쉼표 없음, @ 하나, 도메인에 점). 받는 주소는 앱 안 상수라 오타 방지용이다.
+    private static func looksLikeEmail(_ s: String) -> Bool {
+        let t = s.trimmingCharacters(in: .whitespaces)
+        guard !t.isEmpty, t.count <= 120, !t.contains(" "), !t.contains("\n"), !t.contains(",") else { return false }
+        let parts = t.split(separator: "@", omittingEmptySubsequences: false)
+        guard parts.count == 2, !parts[0].isEmpty else { return false }
+        let domain = String(parts[1])
+        return domain.contains(".") && !domain.hasPrefix(".") && !domain.hasSuffix(".")
     }
 
     private func reportError(_ text: String) {
