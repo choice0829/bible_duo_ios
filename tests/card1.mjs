@@ -1,6 +1,6 @@
-// v72 — 지도 장소 카드: ① 주소 밑 분류·공공데이터·영업 안내 줄 삭제 ② 정보 보기 단추(그 내용이 눌러야 펼쳐진다)
-//   ③ '리뷰' → '나만의 리뷰' ④ 단추 모두 같은 크기로 균일 배치 ⑤ 순서: 정보 보기 · 길찾기 · 나만의 리뷰 · 내 장소로 추가
-//   (내 장소 카드: 길찾기 · 나만의 리뷰 · [전화] · 수정). 시험 환경은 rev1.mjs 와 같다.
+// v72 — 지도 장소 카드: ① 주소 밑 분류·공공데이터·영업 안내 줄 삭제 ② 정보 보기 단추 ③ '리뷰' → '나만의 리뷰'
+//   ④ 단추 모두 같은 크기로 균일 배치 ⑤ 순서: 정보 보기 · 길찾기 · 나만의 리뷰 · 내 장소로 추가 (내 장소 카드: 길찾기 · 나만의 리뷰 · [전화] · 수정).
+// v73 — 정보 보기를 눌러도 카드 안에 펼치는 내용은 없다: 지도 앱(네이버 지도 검색: 가게 이름 + 시·군·구)을 바로 연다. 시험 환경은 rev1.mjs 와 같다.
 // 주의: PC 크롬 모의다. 아이폰(WKWebView) 글꼴·줄바꿈은 실기기에서 확인한다.
 import zlib from 'node:zlib'; import fs from 'node:fs';
 import { serve, launch, sleep, DEVICES } from './devlib.mjs';
@@ -79,24 +79,24 @@ for (const nm of PICK) {
   await tapAt(p, BG[0][2], BG[0][3], 16);
   ok(name + ' · 보드게임 카드가 열린다', (await cardName(p)) === BG[0][0], await cardName(p));
   { const txt = await inner(p);
-    ok(name + ' · 주소 밑 분류·공공데이터·영업 안내 줄이 없다(정보 칸을 열기 전)', !/공공데이터|영업 여부|지도 앱에서 확인|상가정보/.test(txt) && !(await p.evaluate(() => !!document.querySelector('#mp-card .mp-c-src'))), JSON.stringify(txt.slice(0, 120)));
+    ok(name + ' · 주소 밑 분류·공공데이터·영업 안내 줄이 없다(정보 보기를 누르기 전)', !/공공데이터|영업 여부|지도 앱에서 확인|상가정보/.test(txt) && !(await p.evaluate(() => !!document.querySelector('#mp-card .mp-c-src'))), JSON.stringify(txt.slice(0, 120)));
     ok(name + ' · 주소는 그대로 보인다', txt.includes(BG[0][1])); }
   await checkRow(p, name + ' · 보드게임', ['정보 보기', '길찾기', '나만의 리뷰', '내 장소로 추가']);
   await shot('bg_closed');
-  // 정보 보기
-  await click(p, '.mp-lk[data-o="info"]');
-  { const txt = await inner(p), ib = (await btns(p))[0];
-    ok(name + ' · 정보 보기 → 분류·자료(기준일)·영업 안내가 펼쳐진다', await vis(p, '#mp-info') && /분류\s*보드게임 카페/.test(txt) && /공공데이터\(상가정보\) 2026-10 기준/.test(txt) && /영업 여부·시간은 지도 앱에서 확인하세요/.test(txt), JSON.stringify(txt.slice(0, 200)));
-    ok(name + ' · 펼친 동안 단추는 「정보 닫기」(눌린 표시·aria-expanded)', ib.t === '정보 닫기' && await p.evaluate(() => { const b = document.querySelector('.mp-lk[data-o="info"]'); return b.classList.contains('on') && b.getAttribute('aria-expanded') === 'true'; })); }
-  await checkRow(p, name + ' · 정보 펼친 뒤', ['정보 닫기', '길찾기', '나만의 리뷰', '내 장소로 추가']);
-  { const ov = await p.evaluate(() => { const i = document.querySelector('#mp-info').getBoundingClientRect(), b = document.querySelector('#mp-card .mp-c-b').getBoundingClientRect(), c = document.querySelector('#mp-card').getBoundingClientRect(); return { iB: i.bottom, bT: b.top, cT: c.top, cB: c.bottom, bB: b.bottom, sc: document.querySelector('#mp-card').scrollHeight > document.querySelector('#mp-card').clientHeight }; });
-    ok(name + ' · 정보 칸이 단추 줄 위에 있고 카드 안(또는 카드 스크롤)에 있다', ov.iB <= ov.bT + 1, JSON.stringify(ov)); }
-  await shot('bg_info');
-  await click(p, '.mp-lk[data-o="info"]');
-  ok(name + ' · 다시 누르면 접히고 「정보 보기」로 돌아온다', !(await vis(p, '#mp-info')) && (await btns(p))[0].t === '정보 보기');
-  await click(p, '.mp-lk[data-o="info"]');   // 펼쳐 둔 채로 다른 곳을 눌러 본다
-  await tapAt(p, BG[1][2], BG[1][3], 16, true);
-  ok(name + ' · 다른 장소를 누르면 정보 칸은 접힌 채로 새 카드가 뜬다', (await cardName(p)) === BG[1][0] && !(await vis(p, '#mp-info')) && (await btns(p))[0].t === '정보 보기', await cardName(p));
+  // 정보 보기(v73) — 카드 안에 펼치지 않고 지도 앱을 바로 연다
+  const msgsOpen = (p) => p.evaluate(() => window.__msgs.filter((m) => m.open).map((m) => ({ o: m.open, f: m.fallback })));
+  { const before = await inner(p); await p.evaluate(() => { window.__msgs.length = 0; }); await click(p, '.mp-lk[data-o="info"]');
+    const m = await msgsOpen(p), after = await inner(p), ib = (await btns(p))[0];
+    ok(name + ' · 정보 보기 → 네이버 지도 앱 검색(가게 이름 + 시·군·구)을 한 번 연다', m.length === 1 && m[0].o === 'nmap://search?query=' + encodeURIComponent('시험 보드게임카페 가 강동구') + '&appname=com.choice0829.bibleflip', JSON.stringify(m));
+    ok(name + ' · 앱이 없을 때 쓸 대체 주소는 네이버 지도 웹 검색이다', m.length === 1 && m[0].f === 'https://map.naver.com/p/search/' + encodeURIComponent('시험 보드게임카페 가 강동구'), JSON.stringify(m));
+    ok(name + ' · 카드는 그대로다(펼침 칸·「정보 닫기」·눌림 표시·aria-expanded 모두 없음, 글자 변화 없음)', !(await p.evaluate(() => !!document.querySelector('#mp-info, .mp-info'))) && ib.t === '정보 보기' && before === after && await p.evaluate(() => { const b = document.querySelector('.mp-lk[data-o="info"]'); return !b.classList.contains('on') && !b.hasAttribute('aria-expanded'); }), JSON.stringify([ib.t, before === after])); }
+  await checkRow(p, name + ' · 정보 보기를 누른 뒤', ['정보 보기', '길찾기', '나만의 리뷰', '내 장소로 추가']);
+  await shot('bg_closed2');
+  await tapAt(p, BG[1][2], BG[1][3], 16);
+  ok(name + ' · 다른 장소 카드가 열린다', (await cardName(p)) === BG[1][0], await cardName(p));
+  await p.evaluate(() => { window.__msgs.length = 0; }); await click(p, '.mp-lk[data-o="info"]');
+  { const m = await msgsOpen(p);
+    ok(name + ' · 다른 장소의 정보 보기는 그 장소의 이름으로 연다', m.length === 1 && m[0].o.includes(encodeURIComponent('시험 보드게임카페 나 강동구')), JSON.stringify(m)); }
 
   // 나만의 리뷰
   ok(name + ' · 리뷰 칸은 처음에는 접혀 있고 단추 이름은 「나만의 리뷰」다(접근성 이름은 「나만의 리뷰 남기기」)', !(await vis(p, '#mp-rv')) && (await p.evaluate(() => document.querySelector('.mp-rv-add').getAttribute('aria-label'))) === '나만의 리뷰 남기기');
@@ -119,14 +119,15 @@ for (const nm of PICK) {
   ok(name + ' · 프랜차이즈 카페 카드가 열린다', (await cardName(p)) === CAFES[0][1], await cardName(p));
   ok(name + ' · 프랜차이즈 카드에도 안내 줄이 없다', !/공공데이터|영업 여부|지도 앱에서 확인/.test(await inner(p)));
   await checkRow(p, name + ' · 카페(프랜차이즈)', ['정보 보기', '길찾기', '나만의 리뷰', '내 장소로 추가']);
-  await click(p, '.mp-lk[data-o="info"]');
-  ok(name + ' · 프랜차이즈 정보: 분류 「스타벅스 매장」·기준일·영업 안내', /분류\s*스타벅스 매장/.test(await inner(p)) && /2026-10 기준/.test(await inner(p)) && /지도 앱에서 확인하세요/.test(await inner(p)), (await inner(p)).slice(0, 150));
-  await shot('cafe_info');
+  await p.evaluate(() => { window.__msgs.length = 0; }); await click(p, '.mp-lk[data-o="info"]');
+  { const m = await msgsOpen(p);
+    ok(name + ' · 프랜차이즈 카페: 정보 보기 → 네이버 지도 앱 검색(이름 + 시·군·구)', m.length === 1 && m[0].o === 'nmap://search?query=' + encodeURIComponent('스타벅스 시험1점 강동구') + '&appname=com.choice0829.bibleflip' && !/공공데이터|영업 여부|지도 앱에서 확인/.test(await inner(p)), JSON.stringify(m)); }
   await tapAt(p, CAFES[1][3], CAFES[1][4], 16);
   ok(name + ' · 개인 카페 카드가 열린다', (await cardName(p)) === CAFES[1][1], await cardName(p));
-  await click(p, '.mp-lk[data-o="info"]');
-  ok(name + ' · 개인 카페 정보: 분류 「개인 카페」', /분류\s*개인 카페/.test(await inner(p)), (await inner(p)).slice(0, 150));
-  await checkRow(p, name + ' · 카페(개인) 정보 펼친 뒤', ['정보 닫기', '길찾기', '나만의 리뷰', '내 장소로 추가']);
+  await p.evaluate(() => { window.__msgs.length = 0; }); await click(p, '.mp-lk[data-o="info"]');
+  { const m = await msgsOpen(p);
+    ok(name + ' · 개인 카페: 정보 보기 → 네이버 지도 앱 검색(이름 + 시·군·구)', m.length === 1 && m[0].o === 'nmap://search?query=' + encodeURIComponent('시험개인1 강동구') + '&appname=com.choice0829.bibleflip', JSON.stringify(m)); }
+  await checkRow(p, name + ' · 카페(개인) 정보 보기 뒤', ['정보 보기', '길찾기', '나만의 리뷰', '내 장소로 추가']);
   // 길찾기는 그대로 동작
   await p.evaluate(() => { window.__msgs.length = 0; }); await click(p, '.mp-lk[data-o="route"]');
   ok(name + ' · 길찾기 단추가 그대로 동작한다(네이버 지도 길찾기 주소로 연다)', await p.evaluate(() => window.__msgs.some((m) => m.open && /^nmap:\/\/route\/public/.test(m.open))), JSON.stringify(await p.evaluate(() => window.__msgs.filter((m) => m.open).map((m) => m.open))));
@@ -134,7 +135,7 @@ for (const nm of PICK) {
   // ===== 내 장소 카드 =====
   await tapAt(p, MINE.lat, MINE.lng, 16);
   ok(name + ' · 내 장소 카드가 열린다', (await cardName(p)) === MINE.name, await cardName(p));
-  ok(name + ' · 내 장소 카드에는 정보 보기 단추가 없다(정보가 이미 보인다)', !(await p.evaluate(() => !!document.querySelector('#mp-card .mp-lk[data-o="info"]'))));
+  ok(name + ' · 내 장소 카드에는 정보 보기 단추가 없다(내 장소 정보가 이미 보인다)', !(await p.evaluate(() => !!document.querySelector('#mp-card .mp-lk[data-o="info"]'))));
   await checkRow(p, name + ' · 내 장소', ['길찾기', '나만의 리뷰', '수정']);
   await tapAt(p, MINE_TEL.lat, MINE_TEL.lng, 16);
   ok(name + ' · 전화가 있는 내 장소 카드가 열린다', (await cardName(p)) === MINE_TEL.name, await cardName(p));

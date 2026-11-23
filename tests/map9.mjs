@@ -109,9 +109,9 @@ const rgb = (hex) => { const n = parseInt(hex.slice(1), 16); return `rgb(${n >> 
   // 카드: 프랜차이즈 / 개인
   await tapAt(p, FR[0][3], FR[0][4], 16);
   const fr0 = await cardName(p);
-  ok('프랜차이즈 점을 누르면 카드에 브랜드 이름이 있다', fr0 === FR[0][1] && (await txt(p, '#mp-card')).includes('분류 스타벅스 매장') && !(await txt(p, '#mp-card')).includes('개인 카페'), String(fr0));
+  ok('프랜차이즈 점을 누르면 카드에 가게 이름(브랜드 이름 포함)이 있고 분류·출처 글은 없다(v73)', fr0 === FR[0][1] && (await txt(p, '#mp-card')).includes('스타벅스') && !/공공데이터|2026-10 기준|영업 여부|지도 앱에서 확인|분류/.test(await txt(p, '#mp-card')), String(fr0));
   await tapAt(p, IND[1][3], IND[1][4], 16);
-  ok('개인 카페 점을 누르면 카드 정보 칸이 "분류 개인 카페 / 자료 공공데이터(상가정보) 2026-10 기준"이고 주소가 있다', (await cardName(p)) === IND[1][1] && (await txt(p, '#mp-card')).includes('분류 개인 카페') && (await txt(p, '#mp-card')).includes('공공데이터(상가정보) 2026-10 기준') && (await txt(p, '#mp-card')).includes(IND[1][2]), (await txt(p, '#mp-card') || '').slice(0, 120));
+  ok('개인 카페 점을 누르면 카드에 이름·주소가 있고 분류·출처 글은 없다(v73)', (await cardName(p)) === IND[1][1] && (await txt(p, '#mp-card')).includes(IND[1][2]) && !/공공데이터|2026-10 기준|영업 여부|지도 앱에서 확인|분류/.test(await txt(p, '#mp-card')), (await txt(p, '#mp-card') || '').slice(0, 120));
   { const col = await bgOf(p, '#mp-card .mp-bd'); ok('카드의 점 색도 같은 커피색', col === rgb('#8a5a3c'), col); }
   ok('카드 단추 = 정보 보기·길찾기·나만의 리뷰·내 장소로 추가 네 개(v61·v72)', JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('#mp-card .mp-lk')].map((x) => x.textContent))) === JSON.stringify(['정보 보기', '길찾기', '나만의 리뷰', '내 장소로 추가']));
 
@@ -122,7 +122,7 @@ const rgb = (hex) => { const n = parseInt(hex.slice(1), 16); return `rgb(${n >> 
   { const d = await dots(p), e = await expectIn(p, v2, 'fr');
     ok('"프랜차이즈"를 누르면 개인 카페 점이 사라지고 점 수 = 프랜차이즈 수(9곳)', d.dot === e && e === FR.length && (await pillState(p)) === '전체 프랜차이즈*+ 개인' && await p.evaluate(() => localStorage.getItem('bf.mapbrandf') === 'fr'), `${d.dot}/${e} ` + await pillState(p)); }
   await tapAt(p, FR[4][3], FR[4][4], 16);
-  ok('프랜차이즈만 보는 중에도 프랜차이즈 점은 눌린다(카드 브랜드)', (await cardName(p)) === FR[4][1] && (await txt(p, '#mp-card')).includes('투썸플레이스 매장'), String(await cardName(p)));
+  ok('프랜차이즈만 보는 중에도 프랜차이즈 점은 눌린다(카드 이름에 브랜드)', (await cardName(p)) === FR[4][1] && (await txt(p, '#mp-card')).includes('투썸플레이스'), String(await cardName(p)));
   await p.click('#mp-bf button[data-f="ind"]'); await sleep(500);
   ok('"개인"으로 바꾸면 프랜차이즈 카드는 닫힌다', (await cardName(p)) === null);
   await view(p, CL, 15);

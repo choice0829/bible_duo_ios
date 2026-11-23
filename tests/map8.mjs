@@ -98,7 +98,7 @@ console.log('===== 실제 자료(' + DATA_FILE + ') · 듀오 펼침');
     const card = await p.evaluate(() => { const c = document.querySelector('#mp-card'); return c && !c.hidden ? { name: (c.querySelector('.mp-c-top strong') || {}).textContent, t: c.textContent } : null; });
     // 같은 자리에 다른 카페가 겹쳐 있을 수 있어(같은 건물), 이름이 다르면 주소가 같은 건물인지만 본다
     ok('실제 ' + (target[0] < 0 ? '개인 카페' : '프랜차이즈') + ' 점을 누르면 카드가 뜬다(' + target[1] + ')', !!card && (card.name === target[1] || card.t.includes(target[2].slice(0, 12))), card ? card.name : '카드 없음');
-    ok('카드에 ' + (target[0] < 0 ? '"개인 카페"' : '브랜드 이름') + '과 자료 출처·기준 연월이 있다', !!card && /공공데이터/.test(card.t) && card.t.includes(DATA.asof) && (target[0] < 0 || card.name !== target[1] ? true : card.t.includes('매장')), '');
+    ok('카드에 분류·자료 출처·기준 연월·영업 안내 글은 없다(v73: 정보 보기는 지도 앱으로 연결)', !!card && !/공공데이터|영업 여부|지도 앱에서 확인|분류/.test(card.t) && !card.t.includes(DATA.asof), card ? card.t.slice(0, 80) : '');
   }
   await p.screenshot({ path: '/tmp/map8shots/duo-card.png' });
   await p.close();

@@ -129,13 +129,13 @@ const DUO = ['Duo 펼침', 951, 669, { top: 0, right: 84, bottom: 34, left: 0 }]
   // 카드
   await tapAt(p, BG[0][2], BG[0][3], 17);
   { const t = await txt(p, '#mp-card'), d = await dots(p);
-    ok('보드게임 점을 누르면 카드에 이름·주소가 있고 정보 칸에 "분류 보드게임 카페 / 자료 공공데이터(상가정보) 2026-10 기준"이 들어 있다', (await cardName(p)) === BG[0][0] && t.includes(BG[0][1]) && t.includes('분류 보드게임 카페') && t.includes('공공데이터(상가정보) 2026-10 기준') && t.includes('영업 여부·시간은 지도 앱에서 확인'), t.slice(0, 140));
+    ok('보드게임 점을 누르면 카드에 이름·주소가 있고 분류·출처·영업 안내 글은 없다(v73: 정보 보기는 지도 앱으로 연결)', (await cardName(p)) === BG[0][0] && t.includes(BG[0][1]) && !/공공데이터|2026-10 기준|영업 여부|지도 앱에서 확인|분류/.test(t), t.slice(0, 140));
     ok('선택하면 고리(반지름 12)가 하나 생긴다', d.ring === 1, JSON.stringify(d)); }
   ok('카드 단추 = 정보 보기·길찾기·나만의 리뷰·내 장소로 추가 네 개(v61·v72)', JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('#mp-card .mp-lk')].map((x) => x.textContent))) === JSON.stringify(['정보 보기', '길찾기', '나만의 리뷰', '내 장소로 추가']));
   // 카페 점 → 카드가 카페로 바뀌고 보드게임 고리는 사라진다
   await tapAt(p, CAFES[1][3], CAFES[1][4], 17);
   { const d = await dots(p);
-    ok('카페 점을 누르면 카드가 카페로 바뀌고 고리는 하나만 남는다(보드게임 선택은 풀림)', (await cardName(p)) === CAFES[1][1] && d.ring === 1 && (await txt(p, '#mp-card')).includes('스타벅스 매장'), String(await cardName(p)) + ' ' + JSON.stringify(d)); }
+    ok('카페 점을 누르면 카드가 카페로 바뀌고 고리는 하나만 남는다(보드게임 선택은 풀림)', (await cardName(p)) === CAFES[1][1] && d.ring === 1 && (await txt(p, '#mp-card')).includes('스타벅스') && !(await txt(p, '#mp-card')).includes('보드게임'), String(await cardName(p)) + ' ' + JSON.stringify(d)); }
   await tapAt(p, BG[2][2], BG[2][3], 17);
   { const d = await dots(p);
     ok('다시 보드게임 점을 누르면 카드가 보드게임으로 바뀌고 고리 하나', (await cardName(p)) === BG[2][0] && d.ring === 1 && !(await txt(p, '#mp-card')).includes('스타벅스'), String(await cardName(p)) + ' ' + JSON.stringify(d)); }

@@ -335,7 +335,7 @@ for (const [label, dev, kb, narrow, theme] of [['듀오 펼침', DUO, 300, false
   const geo = () => p.evaluate((kbh) => {
     const r = (q) => { const e = document.querySelector(q); if (!e) return null; const b = e.getBoundingClientRect(); return { t: b.top, b: b.bottom, l: b.left, r: b.right }; };
     const c = document.querySelector('#mp-card');
-    return { kbTop: innerHeight - kbh, card: r('#mp-card'), ta: r('.mp-rv-in'), sv: r('[data-a="save"]'), cn: r('[data-a="cancel"]'), title: r('.mp-c-top'), map: r('.mp-mapwrap'), cls: c.className, bottom: getComputedStyle(c).bottom, route: getComputedStyle(c.querySelector('.mp-c-b')).display, src: c.querySelector('.mp-c-l') ? getComputedStyle(c.querySelector('.mp-c-l')).display : 'none', info: c.querySelector('.mp-info') ? getComputedStyle(c.querySelector('.mp-info')).display : 'none', ae: document.activeElement.className };
+    return { kbTop: innerHeight - kbh, card: r('#mp-card'), ta: r('.mp-rv-in'), sv: r('[data-a="save"]'), cn: r('[data-a="cancel"]'), title: r('.mp-c-top'), map: r('.mp-mapwrap'), cls: c.className, bottom: getComputedStyle(c).bottom, route: getComputedStyle(c.querySelector('.mp-c-b')).display, src: c.querySelector('.mp-c-l') ? getComputedStyle(c.querySelector('.mp-c-l')).display : 'none', ae: document.activeElement.className };
   }, kb);
   const g0 = await geo();
   ok(label + ': (키보드 전) 카드가 평소 자리(아래 28px)에 있고 줄어들지 않았다', !/kbup/.test(g0.cls) && g0.bottom === '28px' && g0.route !== 'none', JSON.stringify(g0.cls + ' ' + g0.bottom));
@@ -348,7 +348,7 @@ for (const [label, dev, kb, narrow, theme] of [['듀오 펼침', DUO, 300, false
   { const sc = await p.evaluate(() => { const c = document.querySelector('#mp-card'); return { sh: c.scrollHeight, ch: c.clientHeight, top: c.scrollTop }; });
     ok(label + ': 간추린 카드는 스크롤 없이 이름 줄·별·입력 칸·저장 단추가 한 번에 다 보인다', sc.sh <= sc.ch + 1 && sc.top === 0, JSON.stringify(sc)); }
   ok(label + ': 카드 위 끝이 지도 안에 있다(지도 밖으로 밀려 올라가지 않음)', g1.card.t >= g1.map.t - 0.5, JSON.stringify({ card: g1.card, map: g1.map }));
-  ok(label + ': 입력 중에는 이름 줄과 리뷰 칸만 남기고 주소·정보 칸·단추 줄(정보 보기·길찾기·나만의 리뷰·내 장소로 추가)은 숨긴다', g1.title && g1.src === 'none' && g1.info === 'none' && g1.route === 'none', JSON.stringify([g1.src, g1.info, g1.route]));
+  ok(label + ': 입력 중에는 이름 줄과 리뷰 칸만 남기고 주소·단추 줄(정보 보기·길찾기·나만의 리뷰·내 장소로 추가)은 숨긴다', g1.title && g1.src === 'none' && g1.route === 'none', JSON.stringify([g1.src, g1.route]));
   await p.screenshot({ path: '/tmp/rev1shots/g-' + (narrow ? 'phone' : 'duo') + '-kb.png' });
   // 글을 쓰고 저장 → 카드가 원래대로(키보드가 아직 올라와 있어도 저장 뒤에는 입력 칸이 없으므로)
   await p.type('.mp-rv-in', '키보드 위에서 쓴 리뷰'); await sleep(150);
