@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v78';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v79';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -1034,6 +1034,7 @@
     const book = bible.books[pos.book];
     $('#loc-book').textContent = book.name;
     $('#loc-ch').textContent = (pos.chapter + 1) + (book.id === 'psa' ? '편' : '장');
+    updateChurchTag();
     fitTitle();
   }
 
@@ -2091,8 +2092,8 @@
     'login required': '로그인이 풀렸습니다. 다시 로그인해 주세요.',
     invalid_credentials: '이메일 또는 비밀번호가 맞지 않습니다.',
     'invalid login credentials': '이메일 또는 비밀번호가 맞지 않습니다.',
-    email_not_confirmed: '메일 확인이 아직 안 됐습니다. 가입할 때 받은 메일의 6자리 코드를 넣어 주세요.',
-    'email not confirmed': '메일 확인이 아직 안 됐습니다. 가입할 때 받은 메일의 6자리 코드를 넣어 주세요.',
+    email_not_confirmed: '메일 확인이 아직 안 됐습니다. 가입할 때 받은 메일의 8자리 숫자 코드를 넣어 주세요.',
+    'email not confirmed': '메일 확인이 아직 안 됐습니다. 가입할 때 받은 메일의 8자리 숫자 코드를 넣어 주세요.',
     user_already_exists: '이미 가입된 이메일입니다. 로그인해 주세요.',
     'user already registered': '이미 가입된 이메일입니다. 로그인해 주세요.',
     weak_password: '비밀번호가 너무 짧거나 쉽습니다. 6자 이상으로 정해 주세요.',
@@ -2356,14 +2357,14 @@
       '<div class="ch-btns"><button type="button" class="ch-main" id="ch-save">저장</button></div><p id="ch-msg" class="ch-msg"></p>';
   }
   function acctCodeHTML(reset) {
-    return '<p class="note tight"><b>' + esc(chState.email) + '</b> 으로 보낸 메일의 <b>6자리 코드</b>를 넣어 주세요. 메일이 안 보이면 스팸함도 확인해 주세요.</p>' +
-      chField('ch-code', '코드 6자리', 'text', 'inputmode="numeric" autocomplete="one-time-code" maxlength="10"') +
+    return '<p class="note tight"><b>' + esc(chState.email) + '</b> 으로 보낸 메일의 <b>8자리 숫자 코드</b>를 넣어 주세요. 메일이 안 보이면 스팸함도 확인해 주세요.</p>' +
+      chField('ch-code', '코드 8자리', 'text', 'inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="숫자 8자리"') +
       (reset ? chField('ch-pw', '새 비밀번호 (6자 이상)', 'password', 'autocomplete="new-password"') : '') +
       '<div class="ch-btns"><button type="button" class="ch-main" id="ch-verify">' + (reset ? '비밀번호 바꾸기' : '확인') + '</button><button type="button" class="seg-btn" id="ch-resend">메일 다시 받기</button></div>' +
       '<p id="ch-msg" class="ch-msg"></p>';
   }
   function acctResetHTML() {
-    return '<p class="note tight">가입한 이메일로 <b>6자리 코드</b>를 보내 드립니다. 코드를 넣고 새 비밀번호를 정하면 됩니다.</p>' +
+    return '<p class="note tight">가입한 이메일로 <b>8자리 숫자 코드</b>를 보내 드립니다. 코드를 넣고 새 비밀번호를 정하면 됩니다.</p>' +
       chField('ch-email', '아이디(이메일)', 'email', 'autocomplete="username" autocapitalize="off" spellcheck="false" value="' + qa(chState.email) + '"') +
       '<div class="ch-btns"><button type="button" class="ch-main" id="ch-send">코드 받기</button></div><p id="ch-msg" class="ch-msg"></p>';
   }
@@ -2501,7 +2502,7 @@
       const r = await sbHttp('POST', '/auth/v1/signup', { email: e, password: pw });
       if (r.status !== 200) return chErr(r);
       if (r.data && r.data.access_token) return afterLogin(r.data);   // 메일 확인을 끈 서버: 바로 로그인
-      showAccount('code', '메일로 온 6자리 코드를 넣으면 가입이 끝납니다.');
+      showAccount('code', '메일로 온 8자리 숫자 코드를 넣으면 가입이 끝납니다.');
       return null;
     }));
     on('ch-forgot', () => { chState.email = val('ch-email'); showAccount('reset-email'); });
@@ -2511,7 +2512,7 @@
       if (!emailOk(e)) return '아이디(이메일) 주소를 확인해 주세요.';
       const r = await sbHttp('POST', '/auth/v1/recover', { email: e });
       if (r.status !== 200) return chErr(r);
-      showAccount('reset-code', '메일을 보냈습니다. 6자리 코드와 새 비밀번호를 넣어 주세요.');
+      showAccount('reset-code', '메일을 보냈습니다. 8자리 숫자 코드와 새 비밀번호를 넣어 주세요.');
       return null;
     }));
     on('ch-resend', () => chRun(async () => {
@@ -2524,7 +2525,7 @@
     }));
     on('ch-verify', () => chRun(async () => {
       const code = val('ch-code').replace(/\s/g, '');
-      if (!/^\d{6,10}$/.test(code)) return '메일로 받은 숫자 코드를 넣어 주세요.';
+      if (!/^\d{6,10}$/.test(code)) return '메일로 받은 8자리 숫자 코드를 넣어 주세요.';
       if (chState.view === 'reset-code') {
         const pw = $('#ch-pw').value;
         if (pw.length < 6) return CH_ERR.weak_password;
@@ -3266,6 +3267,18 @@
     sermonsDB = { church: (data && data.church) || null, items: (data && Array.isArray(data.items) ? data.items : []).filter(sermonOk), ts: Date.now() };
     store.set('bf.sermons', sermonsDB);
     applyNoteMarks();
+    updateChurchTag();
+  }
+  // v79: 머리줄 책 이름 옆 'with 등록된 교회' (교회가 등록된 계정만)
+  function updateChurchTag() {
+    const el = $('#loc-church');
+    if (!el) return;
+    const c = sermonsDB.church;
+    document.body.classList.toggle('has-church', !!(c && c.name));
+    if (!c || !c.name) { el.hidden = true; el.textContent = ''; return; }
+    el.innerHTML = 'with <b>' + esc(c.name) + '</b>';
+    el.title = 'with ' + c.name;
+    el.hidden = false;
   }
 
   // 화면에 이미 그려진 문단·칩에 노트 표시를 다시 입힌다 (저장·삭제·불러오기 뒤). 쪽 나누기는 건드리지 않는다.

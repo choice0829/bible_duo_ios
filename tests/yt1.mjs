@@ -46,6 +46,11 @@ const seed={fn:([n,s])=>{ window.__msgs=[]; window.webkit={messageHandlers:{bf:{
   // 노트 탭은 그대로 노트 카드
   await p.evaluate(()=>document.querySelector('.nt-tab[data-note="n1abc"]').click()); await sleep(400);
   ok('note tab still opens the note card (not the video card)', await p.evaluate(()=>!document.querySelector('#note-peek').hidden && document.querySelector('#yt-peek').hidden));
+  { const t=await p.evaluate(()=>{ const R=(e)=>e.getBoundingClientRect(); const el=document.querySelector('#loc-church'), bk=document.querySelector('#loc-book'), icons=[...document.querySelectorAll('.menu-row > button')].map(R);
+      const r=R(el), b=R(bk), hh=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--headh'))||0;
+      return {text:el.textContent, hidden:el.hidden, fs:getComputedStyle(el).fontSize, l:Math.round(r.left), r:Math.round(r.right), t:Math.round(r.top), b:Math.round(r.bottom), bookR:Math.round(b.right), bookB:Math.round(b.bottom), bookL:Math.round(b.left),
+        cut:el.scrollWidth>el.clientWidth+1, hitIcon:icons.some(i=>r.left<i.right&&i.left<r.right&&r.top<i.bottom&&i.top<r.bottom), headh:hh, bookCut:bk.scrollWidth>bk.clientWidth+1}; });
+    ok('spread: v79 "with 한사람교회" shown next to the book name, 22px (icon size), not over the icons, book name not cut', t.text==='with 한사람교회' && !t.hidden && t.fs==='22px' && !t.hitIcon && !t.cut && !t.bookCut && t.l>=t.bookR && Math.abs((t.t+t.b)/2-(t.bookB-30))<30, JSON.stringify(t)); }
   ok('spread: no page errors', errs.length===0, JSON.stringify(errs)); await p.close(); }
 
 // ---- 접은 화면 (듀오 접힘) ----
@@ -61,6 +66,11 @@ const seed={fn:([n,s])=>{ window.__msgs=[]; window.webkit={messageHandlers:{bf:{
   await p.evaluate(()=>document.querySelector('#yt-peek .yt-go').click()); await sleep(200);
   const m=await p.evaluate(()=>window.__msgs.filter(x=>x.open).map(x=>x.open));
   ok('folded: YouTube button sends open message (no start time)', JSON.stringify(m)==='["https://www.youtube.com/watch?v=BBBBBBBBBB2"]', JSON.stringify(m));
+  { const t=await p.evaluate(()=>{ const R=(e)=>e.getBoundingClientRect(); const el=document.querySelector('#loc-church'), bk=document.querySelector('#loc-book'), icons=[...document.querySelectorAll('.menu-row > button')].map(R);
+      const r=R(el), b=R(bk), hh=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--headh'))||0;
+      return {text:el.textContent, hidden:el.hidden, fs:getComputedStyle(el).fontSize, l:Math.round(r.left), r:Math.round(r.right), t:Math.round(r.top), b:Math.round(r.bottom), bookR:Math.round(b.right), bookB:Math.round(b.bottom), bookL:Math.round(b.left),
+        cut:el.scrollWidth>el.clientWidth+1, hitIcon:icons.some(i=>r.left<i.right&&i.left<r.right&&r.top<i.bottom&&i.top<r.bottom), headh:hh, bookCut:bk.scrollWidth>bk.clientWidth+1}; });
+    ok('folded: v79 "with 한사람교회" shown next to the book name, 22px (icon size), not over the icons, book name not cut', t.text==='with 한사람교회' && !t.hidden && t.fs==='22px' && !t.hitIcon && !t.cut && !t.bookCut && Math.abs(t.l-t.bookL)<=1 && t.t>=t.bookB-4 && t.b<=t.headh+0.5, JSON.stringify(t)); }
   ok('folded: no page errors', errs.length===0, JSON.stringify(errs)); await p.close(); }
 
 // ---- 영상 목록이 없으면(지금 모든 사용자) 아무것도 안 보임 ----
@@ -68,5 +78,6 @@ const seed={fn:([n,s])=>{ window.__msgs=[]; window.webkit={messageHandlers:{bf:{
   const {p,errs}=await openDevice(b,['d',951,669,{top:0,right:84,bottom:0,left:0}],{seed:seed0,port:8931,query:'?native=1'}); await sleep(900);
   const t=await p.evaluate(()=>[...document.querySelectorAll('.nt-tab')].map(x=>x.dataset.note));
   ok('no sermons stored: only the note tab, no video tab', JSON.stringify(t)==='["n1abc"]', JSON.stringify(t));
+  ok('v79: no registered church → no "with" label', await p.evaluate(()=>document.querySelector('#loc-church').hidden));
   ok('empty: no page errors', errs.length===0, JSON.stringify(errs)); await p.close(); }
 console.log(fails?'FAILS '+fails:'ALL PASS'); await b.close(); process.exit(0);
