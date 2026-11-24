@@ -35,10 +35,35 @@ jobs:
           if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_ANON_KEY" ]; then
             python3 - <<'PY'
           import json, os, re, sys
-          url = os.environ['SUPABASE_URL'].strip().rstrip('/')
-          key = os.environ['SUPABASE_ANON_KEY'].strip()
-          if not re.match(r'^https://[a-z0-9.-]+$', url):
-              sys.exit('SUPABASE_URL 형식이 이상합니다(https://….supabase.co 꼴이어야 함)')
+          from urllib.parse import urlsplit
+          # 값은 로그에 찍지 않고(비밀), 무엇을 고쳤는지만 알린다.
+          def clean(v, name):
+              q = lambda x: x.strip().strip('"').strip("'").strip()
+              v1 = q(v)
+              if v1.upper().startswith(name + '='):
+                  v1 = q(v1[len(name) + 1:])
+                  print(name + ': 앞의 "' + name + '=" 를 뗌')
+              elif v1 != v.strip():
+                  print(name + ': 앞뒤 따옴표를 뗌')
+              return v1
+          raw = clean(os.environ['SUPABASE_URL'], 'SUPABASE_URL')
+          key = clean(os.environ['SUPABASE_ANON_KEY'], 'SUPABASE_ANON_KEY')
+          if '://' not in raw:
+              raw = 'https://' + raw
+              print('SUPABASE_URL: 앞에 https:// 를 붙임')
+          p = urlsplit(raw)
+          if p.path not in ('', '/') or p.query:
+              print('SUPABASE_URL: 주소 뒤의 경로(예: /rest/v1/)를 뗌')
+          host = (p.hostname or '').lower()
+          if p.scheme.lower() != 'https':
+              sys.exit('SUPABASE_URL 이 https 주소가 아닙니다. Project Settings › API 의 Project URL(https://….supabase.co)을 넣어 주세요')
+          if not re.match(r'^[a-z0-9-]+(\.[a-z0-9-]+)+$', host):
+              sys.exit('SUPABASE_URL 에서 서버 주소를 찾지 못했습니다(글자 수 ' + str(len(raw)) + '). Project URL(https://….supabase.co)을 다시 넣어 주세요')
+          if not host.endswith('.supabase.co'):
+              print('알림: 서버 주소가 .supabase.co 로 끝나지 않습니다(직접 도메인을 쓰는 경우가 아니면 Project URL 을 확인)')
+          url = 'https://' + host + (':' + str(p.port) if p.port else '')
+          if not re.match(r'^[A-Za-z0-9._-]+$', key):
+              sys.exit('SUPABASE_ANON_KEY 에 키에 쓰지 않는 글자(공백·줄바꿈 등)가 섞여 있습니다. 공개 키만 다시 복사해 넣어 주세요')
           role = ''
           if key.count('.') == 2:   # 예전 방식(JWT) 키: 가운데 조각을 풀어 역할(role)을 본다
               import base64
