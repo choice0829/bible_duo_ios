@@ -30,7 +30,7 @@ async function fakeSb(req){
   if(u.origin!==SB.url || H.apikey!==SB.key) return J(401,{message:'Invalid API key'});
   if(req.method==='POST' && p==='/auth/v1/signup'){ if(S.users[body.email]) return J(200,{id:uid(),email:body.email}); if((body.password||'').length<6) return E(422,'weak_password','weak');
     const usr={id:uid(),email:body.email,pw:body.password,ok:!S.confirm,created:Date.now()}; S.users[body.email]=usr; return S.confirm?J(200,{id:usr.id,email:usr.email}):J(200,tok(usr)); }
-  if(req.method==='POST' && p==='/auth/v1/verify'){ const usr=S.users[body.email]; if(!usr||body.token!=='123456') return E(403,'otp_expired','Token has expired or is invalid'); usr.ok=true; return J(200,tok(usr)); }
+  if(req.method==='POST' && p==='/auth/v1/verify'){ const usr=S.users[body.email]; if(!usr||body.token!=='12345678') return E(403,'otp_expired','Token has expired or is invalid'); usr.ok=true; return J(200,tok(usr)); }
   if(req.method==='POST' && p==='/auth/v1/token?grant_type=password'){ const usr=S.users[body.email]; if(!usr||usr.pw!==body.password) return E(400,'invalid_credentials','Invalid login credentials'); if(!usr.ok) return E(400,'email_not_confirmed','Email not confirmed'); return J(200,tok(usr)); }
   if(req.method==='POST' && p==='/auth/v1/token?grant_type=refresh_token'){ const id=S.rt[body.refresh_token]; if(!id) return E(400,'refresh_token_not_found','x'); delete S.rt[body.refresh_token]; return J(200,tok(userById(id))); }
   if(req.method==='POST' && (p==='/auth/v1/recover'||p==='/auth/v1/resend')) return J(200,{});
@@ -140,7 +140,7 @@ const fillSignup=async(p,o)=>{ await type(p,'#ch-email',o.email); await type(p,'
   await p.screenshot({path:'acct1-signup.png', fullPage:false});
   await click(p,'#ch-submit',800);
   ok('signup (email confirmation on) → code screen', await p.evaluate(()=>!!document.querySelector('#ch-code')), await msg(p));
-  await type(p,'#ch-code','123456'); await click(p,'#ch-verify',2000);
+  await type(p,'#ch-code','12345678'); await click(p,'#ch-verify',2000);
   const me=S.users['kim@example.com'].id, pr=S.profiles[me];
   ok('after code: profile saved with optional fields', pr && pr.name==='김하나' && pr.gender==='F' && pr.birth==='19900101' && pr.phone==='010-1234-5678', JSON.stringify(pr));
   const up=S.log.find(l=>l.method==='POST'&&l.path.startsWith('/storage/v1/object/proofs/'));

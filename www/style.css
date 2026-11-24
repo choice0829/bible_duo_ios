@@ -141,6 +141,15 @@ body.is-spread .head-row { gap: 18px; }
 .title-btn { display: flex; align-items: baseline; gap: 8px; min-width: 0; max-width: 100%; text-align: left; flex: 0 1 auto; }
 .title-btn b { font-size: var(--title-fs); font-weight: 800; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .title-btn span { font-size: calc(var(--title-fs) * .4); color: var(--muted); white-space: nowrap; }
+/* v79: 등록된 교회 — 책 이름 옆 'with 교회이름'(아이콘 크기 22px). 펼친 화면은 책 이름 오른쪽(자리가 모자라면 이것부터 줄임표),
+   한 쪽 화면은 오른쪽에 아이콘 두 줄이 있어 책 이름 바로 아래 빈 줄(머리줄 높이 안)에 놓는다 */
+.loc-church { flex: 0 100 auto; min-width: 0; font: 600 22px/1.1 var(--sans); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-self: center; }
+.loc-church[hidden] { display: none; }
+.loc-church b { font-weight: 700; color: var(--fg); }
+body.has-church:not(.is-spread) .title-btn { align-self: flex-start; }   /* 교회가 있을 때만: 책 이름을 위로 붙여 그 아래 줄을 비운다 */
+body:not(.is-spread) .loc-church { position: absolute; left: 0; top: calc(var(--title-fs) * 1.2); right: calc(4 * 42px + 3 * 7px + 14px); }
+body.is-compact .loc-church { font-size: 18px; }
+body.is-compact:not(.is-spread) .loc-church { right: calc(4 * 38px + 3 * 5px + 12px); }
 .menu-row { display: flex; gap: 7px; flex: none; margin-left: auto; }   /* 펼친 화면: 메뉴는 한 줄로 오른쪽 끝 */
 body:not(.is-spread) .menu-row { display: grid; grid-template-columns: repeat(var(--menu-cols, 4), auto); gap: 6px 7px; }   /* 한 쪽 화면: 윗줄 4개 · 아랫줄 4개 (v77, 내 계정 아이콘 추가로 8개). 칸은 순서대로 채운다 */
 /* 낮은 화면(가로로 돌린 폰): 머리줄을 작게 */
