@@ -135,6 +135,16 @@ begin
     and not exists (select 1 from public.memberships x where x.church_id = m.church_id);
 end $$;
 
+-- 앱 안에서 계정 삭제(Apple 심사 요건, v75): 교회 나가기 규칙을 먼저 적용한 뒤 로그인 계정 자체를 지운다.
+-- 계정이 지워지면 소속(memberships)은 함께 지워지고, 그 사람이 넣은 영상은 교회에 남는다(created_by 만 비워짐).
+create or replace function public.delete_my_account() returns void
+language plpgsql security definer set search_path = public, auth as $$
+begin
+  if auth.uid() is null then raise exception 'login required'; end if;
+  perform public.leave_church();      -- 마지막 관리자이고 성도가 남아 있으면 여기서 'last admin' 으로 멈춘다
+  delete from auth.users where id = auth.uid();
+end $$;
+
 -- 앱이 한 번에 받아 기기에 저장하는 모양: { church: {id, name, status, role, invite_code(관리자만)}, items: [...] }
 create or replace function public.my_church_bundle() returns jsonb
 language sql stable security definer set search_path = public as $$
@@ -186,6 +196,6 @@ grant select (id, name, status, created_at) on public.churches to authenticated;
 grant select on public.memberships to authenticated;
 grant select, insert, update, delete on public.sermons to authenticated;
 revoke all on function public.my_church_id(), public.my_active_church_id(), public.am_church_admin(), public.new_invite_code() from public, anon;
-revoke all on function public.request_church(text), public.join_church(text), public.leave_church(), public.my_church_bundle() from public, anon;
+revoke all on function public.request_church(text), public.join_church(text), public.leave_church(), public.my_church_bundle(), public.delete_my_account() from public, anon;
 grant execute on function public.my_church_id(), public.my_active_church_id(), public.am_church_admin() to authenticated;
-grant execute on function public.request_church(text), public.join_church(text), public.leave_church(), public.my_church_bundle() to authenticated;
+grant execute on function public.request_church(text), public.join_church(text), public.leave_church(), public.my_church_bundle(), public.delete_my_account() to authenticated;

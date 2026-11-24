@@ -81,9 +81,11 @@
 |---|---|---|
 | 1-A 설교 영상 탭·칩·카드(화면) | **v74 완료**. 기기 저장 칸 `bf.sermons` 에 든 것만 그림 → 서버를 붙이기 전에는 **사용자 화면에 아무 변화 없음** | `www/app.js`(설교 영상 절: `sermonList`·`sermonChipsHTML`·`openYtSpot`·`openYtCard`·`setSermons`, `refreshTabs` 안 영상 항목), `www/style.css`(`.yt-tab`·`.yt-peek`·`.yt-chip`), 시험 `tests/yt1.mjs` |
 | 1-B 서버 표·접근 규칙·함수 | **초안 완료**(샌드박스 임시 Postgres에서 Supabase 흉내로 시험) — 실제 Supabase 프로젝트에는 아직 넣지 않음 | `supabase/schema.sql`, 시험 `tests/supabase-schema-test.sh` |
-| 1-C 이메일 로그인(가입·로그인·비밀번호 재설정·로그아웃·계정 삭제) + 토큰을 키체인에 보관(Swift 새 메시지) | 다음 | `www/app.js`, `BibleFlip/ViewController.swift` |
-| 1-D 교회 화면(개설 신청·초대코드 가입·나가기·관리자에게 초대코드 표시) + `my_church_bundle` 을 받아 `setSermons` 로 저장(앱 열 때·당겨서 새로 고침) | 다음 | `www/app.js` |
-| 1-E 관리자 영상 입력(유튜브 주소 붙여 넣기 → 영상 ID 추출, 구절은 노트의 `parseRange` 재사용) | 다음 | `www/app.js` |
+| 1-C 이메일 로그인(가입·로그인·비밀번호 재설정·로그아웃·계정 삭제) + 토큰을 키체인에 보관 | **v75 완료**(가짜 서버 시험) | `www/app.js`(교회 계정 절: `sbHttp`·`sessLoad`·`validToken`·`showChurch`…), `BibleFlip/ChurchBridge.swift`(서버 요청 대행·키체인), `ViewController.swift`(`http`·`kc` 메시지), 시험 `tests/church1.mjs` |
+| 1-D 교회 화면(개설 신청·초대코드 가입·나가기·관리자에게 초대코드 표시) + `my_church_bundle` 을 받아 `setSermons` 로 저장(앱 열 때·다시 볼 때 10분에 한 번·새로 고침 단추) | **v75 완료** | `www/app.js` |
+| 1-E 관리자 영상 입력(유튜브 주소 → 영상 ID·시작 초, 구절은 노트의 `parseRange`) · 지우기 | **v75 완료** | `www/app.js`(`parseYt`·`churchAdminHTML`) |
+| 서버 함수 `delete_my_account()`(앱 안 계정 삭제) | **v75 추가** → Supabase SQL Editor에서 `schema.sql` 을 **다시 한 번 실행** 필요 | `supabase/schema.sql` |
+| 빌드 때 서버 주소·공개 키 넣기 | **v75 완료**: Actions가 Secrets로 `www/sb.json`(저장소에는 빈 값)을 덮어씀. 비밀 키(service_role/secret)가 들어오면 빌드를 멈춤 | `.github/workflows/build-ios.yml` |
 
 ### 앱 쪽 데이터 모양 (v74, 서버의 `my_church_bundle()` 결과와 같은 모양)
 `bf.sermons` = `{ church: { id, name, status, role, invite_code }, items: [ { id, yt(11자), bk, c1, v1, c2, v2, title, preacher, date:'YYYY-MM-DD', t: 시작 초|null } ], ts }`
@@ -99,3 +101,19 @@
 1. supabase.com 에서 무료 프로젝트 만들기(지역: 서울 `ap-northeast-2` 권장) → SQL Editor 에 `supabase/schema.sql` 전체를 붙여 넣어 실행.
 2. Authentication › Providers 에서 Email 켜기(확인 메일 사용 여부는 1-C에서 함께 정함).
 3. 프로젝트 주소와 공개(anon) 키는 **채팅에 붙여 넣지 않음** → GitHub 저장소 Settings › Secrets 에 `SUPABASE_URL`·`SUPABASE_ANON_KEY` 로 넣고, 빌드 때 앱에 넣는 방식으로 1-C에서 워크플로를 고침. **service_role 키는 어디에도 넣지 않음**(앱·저장소 모두).
+
+### v75 구현 메모 (교회 계정 화면)
+- 들어가는 곳: **설정 › 교회 계정**(머리줄 아이콘은 늘리지 않음). 한 줄 설명에 교회 이름·승인 대기·관리자 표시.
+- 서버 요청: 아이폰 앱에서는 `{http:{url,method,headers,body}}` 메시지 → `ChurchBridge.http`(URLSession) → `window.bfMail` 로 답. **sb.json 의 호스트로 가는 https만 허용.** 브라우저에서는 fetch.
+- 로그인 정보: 아이폰 앱은 키체인(`{kc:'get'|'set'|'del', k:'session'}`, 이 기기에서만·처음 잠금 해제 후), 브라우저는 localStorage `bf.session`. **데이터 백업에는 들어가지 않음.**
+- 토큰: 만료 1분 전부터 갱신 토큰으로 새로 받음. 갱신이 거절되면(4xx) 로그아웃 상태로.
+- 메일 확인·비밀번호 재설정은 **메일 속 6자리 코드**를 앱에 넣는 방식(웹 페이지가 없어 링크 방식은 쓰지 않음) → Supabase 메일 서식에 `{{ .Token }}` 이 들어 있어야 함(아래).
+- 되돌릴 수 없는 일(교회 나가기·계정 삭제·영상 지우기)은 **한 번 더 눌러야** 실행.
+
+### 사용자가 해 줄 일 (v75 설치 전·후)
+1. Supabase SQL Editor 에 최신 `supabase/schema.sql` 을 **다시 붙여 넣어 실행**(계정 삭제 함수 추가. 여러 번 실행해도 안전).
+2. Authentication › Emails(메일 서식)에서 **Confirm signup** 과 **Reset Password**(이름은 조금 다를 수 있음) 본문에 `<p>앱에 넣을 코드: <b>{{ .Token }}</b></p>` 한 줄을 넣고 저장.
+   - 가입 확인 메일을 끄고 싶으면 Authentication › Sign In / Providers › Email 의 **Confirm email** 을 끄면 됨(가입 즉시 로그인). 비밀번호 재설정에는 여전히 코드 서식이 필요.
+   - Supabase 기본 메일 발송은 **시간당 보낼 수 있는 수가 적게 제한**되어 있음(정확한 수는 대시보드에서 확인) → 여럿이 한꺼번에 가입하면 '메일을 너무 자주 보냈습니다'가 나올 수 있음. 그때는 잠시 뒤 다시, 또는 확인 메일 끄기.
+3. 병합 → Actions 빌드 로그의 '교회 서버 주소·공개 키 넣기' 단계에 `www/sb.json 만듦` 이 찍혔는지 확인 → 데이터 백업 → Sideloadly 재설치.
+4. 실기기 확인표: ① 설정 › 교회 계정에 로그인 화면이 나옴(‘서버 설정 안 됨’이면 Secrets 확인) ② 새로 가입 → 메일 코드 → 로그인 ③ 교회 개설 신청 → (대시보드에서 `churches.status` 를 `active` 로) → 새로 고침 → 초대코드 표시 ④ 설교 영상 관리에서 유튜브 주소·본문 넣기 → 그 본문을 펼치면 빨간 재생 탭 → `유튜브에서 보기` 가 유튜브 앱(없으면 사파리)으로 열림 ⑤ 앱을 완전히 껐다 켜도 로그인 유지 ⑥ 다른 계정으로 초대코드 가입 → 영상 탭이 보임, 관리 메뉴는 안 보임 ⑦ 교회 나가기·로그아웃·계정 삭제.
