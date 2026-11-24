@@ -71,9 +71,9 @@ for (const name of HEAD_PICK) {
   const { p, errs } = await open(dev);
   const r = await p.evaluate(() => {
     const bs = [...document.querySelectorAll('.menu-row > button')].map((e) => { const r = e.getBoundingClientRect(); return { id: e.id, l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height }; });
-    const ti = document.querySelector('#btn-pick').getBoundingClientRect();
+    const ti = document.querySelector('#btn-pick').getBoundingClientRect(), tb = document.querySelector('#loc-book').getBoundingClientRect();
     const hh = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--headh')) || 0;
-    return { bs, ti: { r: ti.right, b: ti.bottom }, spread: document.body.classList.contains('is-spread'), headh: hh, W: innerWidth, H: innerHeight, hr: document.querySelector('.head-row').getBoundingClientRect().bottom };
+    return { bs, ti: { r: tb.right, b: tb.bottom }, tl: ti.left, spread: document.body.classList.contains('is-spread'), headh: hh, W: innerWidth, H: innerHeight, hr: document.querySelector('.head-row').getBoundingClientRect().bottom };
   });
   const rows = {}; r.bs.forEach((x) => { const k = Math.round(x.t / 6); (rows[k] = rows[k] || []).push(x); });
   const rowList = Object.keys(rows).map(Number).sort((a, c) => a - c).map((k) => rows[k].sort((a, c) => a.l - c.l));
@@ -81,17 +81,18 @@ for (const name of HEAD_PICK) {
   ok(name + ': 모두 화면 안에 있다', r.bs.every((x) => x.l >= 0 && x.r <= r.W && x.t >= 0 && x.b <= r.H));
   const overlap = r.bs.some((a, i) => r.bs.some((c, j) => j > i && a.l < c.r - 0.5 && c.l < a.r - 0.5 && a.t < c.b - 0.5 && c.t < a.b - 0.5));
   ok(name + ': 아이콘끼리 겹치지 않는다', !overlap);
-  ok(name + ': 책 이름과 아이콘이 겹치지 않는다', r.ti.r <= Math.min(...r.bs.map((x) => x.l)) + 1, 'title.r=' + Math.round(r.ti.r) + ' menu.l=' + Math.round(Math.min(...r.bs.map((x) => x.l))));
+  // 펼친 화면: 책 이름 오른쪽에 메뉴 / 한 쪽 화면(v80): 책 이름 아래에 메뉴 → 겹치지 않으면 된다
+  ok(name + ': 책 이름과 아이콘이 겹치지 않는다', r.spread ? r.ti.r <= Math.min(...r.bs.map((x) => x.l)) + 1 : r.ti.b <= Math.min(...r.bs.map((x) => x.t)) + 1, 'title=' + Math.round(r.ti.r) + ',' + Math.round(r.ti.b) + ' menu=' + Math.round(Math.min(...r.bs.map((x) => x.l))) + ',' + Math.round(Math.min(...r.bs.map((x) => x.t))));
   if (r.spread) {
     ok(name + ': 펼친 화면은 한 줄', rowList.length === 1, 'rows=' + rowList.length);
   } else {
-    ok(name + ': 한 쪽 화면은 두 줄 — 윗줄 4개 · 아랫줄 4개 (v77)', rowList.length === 2 && rowList[0].length === 4 && rowList[1].length === 4, rowList.map((x) => x.length).join('+'));
-    if (rowList.length === 2 && rowList[0].length === 4 && rowList[1].length === 4) {
-      ok(name + ': 윗줄은 검색·하이라이트·노트·포토 카드, 아랫줄은 지도·문의하기·내 계정·설정', rowList[0].map((x) => x.id).join() === 'btn-search,btn-hl,btn-notes,btn-card' && rowList[1].map((x) => x.id).join() === 'btn-map,btn-ask,btn-acct,btn-settings');
-      const top = rowList[0], bot = rowList[1];
-      ok(name + ': 두 줄 모두 오른쪽 끝이 같다(오른쪽 맞춤)', Math.abs(top[3].r - bot[3].r) < 1.5, Math.round(top[3].r) + ' / ' + Math.round(bot[3].r));
-      ok(name + ': 윗줄 아이콘이 아랫줄 아이콘 위에 줄 맞춰 있다', [0, 1, 2, 3].every((i) => Math.abs(top[i].l - bot[i].l) < 1.5), top.map((x) => Math.round(x.l)).join(',') + ' / ' + bot.map((x) => Math.round(x.l)).join(','));
-      ok(name + ': 아랫줄 간격이 고르다', Math.abs((bot[1].l - bot[0].r) - (bot[3].l - bot[2].r)) < 1.5);
+    // v80: 한 쪽 화면 = 책 이름 줄 아래에 메뉴 8개 한 줄(양 끝 맞춤). 듀오 접힘(앱)은 상태표시줄(위에서 118px) 아래부터.
+    ok(name + ': 한 쪽 화면은 책 이름 아래 메뉴 한 줄(8개)', rowList.length === 1 && rowList[0].length === 8, rowList.map((x) => x.length).join('+'));
+    if (rowList.length === 1) {
+      const row = rowList[0], gaps = row.slice(1).map((x, i) => x.l - row[i].r);
+      ok(name + ': 메뉴 줄이 책 이름 왼쪽 끝에서 시작해 머리줄 오른쪽 끝까지(양 끝 맞춤), 간격이 고르다', Math.abs(row[0].l - r.tl) < 1.5 && Math.max(...gaps) - Math.min(...gaps) < 1.5, 'menu.l=' + Math.round(row[0].l) + ' title.l=' + Math.round(r.tl) + ' gaps=' + gaps.map((g) => g.toFixed(1)).join(','));
+      if (name === 'Duo 접힘') ok(name + ': 메뉴 줄이 상태표시줄 아래(118px 이상)에 있다', row[0].t >= 118 - 0.5, 'menu.top=' + Math.round(row[0].t));
+      else ok(name + ': 메뉴 줄이 책 이름 바로 아래(14px 안)에 있다', row[0].t - r.ti.b <= 14, 'gap=' + Math.round(row[0].t - r.ti.b));
     }
     ok(name + ': 머리줄이 본문 시작 높이(--headh)를 넘지 않는다', r.hr <= r.headh + 0.5, 'head.bottom=' + Math.round(r.hr) + ' headh=' + Math.round(r.headh));
   }
@@ -101,12 +102,12 @@ for (const name of HEAD_PICK) {
   await p.close();
 }
 
-// 긴 책 이름도 잘리지 않는다(이름이 길면 글자가 자동으로 줄어듦). 아이콘이 4열이 되어 책 이름 자리가 좁아진 한 쪽 화면에서 확인한다.
+// 긴 책 이름도 잘리지 않는다(이름이 길면 글자가 자동으로 줄어듦). v80부터 한 쪽 화면은 책 이름이 윗줄을 다 쓴다.
 for (const name of ['SE3 세로', '16ProMax 세로', 'Duo 접힘']) {
   const dev = DEVICES.find((d) => d[0] === name);
   for (const [bk, nm] of [[52, '데살로니가후서'], [65, '요한계시록'], [45, '고린도전서']]) {
     const { p } = await open(dev, { book: bk });
-    const t = await p.evaluate(() => { const e = document.querySelector('#loc-book'); const ti = document.querySelector('#btn-pick').getBoundingClientRect(); const ml = Math.min(...[...document.querySelectorAll('.menu-row > button')].map((x) => x.getBoundingClientRect().left)); return { txt: e.textContent, cut: e.scrollWidth > e.clientWidth + 1, fs: parseFloat(getComputedStyle(e).fontSize), gap: ml - ti.right }; });
+    const t = await p.evaluate(() => { const e = document.querySelector('#loc-book'); const tb = e.getBoundingClientRect(); const mt = Math.min(...[...document.querySelectorAll('.menu-row > button')].map((x) => x.getBoundingClientRect().top)); return { txt: e.textContent, cut: e.scrollWidth > e.clientWidth + 1, fs: parseFloat(getComputedStyle(e).fontSize), gap: mt - tb.bottom }; });
     ok(name + ': 책 이름 "' + nm + '"이 잘리지 않고 아이콘과 겹치지 않는다', t.txt === nm && !t.cut && t.fs >= 16 && t.gap >= -1, JSON.stringify(t));
     await p.close();
   }
