@@ -78,6 +78,10 @@ ok "anon cannot call join_church" "$(as anon "select * from join_church('$CODE')
 ok "A (last admin with members) cannot leave" "$(as a "select leave_church()")" "ERR:last admin"
 ok "B leaves; bundle becomes empty" "$(as b "select leave_church(); select my_church_bundle()->>'church' is null")" "t"
 ok "A (now alone) leaves; empty church and its sermons are deleted" "$(as a "select leave_church()" >/dev/null; Q -c "select count(*) from churches where name='한사람교회'")$(Q -c "select count(*) from sermons")" "00"
+ok "D creates a church, gets a member; D (last admin) cannot delete own account" "$(as d "select status from request_church('넷째교회')" >/dev/null; Q -c "update churches set status='active' where name='넷째교회'"; DC=$(Q -c "select invite_code from churches where name='넷째교회'"); as b "select church_name from join_church('$DC')" >/dev/null; as d "select delete_my_account()")" "ERR:last admin"
+ok "B (member) deletes own account: auth user and membership are gone" "$(as b "select delete_my_account()" >/dev/null; Q -c "select count(*) from auth.users where id='00000000-0000-0000-0000-00000000000b'")$(Q -c "select count(*) from memberships where user_id='00000000-0000-0000-0000-00000000000b'")" "00"
+ok "D (now alone) deletes own account: the empty church is removed too" "$(as d "select delete_my_account()" >/dev/null; Q -c "select count(*) from churches where name='넷째교회'")$(Q -c "select count(*) from auth.users where id='00000000-0000-0000-0000-00000000000d'")" "00"
+ok "anon cannot call delete_my_account" "$(as anon "select delete_my_account()" | grep -c 'permission denied')" "1"
 ok "deleting a user removes their membership (account deletion)" "$(Q -c "delete from auth.users where id='00000000-0000-0000-0000-00000000000c'; select count(*) from memberships")" "0"
 echo
 [ $fails = 0 ] && echo "ALL PASS" || echo "FAILS $fails"

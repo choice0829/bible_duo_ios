@@ -11,7 +11,7 @@
 | 경로 | 내용 |
 |---|---|
 | `www/` | **웹 화면 코드의 원본** (app.js, style.css, index.html, sw.js, lib/…). 앱에 그대로 들어감 |
-| `BibleFlip/` | Swift: ViewController(웹뷰·메시지), BundleSchemeHandler, LocationBridge(위치·주소 찾기) 등 |
+| `BibleFlip/` | Swift: ViewController(웹뷰·메시지), BundleSchemeHandler, LocationBridge(위치·주소 찾기), ChurchBridge(교회 계정: 서버 요청 대행·키체인, v75) 등 |
 | `project.yml` | XcodeGen 설정(앱 버전 `MARKETING_VERSION`, 권한 안내 문구) |
 | `tests/` | Puppeteer 시험(헤드리스 크롬 모의) — `tests/runreg.sh` |
 | `docs/WEB-README.md` | 웹 화면 쪽 버전별 설명서(길음). 새 버전은 여기 맨 아래 항목에 이어 적기 |
@@ -20,6 +20,7 @@
 | `docs/HANDOFF-brand-cafes.md` | 모임 장소 지도의 **카페 층**(서울 모든 카페·프랜차이즈/개인 걸러 보기·내 장소 핀 색)과 **보드게임 카페 층**(별도 단추·서울)의 인수 메모 |
 | `docs/INQUIRY-SETUP.md` | **문의하기(머리줄 봉투 아이콘 → 아이폰 메일 작성 창)** 안내: 아이콘 배열(접은 화면 윗줄 3·아랫줄 4), 받는 메일 주소(`INQUIRY_EMAIL`), 실기기 확인표. (후원하기는 v70에서 삭제) |
 | `docs/HANDOFF-church-accounts.md` | **교회 계정·교회별 게시판·설교 영상 탭**의 인수 메모: 사용자 구상, 지금 앱의 사실, 난이도·소요시간 추정, 배포에 추가로 필요한 것, 설계 초안, 단계, **확정된 결정(7장)**, **1단계 진행 상황·다음 조각·사용자가 해 줄 일(9장)** |
+| `www/sb.json` | 교회 서버 주소·공개 키. **저장소에는 빈 값**이고, Actions가 GitHub Secrets(`SUPABASE_URL`·`SUPABASE_ANON_KEY`)로 덮어씀. 실제 값을 커밋하지 않음 |
 | `supabase/schema.sql` | 교회 계정 서버(Supabase) 표·행 단위 접근 규칙·함수 초안(1단계). SQL Editor에 붙여 넣어 실행. 시험: `tests/supabase-schema-test.sh`(샌드박스 임시 Postgres + auth 흉내) |
 | `docs/emergency-raster/` | **비상용 래스터(A) 지도**(v68에서 앱에서 삭제). v67의 래스터 코드·CSS·시험(map4)과 되살리는 순서(README). 앱에는 들어가지 않음 |
 | `scripts/filter-cafes.py` | 공공데이터 상가정보 CSV에서 서울 모든 카페 + 서울 밖 스타벅스·투썸을 걸러 `cafes.json` 을, 이름에 '보드게임'이 든(또는 브랜드·'○○보드카페' 이름인) 서울 가게를 걸러 `boardgame.json` 을 함께 만드는 PC용 스크립트(시험: `tests/filter-cafes-test.py`) |

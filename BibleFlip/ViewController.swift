@@ -17,6 +17,7 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
     private var errorShown = false
     private let places = LocationBridge()   // 모임 장소 지도: 현재 위치·주소 찾기
     private var mailId = 0                  // 문의하기: 지금 열려 있는 메일 작성 창의 요청 번호
+    private let church = ChurchBridge()     // 교회 계정: 서버 요청 대행 · 로그인 정보 키체인 보관 (v75)
 
     // Mac 없이도 문제를 알 수 있도록: 웹에서 난 오류를 앱이 한 번 화면에 띄운다 (진단용)
     private static let diagScript = """
@@ -40,7 +41,7 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         config.setURLSchemeHandler(BundleSchemeHandler(), forURLScheme: "bibleflip")
         config.allowsInlineMediaPlayback = true
         // 지도 바탕(OpenStreetMap) 서버가 앱을 알아볼 수 있도록 앱 이름을 접속 정보(User-Agent)에 덧붙인다
-        config.applicationNameForUserAgent = "BibleFlip/74"
+        config.applicationNameForUserAgent = "BibleFlip/75"
         let controller = WKUserContentController()
         controller.add(WeakMessageHandler(self), name: "bf")
         controller.addUserScript(WKUserScript(source: ViewController.diagScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
@@ -150,6 +151,25 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         // 문의하기: 아이폰 기본 메일 작성 창(받는 사람·제목·내용·사진이 채워진 채)
         if let m = body["mail"] as? [String: Any] { composeMail(m, id: (body["id"] as? Int) ?? 0); return }
         if let u = body["open"] as? String { openExternal(u, fallback: body["fallback"] as? String); return }
+        // 교회 계정(v75): 서버 요청 대행 · 키체인. 답은 문의하기와 같은 통로(window.bfMail, 요청 번호 id)로 돌려준다.
+        if let h = body["http"] as? [String: Any] {
+            let id = (body["id"] as? Int) ?? 0
+            church.http(h) { [weak self] r in
+                var out = r
+                out["id"] = id
+                self?.sendToWeb("bfMail", out)
+            }
+            return
+        }
+        if let op = body["kc"] as? String {
+            let id = (body["id"] as? Int) ?? 0
+            church.keychain(op, account: (body["k"] as? String) ?? "session", value: body["v"] as? String) { [weak self] r in
+                var out = r
+                out["id"] = id
+                self?.sendToWeb("bfMail", out)
+            }
+            return
+        }
         guard let t = body["theme"] as? String else { return }
         UserDefaults.standard.set(t, forKey: "bf.theme")
         applyTheme(t)

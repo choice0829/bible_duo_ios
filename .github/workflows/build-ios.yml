@@ -25,6 +25,37 @@ jobs:
           xcrun --sdk iphoneos --show-sdk-version
           ls /Applications | grep -i xcode || true
 
+      # 교회 계정(v75): 저장소 Settings › Secrets 의 서버 주소·공개(anon) 키로 앱의 www/sb.json(저장소에는 빈 값)을 덮어쓴다.
+      # 공개 키는 원래 앱 안에 들어가는 키이며, 데이터는 서버의 행 단위 접근 규칙이 지킨다. service_role 키는 절대 쓰지 않는다.
+      - name: 교회 서버 주소·공개 키 넣기
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_ANON_KEY" ]; then
+            python3 - <<'PY'
+          import json, os, re, sys
+          url = os.environ['SUPABASE_URL'].strip().rstrip('/')
+          key = os.environ['SUPABASE_ANON_KEY'].strip()
+          if not re.match(r'^https://[a-z0-9.-]+$', url):
+              sys.exit('SUPABASE_URL 형식이 이상합니다(https://….supabase.co 꼴이어야 함)')
+          role = ''
+          if key.count('.') == 2:   # 예전 방식(JWT) 키: 가운데 조각을 풀어 역할(role)을 본다
+              import base64
+              try:
+                  mid = key.split('.')[1]
+                  role = json.loads(base64.urlsafe_b64decode(mid + '=' * (-len(mid) % 4))).get('role', '')
+              except Exception:
+                  role = ''
+          if role == 'service_role' or key.startswith('sb_secret_'):
+              sys.exit('SUPABASE_ANON_KEY 에 비밀(service_role/secret) 키가 들어 있습니다. 공개(anon/publishable) 키로 바꿔 주세요')
+          json.dump({'url': url, 'key': key}, open('www/sb.json', 'w'))
+          print('www/sb.json 만듦:', url.split('//')[1].split('.')[0][:4] + '…')
+          PY
+          else
+            echo "Secrets(SUPABASE_URL·SUPABASE_ANON_KEY)가 없어 교회 기능은 '서버 설정 안 됨'으로 표시됩니다"
+          fi
+
       - name: XcodeGen 설치
         run: brew install xcodegen
 
