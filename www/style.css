@@ -154,7 +154,7 @@ body:not(.is-spread) .title-btn { width: 100%; }
 body:not(.is-spread) .menu-row { position: absolute; left: 0; right: 0; top: var(--menu-off, 60px); display: flex; justify-content: space-between; gap: 4px; margin: 0; }
 body:not(.is-spread) .menu-row > .icon-btn { flex: 0 1 42px; min-width: 37px; }
 /* v81 듀오 접힘(앱): 메뉴 8개를 오른쪽 위 상태 알약 바로 아래부터 오른쪽 가장자리를 따라 세로 한 줄로. 본문은 --padr 만큼 오른쪽을 비운다 */
-body.duo-fold .menu-row { position: fixed; top: var(--rail-top, 174px); bottom: auto; right: var(--rail-right, 24px); left: auto; width: 42px; flex-direction: column; justify-content: flex-start; gap: 6px; }   /* v83: 화면 세로 가운데(위·아래 여백 같게, app.js 가 --rail-top 계산) */
+body.duo-fold .menu-row { position: fixed; top: var(--rail-top, 254px); bottom: auto; right: var(--rail-right, 24px); left: auto; width: 42px; flex-direction: column; justify-content: flex-start; gap: 6px; }   /* v84: 상태 알약 아래 끝 ~ 화면 바닥의 세로 가운데(app.js 가 --rail-top 계산) */
 body.duo-fold .menu-row > .icon-btn { flex: none; width: 42px; height: 36px; min-width: 0; }
 /* 낮은 화면(가로로 돌린 폰): 머리줄을 작게 */
 body.is-compact .head-row { gap: 12px; }

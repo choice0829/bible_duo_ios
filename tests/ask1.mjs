@@ -95,7 +95,7 @@ for (const name of HEAD_PICK) {
       const xs = new Set(r.bs.map((x) => Math.round(x.l))), ys = r.bs.map((x) => x.t);
       ok(name + ': 메뉴 8개가 오른쪽 가장자리에 세로 한 줄(같은 x, 위에서 아래 순서)', xs.size === 1 && ys.every((y, i) => i === 0 || y > ys[i - 1]) && Math.abs(r.W - Math.max(...r.bs.map((x) => x.r)) - 24) <= 1, 'x=' + [...xs].join(',') + ' right=' + Math.round(r.W - Math.max(...r.bs.map((x) => x.r))));
       const gapB = r.H - Math.max(...r.bs.map((x) => x.b));
-      ok(name + ': v83 레일이 화면 세로 가운데(위·아래 여백이 같음)이고 상태 알약(160px)보다 아래에 있다', Math.abs(gapB - ys[0]) <= 2 && ys[0] >= 160, 'top=' + Math.round(ys[0]) + ' bottom gap=' + Math.round(gapB));
+      ok(name + ': v84 레일이 상태 알약 아래 끝(160px) ~ 화면 바닥의 세로 가운데(알약과의 간격 = 바닥과의 간격)', Math.abs(gapB - (ys[0] - 160)) <= 2 && ys[0] > 160, 'top=' + Math.round(ys[0]) + ' gap above(from 160)=' + Math.round(ys[0] - 160) + ' gap below=' + Math.round(gapB));
       ok(name + ': 본문 글자가 레일 왼쪽에서 끝난다(겹치지 않음)', r.textR <= Math.min(...r.bs.map((x) => x.l)) - 4, 'text.right=' + Math.round(r.textR) + ' rail.left=' + Math.round(Math.min(...r.bs.map((x) => x.l))));
       ok(name + ': 책 이름 줄이 상태 알약(약 395px부터) 왼쪽에서 끝난다', r.tr <= 395, 'title.right=' + Math.round(r.tr));
     } else {

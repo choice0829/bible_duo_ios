@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v83';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v84';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -151,7 +151,8 @@
   const STACK_GAP = 6;                              // 책 이름 줄과 메뉴 줄 사이
   const DUO_FOLD_RAIL_TOP = 166;                    // 레일이 올라올 수 있는 맨 위(알약 아래 끝 약 160 + 6)
   const DUO_FOLD_RAIL_H = 8 * 36 + 7 * 6;           // 레일 높이(아이콘 8개 · 간격 6)
-  // v83: 레일은 화면 세로 가운데(위·아래 여백이 같게). 단, 상태 알약 아래(DUO_FOLD_RAIL_TOP)보다 위로는 올라가지 않는다
+  const DUO_FOLD_STATUS_BOTTOM = 160;               // 상태 알약 아래 끝(사용자 실기기 캡처에서 잼)
+  // v84: 레일은 상태 알약 아래 끝부터 화면 바닥까지의 세로 가운데(알약과의 간격 = 바닥과의 간격)
   const DUO_FOLD_RAIL_RIGHT = 24;                   // 화면 오른쪽 끝에서 레일 오른쪽 끝까지(알약 오른쪽 끝에 맞춤)
   const DUO_FOLD_RESERVE = DUO_FOLD_RAIL_RIGHT + 42 + 10;   // 본문·책 이름이 오른쪽에 비워 두는 폭(레일 + 간격)
   function headBox(spread, compact, duoFold) {
@@ -297,7 +298,7 @@
     root.setProperty('--sans', fstack);   // 상단 메뉴·굵은 글씨·창도 같은 글씨체
     root.setProperty('--padx', g.padX + 'px');
     root.setProperty('--padr', (g.padR || g.padX) + 'px');   // 한 쪽 화면 본문의 오른쪽 여백(듀오 접힘은 메뉴 레일 자리)
-    root.setProperty('--rail-top', Math.max(DUO_FOLD_RAIL_TOP, Math.round((g.H - DUO_FOLD_RAIL_H) / 2)) + 'px');
+    root.setProperty('--rail-top', Math.max(DUO_FOLD_RAIL_TOP, Math.round(DUO_FOLD_STATUS_BOTTOM + (g.H - DUO_FOLD_STATUS_BOTTOM - DUO_FOLD_RAIL_H) / 2)) + 'px');
     root.setProperty('--rail-right', DUO_FOLD_RAIL_RIGHT + 'px');
     document.body.classList.toggle('duo-fold', !!g.duoFold);
     root.setProperty('--padout', g.padOut + 'px');   // 펼침 쪽의 바깥쪽·안쪽 글자 여백 (앱 펼침에서만 서로 다름)
