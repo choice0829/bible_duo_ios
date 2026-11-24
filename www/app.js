@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v77';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v78';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -2123,10 +2123,13 @@
   }
   // 내 계정 정보(개인 정보는 메모리에만 둔다) + 승인된 교회의 설교 영상(기기에 저장해 오프라인에서도 탭이 보이게)
   let acctProfile = null, acctProfileLoaded = false;
+  const acctOp = { operator: false, pending: 0 };   // v78: 운영자 여부 · 승인 대기 건수(머리줄 아이콘 배지)
   async function accountSync() {
     const r = await sbRpc('my_account');
     if (r.status === 200 && r.data && typeof r.data === 'object' && Array.isArray(r.data.items)) {
       acctProfile = r.data.profile || null; acctProfileLoaded = true;
+      acctOp.operator = r.data.operator === true; acctOp.pending = +r.data.pending_count || 0;
+      updateAcctBadge();
       setSermons({ church: r.data.church, items: r.data.items });
       // 확인이 끝난(승인·반려) 증빙 서류는 서버에서 지운다(민감정보 최소 보관)
       const p = acctProfile;
@@ -2135,7 +2138,7 @@
       }
       return { ok: true };
     }
-    if (r.status === 401) { setSermons(null); acctProfile = null; acctProfileLoaded = false; }
+    if (r.status === 401) { setSermons(null); acctProfile = null; acctProfileLoaded = false; acctOp.operator = false; acctOp.pending = 0; updateAcctBadge(); }
     return { ok: false, r };
   }
   let chSyncAt = 0;
@@ -2254,7 +2257,7 @@
     setSheetAct(null);
     const top = chState.view === 'main';
     backBtn.hidden = top;
-    sheetBack = top ? null : () => { showAccount('main'); sheetBody.scrollTop = 0; };
+    sheetBack = top ? null : chState.view === 'op-user' ? () => { showAccount('op-list'); sheetBody.scrollTop = 0; } : () => { showAccount('main'); sheetBody.scrollTop = 0; };
     if (!sheetBody.querySelector('#ch-msg')) sheetBody.innerHTML = '<p class="note tight">불러오는 중…</p>';
     renderAccount();
   }
@@ -2266,7 +2269,14 @@
     let v = chState.view;
     const p = acctProfile;
     if (s && v === 'main' && !p && acctProfileLoaded) v = chState.view = 'profile';         // 계정은 있는데 개인 정보가 없음 → 마저 입력
-    if (!s && ['main', 'profile', 'edit', 'church', 'admin'].indexOf(v) >= 0) v = chState.view = 'main';
+    if (!s && ['main', 'profile', 'edit', 'church', 'admin', 'op-list', 'op-user'].indexOf(v) >= 0) v = chState.view = 'main';
+    let opErr = null;
+    if (s && v === 'op-list') {   // 목록은 열 때마다 서버에서 새로 받는다
+      chState.opSeenAt = opSeen();
+      opErr = (await opLoad(chState.opKind || 'pending')).err || null;
+      if (chState.opKind === 'all' && !opErr) opMarkSeen();
+      if (sheet.hidden || sheetTitle.textContent !== ACCT_TITLE || chState.view !== 'op-list') return;
+    }
     backBtn.hidden = v === 'main' || (v === 'profile' && !!s);
     let h = '';
     if (!cfg) h = '<p class="note tight">' + esc(chErr({ err: 'noconfig' })) + '</p><p class="adv-desc">로그인하지 않아도 성경·노트·하이라이트 등 기본 기능은 모두 쓸 수 있습니다.</p>';
@@ -2280,10 +2290,15 @@
     else if (v === 'code' || v === 'reset-code') h = acctCodeHTML(v === 'reset-code');
     else if (v === 'reset-email') h = acctResetHTML();
     else if (v === 'admin') h = churchAdminHTML();
+    else if (v === 'op-list') h = opErr ? '<p id="ch-msg" class="ch-msg bad"></p>' : opListHTML(chState.opKind || 'pending');
+    else if (v === 'op-user') h = chState.opUser ? opUserHTML(chState.opUser) : '<p id="ch-msg" class="ch-msg"></p>';
     else h = acctMainHTML(s, p);
     sheetBody.innerHTML = h;
+    if (v === 'op-list' || v === 'op-user') sheetTitle.textContent = ACCT_TITLE;
     if (chState.msg) chSay(chState.msg);
+    if (opErr) chSay(opErr, true);
     bindAccount(s);
+    if (s) bindOperator();
   }
   function acctLoginHTML() {
     return '<p class="note tight">로그인하지 않아도 성경·노트·하이라이트 등 기본 기능은 모두 쓸 수 있습니다. 계정을 만들고 <b>소속 교회</b>가 등록되면 그 교회의 <b>설교 영상</b>과 <b>교회 게시판</b>(준비 중)을 쓸 수 있습니다.</p>' +
@@ -2357,7 +2372,7 @@
     const on = !!c;   // 승인된 교회 소속
     const row = (k, v) => '<div class="ch-kv"><span>' + k + '</span><b>' + (v ? esc(v) : '<i>없음</i>') + '</b></div>';
     const badge = { approved: ['등록됨', 'ok'], pending: ['확인 중', 'wait'], rejected: ['반려됨', 'bad'], none: ['없음', ''] }[st] || ['없음', ''];
-    let h = '<div class="adv-head">내 정보</div><div class="ch-card">' +
+    let h = roleBadgesHTML() + opSectionHTML() + '<div class="adv-head">내 정보</div><div class="ch-card">' +
       row('이름', p.name) + row('아이디', s.email) + row('성별', GENDER[p.gender] || '') + row('생년월일', birthLabel(p.birth)) + row('전화번호', p.phone || '') +
       '</div><div class="ch-btns"><button type="button" class="seg-btn" id="ch-edit">정보 수정</button></div>';
     h += '<div class="adv-head">소속 교회</div><div class="ch-card">' +
@@ -2555,7 +2570,7 @@
       const t = sbSess && sbSess.at;
       if (t) await sbHttp('POST', '/auth/v1/logout', {}, t);   // 서버 쪽 정리는 실패해도 이 기기에서는 로그아웃
       await sessSave(null);
-      acctProfile = null; acctProfileLoaded = false;
+      acctProfile = null; acctProfileLoaded = false; acctOp.operator = false; acctOp.pending = 0; updateAcctBadge();
       setSermons(null);
       showAccount('main', '로그아웃했습니다.');
       return null;
@@ -2581,7 +2596,7 @@
       const r = await sbRpc('delete_my_account');
       if (r.status !== 200 && r.status !== 204) return chErr(r);
       await sessSave(null);
-      acctProfile = null; acctProfileLoaded = false;
+      acctProfile = null; acctProfileLoaded = false; acctOp.operator = false; acctOp.pending = 0; updateAcctBadge();
       setSermons(null);
       showAccount('main', '계정을 지웠습니다.');
       return null;
@@ -2615,6 +2630,135 @@
       showAccount('admin', '지웠습니다.');
       return null;
     })));
+  }
+
+  // ---------- 운영자 화면 (v78): 새 계정 · 승인 대기 · 서류 보기 · 승인/반려 · 교회 관리자 지정 ----------
+  const OP_SEEN_KEY = 'bf.opSeen';   // 운영자가 '전체 계정'을 마지막으로 본 시각(이 기기에만) → 그 뒤 가입한 계정에 '새' 표시
+  const opSeen = () => { try { return +localStorage.getItem(OP_SEEN_KEY) || 0; } catch (e) { return 0; } };
+  const opMarkSeen = () => { try { localStorage.setItem(OP_SEEN_KEY, String(Date.now())); } catch (e) { /* 무시 */ } };
+  const ST_BADGE = { approved: ['등록됨', 'ok'], pending: ['확인 중', 'wait'], rejected: ['반려됨', 'bad'], none: ['교회 미신청', ''], noprofile: ['정보 미입력', ''] };
+  const dayLabel = (t) => { const d = new Date(t); return isNaN(d) ? '' : d.getFullYear() + '.' + pad2(d.getMonth() + 1) + '.' + pad2(d.getDate()); };
+  function updateAcctBadge() {   // 머리줄 사람 아이콘: 운영자이고 승인 대기가 있으면 빨간 숫자
+    const btn = $('#btn-acct');
+    if (!btn) return;
+    let dot = btn.querySelector('.acct-dot');
+    const n = acctOp.operator ? acctOp.pending : 0;
+    if (!n) { if (dot) dot.remove(); btn.setAttribute('aria-label', '내 계정'); return; }
+    if (!dot) { dot = document.createElement('span'); dot.className = 'acct-dot'; dot.setAttribute('aria-hidden', 'true'); btn.appendChild(dot); }
+    dot.textContent = n > 99 ? '99+' : String(n);
+    btn.setAttribute('aria-label', '내 계정 (승인 대기 ' + n + '건)');
+  }
+  function roleBadgesHTML() {
+    const c = sermonsDB.church, b = [];
+    if (acctOp.operator) b.push('<em class="ch-role op">운영자</em>');
+    if (c && c.role === 'admin') b.push('<em class="ch-role admin">교회 관리자</em>');
+    else if (c) b.push('<em class="ch-role member">성도</em>');
+    if (!c) b.push('<em class="ch-role none">교회 미등록</em>');
+    return '<div class="ch-roles">' + b.join('') + '</div>';
+  }
+  function opSectionHTML() {
+    if (!acctOp.operator) return '';
+    return '<div class="adv-head">운영자</div>' +
+      '<button class="row rowlink" id="ch-op-pending" type="button"><span>승인 대기 <small class="sub">교인 증빙 서류 확인 · 승인 · 반려</small></span><span class="chev">' + (acctOp.pending ? '<em class="ch-count">' + acctOp.pending + '</em> ' : '') + '›</span></button>' +
+      '<button class="row rowlink" id="ch-op-all" type="button"><span>전체 계정 <small class="sub">새로 가입한 계정 · 교회 관리자 지정</small></span><span class="chev">›</span></button>';
+  }
+  async function opLoad(kind) {
+    const r = await sbRpc('op_list_accounts', { p_kind: kind });
+    if (r.status !== 200 || !Array.isArray(r.data)) return { err: chErr(r) };
+    chState.opList = r.data;
+    return {};
+  }
+  function opListHTML(kind) {
+    const list = chState.opList || [], seen = chState.opSeenAt || 0;
+    const fresh = kind === 'all' ? list.filter((u) => new Date(u.created_at).getTime() > seen).length : 0;
+    let h = '<p class="note tight">' + (kind === 'pending'
+      ? '교회 등록을 신청한 순서입니다. 눌러서 서류를 보고 승인하거나 반려합니다.'
+      : '최근 가입한 순서입니다(300명까지).' + (fresh ? ' 지난번에 본 뒤 <b>새로 가입한 계정 ' + fresh + '명</b>에 <em class="ch-new">새</em> 표시가 있습니다.' : '')) + '</p>';
+    if (!list.length) return h + '<p class="adv-desc">' + (kind === 'pending' ? '승인 대기 중인 신청이 없습니다.' : '가입한 계정이 없습니다.') + '</p><p id="ch-msg" class="ch-msg"></p>';
+    h += list.map((u, i) => {
+      const st = ST_BADGE[u.church_status] || ['', ''];
+      const isNew = kind === 'all' && new Date(u.created_at).getTime() > seen;
+      const sub = [u.email, u.church || u.church_name || '', kind === 'pending' && u.requested_at ? '신청 ' + dayLabel(u.requested_at) : '가입 ' + dayLabel(u.created_at)].filter(Boolean).join(' · ');
+      return '<button class="row rowlink ch-urow" type="button" data-i="' + i + '"><span>' + (isNew ? '<em class="ch-new">새</em> ' : '') + esc(u.name || '(이름 없음)') +
+        (u.operator ? ' <em class="ch-role op sm">운영자</em>' : '') + (u.role === 'admin' ? ' <em class="ch-role admin sm">교회 관리자</em>' : '') +
+        '<small class="sub">' + esc(sub) + '</small></span><span class="chev">' + (st[0] ? '<em class="ch-badge ' + st[1] + '">' + st[0] + '</em> ' : '') + '›</span></button>';
+    }).join('');
+    return h + '<p id="ch-msg" class="ch-msg"></p>';
+  }
+  function opUserHTML(u) {
+    const row = (k, v) => '<div class="ch-kv"><span>' + k + '</span><b>' + (v ? esc(v) : '<i>없음</i>') + '</b></div>';
+    const st = ST_BADGE[u.church_status] || ['', ''];
+    let h = '<div class="ch-card">' + row('이름', u.name) + row('아이디', u.email) + row('성별', GENDER[u.gender] || '') + row('생년월일', birthLabel(u.birth)) +
+      row('전화번호', u.phone || '') + row('가입일', dayLabel(u.created_at)) + '</div>';
+    h += '<div class="adv-head">소속 교회</div><div class="ch-card"><div class="ch-kv"><span>' + esc(u.church || u.church_name || '신청한 교회 없음') + '</span>' +
+      (st[0] ? '<em class="ch-badge ' + st[1] + '">' + st[0] + '</em>' : '') + '</div>' +
+      (u.role ? '<div class="ch-kv"><span>역할</span><b>' + (u.role === 'admin' ? '교회 관리자' : '성도') + '</b></div>' : '') +
+      (u.church_status === 'rejected' && u.reject_reason ? '<div class="ch-kv"><span>반려 사유</span><b>' + esc(u.reject_reason) + '</b></div>' : '') + '</div>';
+    if (u.church_status === 'pending') {
+      h += '<div class="adv-head">교인 증빙 서류</div>' +
+        (u.proof_path ? '<div class="ch-btns"><button type="button" class="seg-btn" id="ch-op-proof">서류 보기</button></div><div id="ch-op-proofbox"></div>' : '<p class="adv-desc">올린 서류가 없습니다.</p>') +
+        '<div class="adv-head">승인</div>' +
+        chField('ch-op-church', '연결할 교회 이름 (오타가 있으면 고쳐서 승인)', 'text', 'maxlength="40" autocomplete="off" value="' + qa(u.church_name) + '"') +
+        '<label class="ch-chk ch-chk-row"><input type="checkbox" id="ch-op-admin"><span>이 교회의 <b>교회 관리자</b>로 지정(설교 영상을 넣을 수 있음)</span></label>' +
+        '<div class="ch-btns"><button type="button" class="ch-main" id="ch-op-approve">승인</button></div>' +
+        '<div class="adv-head">반려</div>' +
+        chField('ch-op-reason', '반려 사유 (신청한 사람에게 보입니다)', 'text', 'maxlength="200" autocomplete="off" placeholder="예: 서류가 흐려 확인할 수 없습니다"') +
+        '<div class="ch-btns"><button type="button" class="seg-btn ch-danger" id="ch-op-reject">반려</button></div>';
+    } else if (u.role) {
+      h += '<div class="ch-btns">' + (u.role === 'admin'
+        ? '<button type="button" class="seg-btn ch-danger" id="ch-op-unadmin">교회 관리자 해제</button>'
+        : '<button type="button" class="ch-main" id="ch-op-admin-on">교회 관리자로 지정</button>') + '</div>';
+    }
+    return h + '<p id="ch-msg" class="ch-msg"></p>';
+  }
+  async function opProofShow(u) {   // 짧게(5분) 유효한 서명 주소를 받아 사진은 화면에, PDF는 사파리로 연다
+    const r = await sbAuthed('POST', '/storage/v1/object/sign/proofs/' + u.proof_path.split('/').map(encodeURIComponent).join('/'), { expiresIn: 300 });
+    const rel = r.data && (r.data.signedURL || r.data.signedUrl);
+    if (r.status !== 200 || !rel) return chErr(r);
+    const cfg = await sbConfig();
+    const url = /^https:\/\//.test(rel) ? rel : cfg.url + '/storage/v1' + (rel.charAt(0) === '/' ? '' : '/') + rel;
+    if (/\.pdf$/i.test(u.proof_path)) {
+      const br = nativeBridge();
+      if (br) { try { br.postMessage({ open: url, fallback: url }); } catch (e) { /* 무시 */ } } else window.open(url, '_blank', 'noopener');
+      chSay('PDF 서류를 사파리로 열었습니다(5분 동안 열 수 있는 주소).');
+      return null;
+    }
+    const box = $('#ch-op-proofbox');
+    if (box) box.innerHTML = '<img class="ch-proof-img" alt="교인 증빙 서류" src="' + qa(url) + '">';
+    chSay('서류를 불러왔습니다. 확대하려면 두 손가락으로 벌리세요.');
+    return null;
+  }
+  function bindOperator() {
+    const on = (id, fn) => { const b = $('#' + id); if (b) b.addEventListener('click', fn); };
+    on('ch-op-pending', () => { chState.opKind = 'pending'; showAccount('op-list'); sheetBody.scrollTop = 0; });
+    on('ch-op-all', () => { chState.opKind = 'all'; showAccount('op-list'); sheetBody.scrollTop = 0; });
+    sheetBody.querySelectorAll('.ch-urow').forEach((b) => b.addEventListener('click', () => {
+      chState.opUser = (chState.opList || [])[+b.dataset.i] || null;
+      if (chState.opUser) { showAccount('op-user'); sheetBody.scrollTop = 0; }
+    }));
+    const u = chState.opUser;
+    if (chState.view !== 'op-user' || !u) return;
+    on('ch-op-proof', () => chRun(() => opProofShow(u)));
+    const done = async (r, okMsg) => {
+      if (r.status !== 200) return chErr(r);
+      const text = typeof r.data === 'string' ? r.data : okMsg;
+      if (/없습니다|이어야/.test(text)) return text;   // 서버가 돌려준 안내(대기 중인 신청 없음 등)
+      await accountSync();
+      await opLoad(chState.opKind || 'pending');
+      chState.opUser = (chState.opList || []).find((x) => x.id === u.id) || null;
+      showAccount(chState.opUser ? 'op-user' : 'op-list', text);
+      return null;
+    };
+    on('ch-op-approve', () => chRun(async () => {
+      const nm = ($('#ch-op-church').value || '').trim();
+      if (nm.length < 2) return '연결할 교회 이름을 2자 이상 적어 주세요.';
+      return done(await sbRpc('op_approve', { p_uid: u.id, p_church_name: nm, p_admin: !!$('#ch-op-admin').checked }), '승인했습니다.');
+    }));
+    const rej = $('#ch-op-reject');
+    if (rej) chArm(rej, '한 번 더 누르면 반려', () => chRun(async () => done(await sbRpc('op_reject', { p_uid: u.id, p_reason: ($('#ch-op-reason').value || '').trim() || null }), '반려했습니다.')));
+    on('ch-op-admin-on', () => chRun(async () => done(await sbRpc('op_set_admin', { p_uid: u.id, p_admin: true }), '교회 관리자로 지정했습니다.')));
+    const un = $('#ch-op-unadmin');
+    if (un) chArm(un, '한 번 더 누르면 해제', () => chRun(async () => done(await sbRpc('op_set_admin', { p_uid: u.id, p_admin: false }), '교회 관리자에서 해제했습니다.')));
   }
 
   // ---------- 문의하기 (v69. v70에서 설정 안이 아니라 머리줄의 별도 아이콘으로 옮김. 후원하기는 v70에서 삭제) ----------
@@ -3213,19 +3357,27 @@
     // 겹치지 않게 위에서부터 쌓고, 아래로 넘치면 위로 당긴다. 그래도 안 들어가면 나머지는 "+N" 하나로 줄인다. (왼쪽·오른쪽을 따로 쌓는다)
     // 오른쪽 탭은 듀오 오른쪽 위의 상태 알약(시계·배터리) 아래에서만 놓는다.
     const botLim = window.innerHeight - 10, gap = 5;
+    // v78: 설교 영상 탭이 바로 위 노트 탭과 부딪히면(같은 본문) 노트 탭 밑에서 TUCK px 만큼 그 뒤로 들어가게 겹친다(실제 인덱스 탭처럼).
+    const TUCK = 10;
     const stack = (list, topLim) => {
       let y = -1e9;
-      list.forEach((it) => { it.y = Math.max(it.y0, y, topLim); y = it.y + it.h + gap; });
+      list.forEach((it, i) => {
+        const prev = list[i - 1];
+        it.tuck = !!(it.yt && prev && !prev.yt && !prev.more && it.y0 < prev.y + prev.h + gap);
+        if (it.tuck) { it.h = it.h0 + TUCK; it.y = Math.max(prev.y + prev.h - TUCK, topLim); }
+        else { it.h = it.h0; it.y = Math.max(it.y0, y, topLim); }
+        y = it.y + it.h + gap;
+      });
       let lim = botLim;
-      for (let i = list.length - 1; i >= 0; i--) { list[i].y = Math.min(list[i].y, lim - list[i].h); lim = list[i].y - gap; }
+      for (let i = list.length - 1; i >= 0; i--) { list[i].y = Math.min(list[i].y, lim - list[i].h); lim = list[i].tuck ? list[i].y + TUCK : list[i].y - gap; }
       return !list.length || list[0].y >= topLim;
     };
     const layout = (all2, side) => {
       const topLim = side === 'R' && pg.g.intoPill ? Math.max(60, NATIVE_PILL_BOTTOM + 4) : 60;
       let list = all2;
       for (let keep = all2.length; keep >= 0; keep--) {
-        list = all2.slice(0, keep).map((it) => Object.assign({}, it, { side }));
-        if (keep < all2.length) list.push({ more: all2.length - keep, label: '+' + (all2.length - keep), title: '설교노트 목록', y0: botLim, h: 34, side });
+        list = all2.slice(0, keep).map((it) => Object.assign({}, it, { side, h0: it.h }));
+        if (keep < all2.length) list.push({ more: all2.length - keep, label: '+' + (all2.length - keep), title: '설교노트 목록', y0: botLim, h: 34, h0: 34, side });
         if (stack(list, topLim)) break;
       }
       return list;
@@ -3235,7 +3387,7 @@
       const right = it.side === 'R', tw = right ? twR : twL, left = right ? W - edgeR : edgeL - tw;   // 왼쪽 탭은 오른쪽 끝이, 오른쪽 탭은 왼쪽 끝이 책 가장자리에 닿는다
       const geo = 'left:' + left + 'px;top:' + Math.round(it.y) + 'px;width:' + tw + 'px;height:' + it.h + 'px';
       if (it.yt) {   // 설교 영상 탭: 빨간 배경 + 흰 재생 삼각형(+ 여러 개면 개수)
-        return '<button type="button" class="nt-tab yt-tab' + (right ? ' nt-r' : '') + '" data-note="' + esc(it.id).replace(/"/g, '&quot;') + '" data-yt="' + esc(it.yt.join(' ')).replace(/"/g, '&quot;') + '"' +
+        return '<button type="button" class="nt-tab yt-tab' + (right ? ' nt-r' : '') + (it.tuck ? ' tuck' : '') + '" data-note="' + esc(it.id).replace(/"/g, '&quot;') + '" data-yt="' + esc(it.yt.join(' ')).replace(/"/g, '&quot;') + '"' +
           ' aria-label="설교 영상: ' + esc(it.title).replace(/"/g, '&quot;') + '" style="' + geo + '"><i></i>' + (it.label ? '<b>' + esc(it.label) + '</b>' : '') + '</button>';
       }
       return '<button type="button" class="nt-tab' + (right ? ' nt-r' : '') + '" ' + (it.more ? 'data-more="1"' : 'data-note="' + it.id + '"') +

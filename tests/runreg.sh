@@ -1,7 +1,7 @@
 #!/bin/bash
 # 전체 회귀 시험. 한 번에 하나씩 차례로 돌립니다(동시에 돌리면 서로 방해하므로 pkill로 정리).
 # 사용: cd tests && npm install && bash runreg.sh   (결과: reg.log)  / 하나만: node map1.mjs 펼침
-# (v77) acct1 = 내 계정(가입·서류 첨부·승인 대기·승인·반려·정보 수정·계정 삭제, 가짜 서버). (v74) yt1 = 설교 영상 탭(교회 계정 1단계) 시험. 서버 표·접근 규칙은 supabase-schema-test.sh(임시 Postgres).
+# (v78) acct1 = 내 계정 + 운영자 화면(가입·서류·승인·반려·역할 배지·새 계정, 가짜 서버). (v74) yt1 = 설교 영상 탭(교회 계정 1단계) 시험. 서버 표·접근 규칙은 supabase-schema-test.sh(임시 Postgres).
 # (v72·v73) card1 = 지도 장소 카드(정보 보기→지도 앱 연결·길찾기·나만의 리뷰·내 장소로 추가 균일 배치) 6개 기기 시험.
 # (v71) hl1 = 하이라이트 도구 상자 터치 시험. (v70) ask1 = 문의하기(머리줄 아이콘) 시험.
 # (v68) map4(래스터·CARTO 열쇠 시험)는 docs/emergency-raster/ 로 옮겼다. adv1 = 설정·고급설정 화면 시험.
