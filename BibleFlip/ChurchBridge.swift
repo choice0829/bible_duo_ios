@@ -20,13 +20,13 @@ final class ChurchBridge {
 
     private let session: URLSession = {
         let c = URLSessionConfiguration.ephemeral      // 쿠키·캐시를 남기지 않는다(토큰은 머리글로만 보낸다)
-        c.timeoutIntervalForRequest = 20
-        c.timeoutIntervalForResource = 40
+        c.timeoutIntervalForRequest = 30
+        c.timeoutIntervalForResource = 120   // 증빙 서류(최대 10MB)를 느린 망에서 올릴 때
         return URLSession(configuration: c)
     }()
 
     // MARK: 서버 요청 대행
-    /// req: { url, method, headers: {이름: 값}, body: 문자열 } → done: { result: "ok", status, body } 또는 { result: "fail", error }
+    /// req: { url, method, headers: {이름: 값}, body: 문자열 | bodyB64: base64(이진 파일) } → done: { result: "ok", status, body } 또는 { result: "fail", error }
     func http(_ req: [String: Any], done: @escaping ([String: Any]) -> Void) {
         guard let s = req["url"] as? String, let url = URL(string: s), url.scheme?.lowercased() == "https",
               let host = url.host?.lowercased(), let allowed = allowedHost, host == allowed else {
@@ -43,7 +43,14 @@ final class ChurchBridge {
         if let h = req["headers"] as? [String: Any] {
             for (k, v) in h { if let vs = v as? String { r.setValue(vs, forHTTPHeaderField: k) } }
         }
-        if let b = req["body"] as? String, method != "GET" {
+        if let b64 = req["bodyB64"] as? String, method != "GET" {
+            // 증빙 서류(사진·PDF) 같은 이진 파일: 웹이 base64 로 보낸 것을 풀어 그대로 보낸다 (v77, 15MB까지)
+            guard b64.count <= 20_000_000, let d = Data(base64Encoded: b64, options: .ignoreUnknownCharacters) else {
+                done(["result": "fail", "error": "bad body"])
+                return
+            }
+            r.httpBody = d
+        } else if let b = req["body"] as? String, method != "GET" {
             r.httpBody = Data(b.utf8)
             if r.value(forHTTPHeaderField: "Content-Type") == nil { r.setValue("application/json", forHTTPHeaderField: "Content-Type") }
         }

@@ -1,5 +1,5 @@
 // v70 — 문의하기(머리줄 아이콘) 시험. (v69에서 설정 안에 있던 문의하기를 머리줄의 별도 아이콘으로 옮기고, 후원하기는 삭제했다.)
-//  ① 머리줄 아이콘 7개(검색·하이라이트·노트·바이블 포토 카드·지도·문의하기·설정) — 한 쪽(접힘·세로) 화면은 윗줄 3개·아랫줄 4개, 펼친 화면은 한 줄
+//  ① 머리줄 아이콘 8개(검색·하이라이트·노트·바이블 포토 카드·지도·문의하기·내 계정·설정, v77) — 한 쪽(접힘·세로) 화면은 윗줄 4개·아랫줄 4개, 펼친 화면은 한 줄
 //  ② 설정에는 문의하기·후원하기 줄이 없고, 화면 어디에도 '후원' 글자가 없다
 //  ③ 문의하기: 제목·내용 검사, 앱(메일 작성 창)으로 보내는 내용(받는 사람·제목·본문·사진), 결과별 안내(보냄·취소·저장·실패·계정 없음·다른 창),
 //     사진 추가(최대 3장·큰 사진은 줄임·빼기), 쓰던 글 유지, 받는 주소가 비어 있을 때 / 앱이 아닐 때의 대체 방법
@@ -12,7 +12,7 @@ const PICK = ['SE3 세로', '15 세로', '14 가로', 'Duo 펼침', 'Duo 접힘'
 const HEAD_PICK = ['SE3 세로', '12mini 세로', '15 세로', '16ProMax 세로', 'SE3 가로', '14 가로', '15Plus 가로', 'iPad mini 세로', 'Duo 펼침', 'Duo 접힘'];
 const MAIL = 'test@example.com';
 const APPVER = fs.readFileSync(new URL('../www/app.js', import.meta.url), 'utf8').match(/APP_VER = '(v\d+)'/)[1];   // 버전을 올려도 시험을 고치지 않게 코드에서 읽는다
-const IDS = ['btn-search', 'btn-hl', 'btn-notes', 'btn-card', 'btn-map', 'btn-ask', 'btn-settings'];
+const IDS = ['btn-search', 'btn-hl', 'btn-notes', 'btn-card', 'btn-map', 'btn-ask', 'btn-acct', 'btn-settings'];   // v77: 내 계정(사람) 아이콘 추가
 
 // 앱(껍데기) 모의: 보낸 메시지를 __msgs 에 모으고, 메일 요청에는 __mailResult 대로 답한다.
 const seed = { fn: () => {
@@ -77,7 +77,7 @@ for (const name of HEAD_PICK) {
   });
   const rows = {}; r.bs.forEach((x) => { const k = Math.round(x.t / 6); (rows[k] = rows[k] || []).push(x); });
   const rowList = Object.keys(rows).map(Number).sort((a, c) => a - c).map((k) => rows[k].sort((a, c) => a.l - c.l));
-  ok(name + ': 아이콘 7개가 순서대로(검색·하이라이트·노트·포토 카드·지도·문의하기·설정)', JSON.stringify(r.bs.map((x) => x.id)) === JSON.stringify(IDS), r.bs.map((x) => x.id).join(','));
+  ok(name + ': 아이콘 8개가 순서대로(검색·하이라이트·노트·포토 카드·지도·문의하기·내 계정·설정)', JSON.stringify(r.bs.map((x) => x.id)) === JSON.stringify(IDS), r.bs.map((x) => x.id).join(','));
   ok(name + ': 모두 화면 안에 있다', r.bs.every((x) => x.l >= 0 && x.r <= r.W && x.t >= 0 && x.b <= r.H));
   const overlap = r.bs.some((a, i) => r.bs.some((c, j) => j > i && a.l < c.r - 0.5 && c.l < a.r - 0.5 && a.t < c.b - 0.5 && c.t < a.b - 0.5));
   ok(name + ': 아이콘끼리 겹치지 않는다', !overlap);
@@ -85,12 +85,12 @@ for (const name of HEAD_PICK) {
   if (r.spread) {
     ok(name + ': 펼친 화면은 한 줄', rowList.length === 1, 'rows=' + rowList.length);
   } else {
-    ok(name + ': 한 쪽 화면은 두 줄 — 윗줄 3개 · 아랫줄 4개', rowList.length === 2 && rowList[0].length === 3 && rowList[1].length === 4, rowList.map((x) => x.length).join('+'));
-    if (rowList.length === 2 && rowList[0].length === 3 && rowList[1].length === 4) {
-      ok(name + ': 윗줄은 검색·하이라이트·노트, 아랫줄은 포토 카드·지도·문의하기·설정', rowList[0].map((x) => x.id).join() === 'btn-search,btn-hl,btn-notes' && rowList[1].map((x) => x.id).join() === 'btn-card,btn-map,btn-ask,btn-settings');
+    ok(name + ': 한 쪽 화면은 두 줄 — 윗줄 4개 · 아랫줄 4개 (v77)', rowList.length === 2 && rowList[0].length === 4 && rowList[1].length === 4, rowList.map((x) => x.length).join('+'));
+    if (rowList.length === 2 && rowList[0].length === 4 && rowList[1].length === 4) {
+      ok(name + ': 윗줄은 검색·하이라이트·노트·포토 카드, 아랫줄은 지도·문의하기·내 계정·설정', rowList[0].map((x) => x.id).join() === 'btn-search,btn-hl,btn-notes,btn-card' && rowList[1].map((x) => x.id).join() === 'btn-map,btn-ask,btn-acct,btn-settings');
       const top = rowList[0], bot = rowList[1];
-      ok(name + ': 두 줄 모두 오른쪽 끝이 같다(오른쪽 맞춤)', Math.abs(top[2].r - bot[3].r) < 1.5, Math.round(top[2].r) + ' / ' + Math.round(bot[3].r));
-      ok(name + ': 윗줄 아이콘이 아랫줄 둘째~넷째 칸 위에 줄 맞춰 있다', [0, 1, 2].every((i) => Math.abs(top[i].l - bot[i + 1].l) < 1.5), top.map((x) => Math.round(x.l)).join(',') + ' / ' + bot.map((x) => Math.round(x.l)).join(','));
+      ok(name + ': 두 줄 모두 오른쪽 끝이 같다(오른쪽 맞춤)', Math.abs(top[3].r - bot[3].r) < 1.5, Math.round(top[3].r) + ' / ' + Math.round(bot[3].r));
+      ok(name + ': 윗줄 아이콘이 아랫줄 아이콘 위에 줄 맞춰 있다', [0, 1, 2, 3].every((i) => Math.abs(top[i].l - bot[i].l) < 1.5), top.map((x) => Math.round(x.l)).join(',') + ' / ' + bot.map((x) => Math.round(x.l)).join(','));
       ok(name + ': 아랫줄 간격이 고르다', Math.abs((bot[1].l - bot[0].r) - (bot[3].l - bot[2].r)) < 1.5);
     }
     ok(name + ': 머리줄이 본문 시작 높이(--headh)를 넘지 않는다', r.hr <= r.headh + 0.5, 'head.bottom=' + Math.round(r.hr) + ' headh=' + Math.round(r.headh));
