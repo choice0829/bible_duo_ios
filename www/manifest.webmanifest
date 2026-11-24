@@ -1,6 +1,6 @@
 {
-  "name": "책장성경",
-  "short_name": "책장성경",
+  "name": "선한성경",
+  "short_name": "선한성경",
   "description": "책 넘김 효과가 있는 개역한글 성경",
   "lang": "ko",
   "start_url": "./index.html",

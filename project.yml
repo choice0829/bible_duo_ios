@@ -21,8 +21,8 @@ targets:
     info:
       path: BibleFlip/Info.plist
       properties:
-        CFBundleDisplayName: 책장성경
-        CFBundleName: 책장성경
+        CFBundleDisplayName: 선한성경
+        CFBundleName: 선한성경
         CFBundleDevelopmentRegion: ko
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
@@ -55,7 +55,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.choice0829.bibleflip
         PRODUCT_NAME: BibleFlip
-        MARKETING_VERSION: "75"
+        MARKETING_VERSION: "76"
         CURRENT_PROJECT_VERSION: "1"
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: NO

@@ -1,4 +1,4 @@
-/* 책장성경 — 개역한글 + 책 넘김 효과 (PWA)
+/* 선한성경 — 개역한글 + 책 넘김 효과 (PWA)
  * - 쪽 나누기: 숨은 요소(#measure)에 글을 넣어 보며 한 쪽에 들어가는 만큼 자른다.
  * - 책 넘김: page-flip(StPageFlip) 라이브러리
  * - 화면이 넓으면(펼친 상태) 두 쪽, 좁으면(접힌 상태) 한 쪽
@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v75';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v76';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -4793,7 +4793,7 @@
     };
   }
   const mpLocErr = (e) => (e === 'denied'
-    ? (NATIVE ? '위치 사용이 꺼져 있습니다. 아이폰 설정 → 책장성경 → 위치에서 "앱을 사용하는 동안"을 선택해 주세요.' : '위치 사용이 허용되지 않았습니다. 브라우저 설정에서 이 사이트의 위치를 허용해 주세요.')
+    ? (NATIVE ? '위치 사용이 꺼져 있습니다. 아이폰 설정 → 선한성경 → 위치에서 "앱을 사용하는 동안"을 선택해 주세요.' : '위치 사용이 허용되지 않았습니다. 브라우저 설정에서 이 사이트의 위치를 허용해 주세요.')
     : '현재 위치를 가져오지 못했습니다. 잠시 뒤 다시 눌러 보세요. (실내·지하에서는 늦을 수 있습니다)');
 
   // ----- 화면 상태 -----
