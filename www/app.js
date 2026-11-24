@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v76';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v77';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -143,9 +143,9 @@
   const TXT_GAP = 10;        // 펼친 화면: 책(무대) 맨 위에서 본문 첫 줄까지. 책이 머리줄 아래에서 시작하므로 넘김 효과가 머리줄을 덮지 않는다
   const HEAD_STAGE_GAP = 6;  // 펼친 화면: 머리줄 아래에서 책 위쪽 가장자리까지
   const MENU_H = 36, MENU_H_COMPACT = 32;
-  // 한 쪽(접힘·세로) 화면의 메뉴 단추: 책 이름 오른쪽에 2줄로 놓는다 (7개 → 윗줄 3개 · 아랫줄 4개, 둘 다 오른쪽 끝에 맞춤). 펼친 화면은 한 줄.
-  // 줄 배치는 style.css(.menu-row 의 nth-child)가 정한다. MENU_COLS = 아랫줄 개수(가장 많은 줄).
-  const MENU_COUNT = 7, MENU_COLS = 4, MENU_ROWS = 2;
+  // 한 쪽(접힘·세로) 화면의 메뉴 단추: 책 이름 오른쪽에 2줄로 놓는다 (v77: 8개 → 윗줄 4개 · 아랫줄 4개). 펼친 화면은 한 줄.
+  // 줄 배치는 style.css(.menu-row 의 grid, 칸 수 = MENU_COLS)가 정한다.
+  const MENU_COUNT = 8, MENU_COLS = 4, MENU_ROWS = 2;
   function headBox(spread, compact) {
     const titleFs = compact ? 30 : 44, titleH = Math.ceil(titleFs * 1.2);
     const menuH = compact ? MENU_H_COMPACT : MENU_H;
@@ -1991,11 +1991,9 @@
       '</div></div>' +
       '<div class="row"><span>화면 구성</span>' + seg(LAYOUTS, settings.layout, 'layout') + '</div>' +
       '<button class="row rowlink" id="go-tr" type="button"><span>번역 선택 <small class="sub">' + (settings.std ? 'AI 표준어 번역 켜짐' : '개역한글만 보기') + '</small></span><span class="chev">›</span></button>' +
-      '<button class="row rowlink" id="go-ch" type="button"><span>교회 계정 <small class="sub">' + churchSub() + '</small></span><span class="chev">›</span></button>' +
       '<button class="row rowlink" id="go-adv" type="button"><span>고급설정 <small class="sub">여백 · 위치 · 백업 · 화면 맞추기</small></span><span class="chev">›</span></button>' +
       '<p class="credit" aria-label="앱 제작자 SEONHAN">© SEONHAN</p>';   // v62: 설정 화면 맨 아래 제작자 표시
     $('#go-tr').addEventListener('click', () => { showTranslations(); sheetBody.scrollTop = 0; });
-    $('#go-ch').addEventListener('click', () => { showChurch('main'); sheetBody.scrollTop = 0; });
     $('#go-adv').addEventListener('click', () => { advHelpOpen = {}; showAdvanced(); sheetBody.scrollTop = 0; });
     sheetBody.querySelectorAll('[data-f]').forEach((b) => b.addEventListener('click', () => {
       const next = Math.min(FONT_MAX, Math.max(FONT_MIN, settings.fontSize + (+b.dataset.f)));
@@ -2007,7 +2005,7 @@
       }));
   }
 
-  // ---------- 교회 계정 (v75, 1단계: 이메일 로그인 · 초대코드 가입 · 개설 신청 · 관리자 영상 입력) ----------
+  // ---------- 내 계정 (v75 교회 계정 → v77 개인 계정 + 교회 소속 승인) ----------
   // 서버: Supabase(supabase/schema.sql). 주소·공개 키는 빌드 때 GitHub Secrets 에서 www/sb.json 으로 들어온다(없으면 '서버 설정 안 됨').
   // 아이폰 앱에서는 서버 요청을 앱(Swift)이 대신 보내고(출처 규칙 문제 없음), 로그인 정보는 키체인에 둔다. 브라우저에서는 fetch · localStorage.
   let sbCfg = null;   // { url, key } | false(설정 없음)
@@ -2020,20 +2018,27 @@
     } catch (e) { sbCfg = false; }
     return sbCfg;
   }
-  async function sbHttp(method, path, body, token, prefer) {
+  // opt.bin = { b64, type }: 이진 파일(증빙 서류)을 본문으로 보낸다. opt.timeout: 기다리는 시간(ms)
+  async function sbHttp(method, path, body, token, prefer, opt) {
     const cfg = await sbConfig();
     if (!cfg) return { status: 0, err: 'noconfig' };
-    const headers = { apikey: cfg.key, 'Content-Type': 'application/json' };
+    const bin = opt && opt.bin;
+    const headers = { apikey: cfg.key, 'Content-Type': bin ? bin.type : 'application/json' };
     if (token) headers.Authorization = 'Bearer ' + token;
     if (prefer) headers.Prefer = prefer;
+    if (bin) headers['x-upsert'] = 'false';
     const url = cfg.url + path, b = body === undefined ? undefined : JSON.stringify(body);
     let status = 0, text = '';
     if (nativeBridge()) {
-      const r = await nativeCall({ http: { url, method, headers, body: b } }, 30000);
+      const req = { url, method, headers };
+      if (bin) req.bodyB64 = bin.b64; else if (b !== undefined) req.body = b;
+      const r = await nativeCall({ http: req }, (opt && opt.timeout) || 30000);
       if (r.result !== 'ok') return { status: 0, err: 'net' };
       status = +r.status || 0; text = r.body || '';
     } else {
-      try { const r = await fetch(url, { method, headers, body: b }); status = r.status; text = await r.text(); } catch (e) { return { status: 0, err: 'net' }; }
+      let fb = b;
+      if (bin) { const raw = atob(bin.b64), u8 = new Uint8Array(raw.length); for (let i = 0; i < raw.length; i++) u8[i] = raw.charCodeAt(i); fb = new Blob([u8], { type: bin.type }); }
+      try { const r = await fetch(url, { method, headers, body: fb }); status = r.status; text = await r.text(); } catch (e) { return { status: 0, err: 'net' }; }
     }
     let data = null;
     try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
@@ -2095,11 +2100,19 @@
     over_email_send_rate_limit: '메일을 너무 자주 보냈습니다. 잠시 뒤 다시 시도해 주세요.',
     validation_failed: '이메일 주소 형식을 확인해 주세요.',
     '23514': '입력한 내용을 확인해 주세요(영상 주소·본문·제목).',
-    '42501': '권한이 없습니다. 승인된 교회의 관리자만 할 수 있습니다.',
+    '42501': '권한이 없습니다. 등록된 교회의 관리자만 할 수 있습니다.',
+    'consent required': '필수 동의 두 가지에 체크해 주세요.',
+    'bad birth': '생년월일은 8자리 숫자로 적어 주세요. 예: 19900101',
+    'bad phone': '전화번호를 확인해 주세요. 예: 010-1234-5678',
+    'bad gender': '성별을 다시 골라 주세요.',
+    'bad name': '이름을 적어 주세요.',
+    'bad church name': '소속 교회 이름을 2~40자로 적어 주세요.',
+    'profile required': '개인 정보를 먼저 저장해 주세요.',
+    'proof required': '교인 증빙 서류를 다시 올려 주세요.',
   };
   function chErr(r) {
     if (!r) return '알 수 없는 오류입니다.';
-    if (r.err === 'noconfig') return '교회 서버가 아직 이 앱에 설정되지 않았습니다. (관리자: GitHub Secrets 를 넣은 뒤 다시 빌드)';
+    if (r.err === 'noconfig') return '계정 서버가 아직 이 앱에 설정되지 않았습니다. (관리자: GitHub Secrets 를 넣은 뒤 다시 빌드)';
     if (r.err === 'net' || r.status === 0) return '서버에 연결할 수 없습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.';
     const d = r.data && typeof r.data === 'object' ? r.data : {};
     const keys = [d.message, d.error_code, d.code, d.msg, d.error_description, d.error].filter((x) => x != null).map((x) => String(x).toLowerCase().trim());
@@ -2108,20 +2121,31 @@
     if (r.status === 401 || r.status === 403) return CH_ERR['login required'];
     return '서버 오류(' + r.status + ')입니다. 잠시 뒤 다시 시도해 주세요.';
   }
-  async function churchSync() {
-    const r = await sbRpc('my_church_bundle');
-    if (r.status === 200 && r.data && typeof r.data === 'object' && Array.isArray(r.data.items)) { setSermons(r.data); return { ok: true }; }
-    if (r.status === 401) setSermons(null);
+  // 내 계정 정보(개인 정보는 메모리에만 둔다) + 승인된 교회의 설교 영상(기기에 저장해 오프라인에서도 탭이 보이게)
+  let acctProfile = null, acctProfileLoaded = false;
+  async function accountSync() {
+    const r = await sbRpc('my_account');
+    if (r.status === 200 && r.data && typeof r.data === 'object' && Array.isArray(r.data.items)) {
+      acctProfile = r.data.profile || null; acctProfileLoaded = true;
+      setSermons({ church: r.data.church, items: r.data.items });
+      // 확인이 끝난(승인·반려) 증빙 서류는 서버에서 지운다(민감정보 최소 보관)
+      const p = acctProfile;
+      if (p && p.proof_path && (p.church_status === 'approved' || p.church_status === 'rejected')) {
+        if (await proofDelete(p.proof_path)) { const c = await sbRpc('clear_my_proof'); if (c.status === 200 || c.status === 204) p.proof_path = null; }
+      }
+      return { ok: true };
+    }
+    if (r.status === 401) { setSermons(null); acctProfile = null; acctProfileLoaded = false; }
     return { ok: false, r };
   }
   let chSyncAt = 0;
-  async function churchAutoSync() {   // 앱을 열 때·다시 볼 때(10분에 한 번까지) 교회 영상 목록을 받아 둔다
+  async function accountAutoSync() {   // 앱을 열 때·다시 볼 때(10분에 한 번까지) 교회 영상 목록을 받아 둔다
     if (Date.now() - chSyncAt < 600000) return;
     if (!(await sbConfig()) || !(await sessLoad())) return;
     chSyncAt = Date.now();
-    await churchSync();
+    await accountSync();
   }
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) churchAutoSync(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) accountAutoSync(); });
 
   // 유튜브 주소 → { id, t(시작 초) }. youtu.be/ID · youtube.com/watch?v=ID · /live/ID · /shorts/ID · /embed/ID · 영상 ID 11자
   function parseYt(s0) {
@@ -2143,10 +2167,14 @@
     return { id, t: t > 0 ? t : null };
   }
 
-  // ---- 화면 ----
-  const chState = { view: 'main', email: '', msg: '', busy: false };
+  // ---- 화면: 머리줄 사람 아이콘 → '내 계정' (v77) ----
+  // 흐름: 로그인 / 회원가입(이메일=아이디·비밀번호·이름·[성별·생년월일·전화]·소속 교회·교인 증빙 서류·동의) → 메일 코드 확인 →
+  //       계정 바로 사용 → 소속 교회는 운영자가 서류 확인 후 승인. 승인 전후로 쓸 수 있는 기능이 다르다(설교 영상·교회 게시판).
+  const ACCT_TITLE = '내 계정';
+  const chState = { view: 'main', email: '', msg: '', busy: false, pending: null, proof: null };
   const chField = (id, label, type, attrs) => '<label class="ch-f"><span>' + label + '</span><input id="' + id + '" type="' + type + '" ' + (attrs || '') + '></label>';
   const chSay = (t, bad) => { const m = $('#ch-msg'); if (m) { m.textContent = t || ''; m.classList.toggle('bad', !!bad); } };
+  const qa = (s) => esc(String(s == null ? '' : s)).replace(/"/g, '&quot;');
   function chArm(btn, label, fn) {   // 지우기·나가기처럼 되돌릴 수 없는 일: 한 번 더 눌러야 실행
     let armed = 0, timer = null;
     const orig = btn.textContent;
@@ -2156,7 +2184,7 @@
       fn();
     });
   }
-  async function chRun(fn) {   // 요청 중에는 단추를 막고, 오류는 아래 줄에 보인다
+  async function chRun(fn) {   // 요청 중에는 단추·입력칸을 막고, 오류는 아래 줄에 보인다
     if (chState.busy) return;
     chState.busy = true;
     sheetBody.querySelectorAll('button, input').forEach((x) => { x.disabled = true; });
@@ -2164,95 +2192,198 @@
     let err = null;
     try { err = await fn(); } catch (e) { err = '알 수 없는 오류입니다.'; }
     chState.busy = false;
-    if (!sheet.hidden && sheetTitle.textContent === '교회 계정') {
+    if (!sheet.hidden && sheetTitle.textContent === ACCT_TITLE) {
       sheetBody.querySelectorAll('button, input').forEach((x) => { x.disabled = false; });
       if (err) chSay(err, true); else if ($('#ch-msg') && $('#ch-msg').textContent === '잠시만 기다려 주세요…') chSay('');
     }
   }
-  function churchSub() {   // 설정 화면의 한 줄 설명
-    const c = sermonsDB.church;
-    if (!c) return '로그인하면 교회 설교 영상이 본문 옆에 보입니다';
-    if (c.status === 'pending') return esc(c.name) + ' · 승인 대기 중';
-    return esc(c.name) + (c.role === 'admin' ? ' · 관리자' : '');
+  const GENDER = { M: '남', F: '여' };
+  const birthLabel = (b) => (/^\d{8}$/.test(b || '') ? b.slice(0, 4) + '.' + b.slice(4, 6) + '.' + b.slice(6) : '');
+  function birthOk(b) {   // 8자리 YYYYMMDD, 실제 있는 날짜, 1900년 이후 · 오늘 이전
+    if (!/^\d{8}$/.test(b)) return false;
+    const y = +b.slice(0, 4), m = +b.slice(4, 6), d = +b.slice(6);
+    const dt = new Date(y, m - 1, d);
+    return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d && y >= 1900 && dt <= new Date();
   }
-  function showChurch(view, msg) {
+  const phoneOk = (p) => /^[0-9]{2,3}-?[0-9]{3,4}-?[0-9]{4}$/.test(p);
+  const emailOk = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+
+  // 증빙 서류: 사진은 긴 변 2200px JPEG(글씨가 읽히게, 약 2.5MB 안쪽)로 줄이고, PDF는 10MB까지 그대로
+  const PROOF_MAX = 10 * 1024 * 1024;
+  async function proofPrepare(file) {
+    if (!file) return null;
+    const pdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+    if (pdf) {
+      if (file.size > PROOF_MAX) throw new Error('PDF 파일이 너무 큽니다(10MB 이하).');
+      const b64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(',')[1] || ''); fr.onerror = () => rej(new Error('파일을 읽지 못했습니다.')); fr.readAsDataURL(file); });
+      return { b64, type: 'application/pdf', ext: 'pdf', name: file.name || '서류.pdf', bytes: file.size, thumb: null };
+    }
+    if (!/^image\//.test(file.type || '') && !/\.(jpe?g|png|heic|heif|webp)$/i.test(file.name || '')) throw new Error('사진(JPG·PNG) 또는 PDF만 올릴 수 있습니다.');
+    let r;
+    try { r = await askShrink(file, 2200, 2500000); } catch (e) { throw new Error('사진을 읽지 못했습니다. 다른 사진을 골라 주세요.'); }
+    return { b64: r.b64, type: 'image/jpeg', ext: 'jpg', name: file.name || '사진.jpg', bytes: r.bytes, thumb: r.url };
+  }
+  async function proofUpload(proof) {   // 서버의 비공개 보관함 proofs/<내 ID>/<시각>.<확장자>
+    const t = await validToken();
+    if (!t || !sbSess || !sbSess.uid) return { err: CH_ERR['login required'] };
+    const path = sbSess.uid + '/' + Date.now() + '.' + proof.ext;
+    const r = await sbHttp('POST', '/storage/v1/object/proofs/' + path, undefined, t, null, { bin: proof, timeout: 130000 });
+    if (r.status === 200 || r.status === 201) return { path };
+    if (r.status === 413 || /exceeded|too large/i.test(JSON.stringify(r.data || ''))) return { err: '파일이 너무 큽니다(10MB 이하).' };
+    if (r.status === 415 || /mime/i.test(JSON.stringify(r.data || ''))) return { err: '사진(JPG·PNG) 또는 PDF만 올릴 수 있습니다.' };
+    return { err: chErr(r) };
+  }
+  async function proofDelete(path) {
+    if (!path) return true;
+    const r = await sbAuthed('DELETE', '/storage/v1/object/proofs/' + path.split('/').map(encodeURIComponent).join('/'));
+    return r.status === 200 || r.status === 204 || r.status === 404 || r.status === 400;
+  }
+  // 소속 교회 신청: 서류를 올린 뒤 신청한다(올렸는데 신청이 실패하면 올린 파일은 지운다)
+  async function churchRequest(name, proof) {
+    const up = await proofUpload(proof);
+    if (up.err) return up.err;
+    const r = await sbRpc('request_church_membership', { p_church_name: name, p_proof_path: up.path });
+    if (r.status !== 200 && r.status !== 204) { await proofDelete(up.path); return chErr(r); }
+    return null;
+  }
+
+  function showAccount(view, msg) {
     if (view) chState.view = view;
     chState.msg = msg || '';
-    sheetTitle.textContent = '교회 계정';
+    sheetTitle.textContent = ACCT_TITLE;
     setSheetAct(null);
-    backBtn.hidden = false;
-    sheetBack = chState.view === 'main' ? () => { showSettings(); sheetBody.scrollTop = 0; } : () => { showChurch('main'); sheetBody.scrollTop = 0; };
-    sheetBody.innerHTML = '<p class="note tight">불러오는 중…</p>';
-    renderChurch();
+    const top = chState.view === 'main';
+    backBtn.hidden = top;
+    sheetBack = top ? null : () => { showAccount('main'); sheetBody.scrollTop = 0; };
+    if (!sheetBody.querySelector('#ch-msg')) sheetBody.innerHTML = '<p class="note tight">불러오는 중…</p>';
+    renderAccount();
   }
-  async function renderChurch() {
+  async function renderAccount() {
     const cfg = await sbConfig();
     const s = cfg ? await sessLoad() : null;
-    if (sheet.hidden || sheetTitle.textContent !== '교회 계정') return;
-    const v = chState.view;
+    if (s && !acctProfileLoaded && chState.view === 'main') await accountSync();
+    if (sheet.hidden || sheetTitle.textContent !== ACCT_TITLE) return;
+    let v = chState.view;
+    const p = acctProfile;
+    if (s && v === 'main' && !p && acctProfileLoaded) v = chState.view = 'profile';         // 계정은 있는데 개인 정보가 없음 → 마저 입력
+    if (!s && ['main', 'profile', 'edit', 'church', 'admin'].indexOf(v) >= 0) v = chState.view = 'main';
+    backBtn.hidden = v === 'main' || (v === 'profile' && !!s);
     let h = '';
-    if (!cfg) {
-      h = '<p class="note tight">' + esc(chErr({ err: 'noconfig' })) + '</p>';
-    } else if (!s && (v === 'main' || v === 'admin')) {
-      chState.view = 'main';
-      h = '<p class="note tight">교회에 가입하면 그 교회의 <b>설교 영상</b>이 본문 옆에 빨간 재생 탭으로 보입니다. 이메일로 가입합니다.</p>' +
-        chField('ch-email', '이메일', 'email', 'autocomplete="username" autocapitalize="off" spellcheck="false" value="' + esc(chState.email).replace(/"/g, '&quot;') + '"') +
-        chField('ch-pw', '비밀번호 (6자 이상)', 'password', 'autocomplete="current-password"') +
-        '<div class="ch-btns"><button type="button" class="ch-main" id="ch-login">로그인</button><button type="button" class="seg-btn" id="ch-signup">새로 가입</button></div>' +
-        '<button type="button" class="link-btn ch-link" id="ch-forgot">비밀번호를 잊었어요</button>' +
-        '<p id="ch-msg" class="ch-msg"></p>' +
-        '<p class="note">서버에는 <b>이메일과 소속 교회</b>만 저장됩니다. 소속은 같은 교회 관리자에게도 목록으로 보이지 않습니다. 계정은 언제든 이 화면에서 지울 수 있습니다.</p>';
-    } else if (v === 'signup-code' || v === 'reset-code') {
-      const reset = v === 'reset-code';
-      h = '<p class="note tight"><b>' + esc(chState.email) + '</b> 으로 보낸 메일의 <b>6자리 코드</b>를 넣어 주세요. 메일이 안 보이면 스팸함도 확인해 주세요.</p>' +
-        chField('ch-code', '코드 6자리', 'text', 'inputmode="numeric" autocomplete="one-time-code" maxlength="10"') +
-        (reset ? chField('ch-pw', '새 비밀번호 (6자 이상)', 'password', 'autocomplete="new-password"') : '') +
-        '<div class="ch-btns"><button type="button" class="ch-main" id="ch-verify">' + (reset ? '비밀번호 바꾸기' : '확인') + '</button><button type="button" class="seg-btn" id="ch-resend">메일 다시 받기</button></div>' +
-        '<p id="ch-msg" class="ch-msg"></p>';
-    } else if (v === 'reset-email') {
-      h = '<p class="note tight">가입한 이메일로 <b>6자리 코드</b>를 보내 드립니다. 코드를 넣고 새 비밀번호를 정하면 됩니다.</p>' +
-        chField('ch-email', '이메일', 'email', 'autocomplete="username" autocapitalize="off" spellcheck="false" value="' + esc(chState.email).replace(/"/g, '&quot;') + '"') +
-        '<div class="ch-btns"><button type="button" class="ch-main" id="ch-send">코드 받기</button></div><p id="ch-msg" class="ch-msg"></p>';
-    } else if (v === 'admin') {
-      h = churchAdminHTML();
-    } else {
-      h = churchMainHTML(s);
-    }
+    if (!cfg) h = '<p class="note tight">' + esc(chErr({ err: 'noconfig' })) + '</p><p class="adv-desc">로그인하지 않아도 성경·노트·하이라이트 등 기본 기능은 모두 쓸 수 있습니다.</p>';
+    else if (!s && v === 'main') h = acctLoginHTML();
+    else if (s && v === 'main' && !acctProfileLoaded) h = '<p class="note tight">계정 정보를 받지 못했습니다. 인터넷 연결을 확인한 뒤 새로 고침을 눌러 주세요.</p>' +
+      '<div class="ch-btns"><button type="button" class="ch-main" id="ch-sync">새로 고침</button><button type="button" class="seg-btn" id="ch-logout">로그아웃</button></div><p id="ch-msg" class="ch-msg"></p>';
+    else if (v === 'signup') h = acctFormHTML(true);
+    else if (v === 'profile') h = acctFormHTML(false);
+    else if (v === 'edit') h = acctEditHTML(p);
+    else if (v === 'church') h = acctChurchHTML(p);
+    else if (v === 'code' || v === 'reset-code') h = acctCodeHTML(v === 'reset-code');
+    else if (v === 'reset-email') h = acctResetHTML();
+    else if (v === 'admin') h = churchAdminHTML();
+    else h = acctMainHTML(s, p);
     sheetBody.innerHTML = h;
     if (chState.msg) chSay(chState.msg);
-    bindChurch(s);
+    bindAccount(s);
   }
-  function churchMainHTML(s) {
-    const c = sermonsDB.church;
-    let h = '<div class="row"><span>로그인<small class="sub">' + esc(s.email || '') + '</small></span><button type="button" class="seg-btn" id="ch-logout">로그아웃</button></div>';
-    if (!c) {
-      h += '<div class="adv-head">초대코드로 교회 가입</div><p class="adv-desc">교회 관리자에게 받은 8자리 코드를 넣으세요. 한 사람은 한 교회에만 가입할 수 있습니다.</p>' +
-        chField('ch-code', '초대코드', 'text', 'autocapitalize="characters" autocomplete="off" spellcheck="false" maxlength="12"') +
-        '<div class="ch-btns"><button type="button" class="ch-main" id="ch-join">가입</button></div>' +
-        '<div class="adv-head">새 교회 개설 신청</div><p class="adv-desc">신청하면 운영자가 확인한 뒤 승인합니다. 승인되면 신청한 분이 관리자가 되어 설교 영상을 넣고 초대코드를 나눠 줄 수 있습니다.</p>' +
-        chField('ch-name', '교회 이름', 'text', 'maxlength="40" autocomplete="off"') +
-        '<div class="ch-btns"><button type="button" class="seg-btn" id="ch-req">개설 신청</button></div>';
-    } else if (c.status !== 'active') {
-      h += '<div class="adv-head">' + esc(c.name) + '</div><p class="adv-desc">' + (c.status === 'rejected' ? '개설 신청이 승인되지 않았습니다. 문의하기로 연락해 주세요.' : '개설 신청을 받았습니다. <b>운영자 승인을 기다리는 중</b>입니다. 승인되면 이 화면에 초대코드가 나옵니다.') + '</p>' +
-        '<div class="ch-btns"><button type="button" class="seg-btn" id="ch-sync">새로 고침</button><button type="button" class="seg-btn ch-danger" id="ch-leave">신청 취소</button></div>';
-    } else {
-      const n = sermonList().length;
-      h += '<div class="adv-head">' + esc(c.name) + (c.role === 'admin' ? ' <small class="sub">관리자</small>' : '') + '</div>' +
-        '<div class="row"><span>설교 영상<small class="sub">' + n + '개' + (sermonsDB.ts ? ' · ' + new Date(sermonsDB.ts).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + ' 받음' : '') + '</small></span><button type="button" class="seg-btn" id="ch-sync">새로 고침</button></div>';
-      if (c.role === 'admin') {
-        h += (c.invite_code ? '<div class="row"><span>초대코드<small class="sub">성도에게 알려 주세요</small></span><b class="ch-code" id="ch-invite">' + esc(c.invite_code) + '</b><button type="button" class="seg-btn" id="ch-copy">복사</button></div>' : '') +
-          '<button class="row rowlink" id="ch-admin" type="button"><span>설교 영상 관리 <small class="sub">영상 넣기 · 지우기</small></span><span class="chev">›</span></button>';
-      }
-      h += '<div class="ch-btns"><button type="button" class="seg-btn ch-danger" id="ch-leave">교회 나가기</button></div>';
-    }
+  function acctLoginHTML() {
+    return '<p class="note tight">로그인하지 않아도 성경·노트·하이라이트 등 기본 기능은 모두 쓸 수 있습니다. 계정을 만들고 <b>소속 교회</b>가 등록되면 그 교회의 <b>설교 영상</b>과 <b>교회 게시판</b>(준비 중)을 쓸 수 있습니다.</p>' +
+      chField('ch-email', '아이디(이메일)', 'email', 'autocomplete="username" autocapitalize="off" spellcheck="false" value="' + qa(chState.email) + '"') +
+      chField('ch-pw', '비밀번호', 'password', 'autocomplete="current-password"') +
+      '<div class="ch-btns"><button type="button" class="ch-main" id="ch-login">로그인</button><button type="button" class="seg-btn" id="ch-go-signup">회원가입</button></div>' +
+      '<button type="button" class="link-btn ch-link" id="ch-forgot">비밀번호를 잊었어요</button><p id="ch-msg" class="ch-msg"></p>';
+  }
+  const CONSENT_HTML =
+    '<div class="ch-consent">' +
+    '<label class="ch-chk"><input type="checkbox" id="ch-agree1"><span><b>[필수]</b> 개인정보 수집·이용 동의 — 이름·이메일(필수), 성별·생년월일·전화번호(적은 경우)를 계정 관리와 교인 확인에 쓰며, 계정을 삭제하면 바로 지웁니다.</span></label>' +
+    '<label class="ch-chk"><input type="checkbox" id="ch-agree2"><span><b>[필수]</b> 민감정보(종교) 처리 동의 — 소속 교회와 교인 증빙 서류는 교인 확인에만 쓰며, <b>서류는 확인이 끝나면 지웁니다</b>. 소속은 같은 교회 사람에게도 목록으로 보이지 않습니다.</span></label>' +
+    '</div>';
+  function acctFormHTML(withLogin) {   // 회원가입(이메일·비밀번호 포함) 또는 가입 후 개인 정보·교회 마저 입력
+    const d = chState.pending || {};
+    return (withLogin ? '<p class="note tight"><b>*</b> 표시는 꼭 적어야 합니다. 가입하면 계정은 바로 쓸 수 있고, <b>소속 교회는 운영자가 서류를 확인한 뒤</b> 등록됩니다.</p>' +
+        chField('ch-email', '아이디(이메일) *', 'email', 'autocomplete="username" autocapitalize="off" spellcheck="false" value="' + qa(chState.email) + '"') +
+        chField('ch-pw', '비밀번호 * (6자 이상)', 'password', 'autocomplete="new-password"') +
+        chField('ch-pw2', '비밀번호 확인 *', 'password', 'autocomplete="new-password"')
+      : '<p class="note tight">계정은 만들어졌습니다. 아래 정보를 마저 적어 주세요.</p>') +
+      chField('ch-name', '이름 *', 'text', 'maxlength="30" autocomplete="name" value="' + qa(d.name) + '"') +
+      '<div class="ch-f"><span>성별 (선택)</span><div class="seg ch-seg" id="ch-gender">' +
+        [['', '선택 안 함'], ['M', '남'], ['F', '여']].map(([k, t]) => '<button type="button" data-g="' + k + '" class="' + ((d.gender || '') === k ? 'on' : '') + '">' + t + '</button>').join('') + '</div></div>' +
+      chField('ch-birth', '생년월일 (선택, 8자리 예: 19900101)', 'text', 'inputmode="numeric" maxlength="8" autocomplete="bday" placeholder="YYYYMMDD" value="' + qa(d.birth) + '"') +
+      chField('ch-phone', '전화번호 (선택)', 'tel', 'autocomplete="tel" placeholder="010-0000-0000" value="' + qa(d.phone) + '"') +
+      (withLogin || !sermonsDB.church
+        ? chField('ch-church', '소속 교회 *', 'text', 'maxlength="40" autocomplete="off" placeholder="예: 한사람교회" value="' + qa(d.church) + '"') + acctProofHTML()
+        : '<p class="adv-desc">소속 교회: <b>' + esc(sermonsDB.church.name) + '</b> (이미 등록됨)</p>') +
+      CONSENT_HTML +
+      '<div class="ch-btns"><button type="button" class="ch-main" id="ch-submit">' + (withLogin ? '가입하기' : (sermonsDB.church ? '저장' : '저장하고 교회 등록 신청')) + '</button>' +
+      (withLogin ? '' : '<button type="button" class="seg-btn" id="ch-logout">로그아웃</button>') + '</div><p id="ch-msg" class="ch-msg"></p>';
+  }
+  function acctProofHTML() {
+    const pf = chState.proof;
+    return '<div class="ch-f"><span>교인 증빙 서류 * <small>교인등록증·교적부 확인서 등 교인임을 보여 주는 서류 (사진 또는 PDF, 10MB 이하)</small></span>' +
+      '<div class="ch-proof"><label class="seg-btn ch-file">' + (pf ? '다른 파일 고르기' : '사진·파일 고르기') + '<input type="file" id="ch-proof" accept="image/*,application/pdf" hidden></label>' +
+      '<span class="ch-proof-name" id="ch-proof-name">' + (pf ? esc(pf.name) + ' · ' + Math.max(1, Math.round(pf.bytes / 1024)) + 'KB' : '아직 고르지 않음') + '</span></div>' +
+      (pf && pf.thumb ? '<img class="ch-thumb" alt="고른 서류 미리보기" src="' + pf.thumb + '">' : '') + '</div>';
+  }
+  function acctChurchHTML(p) {
+    return '<p class="note tight">소속 교회 이름과 교인 증빙 서류를 보내 주세요. 운영자가 확인한 뒤 등록됩니다.' +
+      (p && p.church_status === 'rejected' && p.reject_reason ? '<br>지난 신청이 반려된 이유: <b>' + esc(p.reject_reason) + '</b>' : '') + '</p>' +
+      chField('ch-church', '소속 교회 *', 'text', 'maxlength="40" autocomplete="off" value="' + qa(p && p.church_name) + '"') +
+      acctProofHTML() +
+      '<div class="ch-btns"><button type="button" class="ch-main" id="ch-req">교회 등록 신청</button></div><p id="ch-msg" class="ch-msg"></p>';
+  }
+  function acctEditHTML(p) {
+    p = p || {};
+    return chField('ch-name', '이름 *', 'text', 'maxlength="30" autocomplete="name" value="' + qa(p.name) + '"') +
+      '<div class="ch-f"><span>성별 (선택)</span><div class="seg ch-seg" id="ch-gender">' +
+        [['', '선택 안 함'], ['M', '남'], ['F', '여']].map(([k, t]) => '<button type="button" data-g="' + k + '" class="' + ((p.gender || '') === k ? 'on' : '') + '">' + t + '</button>').join('') + '</div></div>' +
+      chField('ch-birth', '생년월일 (선택, 8자리)', 'text', 'inputmode="numeric" maxlength="8" placeholder="YYYYMMDD" value="' + qa(p.birth) + '"') +
+      chField('ch-phone', '전화번호 (선택)', 'tel', 'placeholder="010-0000-0000" value="' + qa(p.phone) + '"') +
+      '<p class="adv-desc">아이디(이메일)와 소속 교회는 여기서 바꿀 수 없습니다.</p>' +
+      '<div class="ch-btns"><button type="button" class="ch-main" id="ch-save">저장</button></div><p id="ch-msg" class="ch-msg"></p>';
+  }
+  function acctCodeHTML(reset) {
+    return '<p class="note tight"><b>' + esc(chState.email) + '</b> 으로 보낸 메일의 <b>6자리 코드</b>를 넣어 주세요. 메일이 안 보이면 스팸함도 확인해 주세요.</p>' +
+      chField('ch-code', '코드 6자리', 'text', 'inputmode="numeric" autocomplete="one-time-code" maxlength="10"') +
+      (reset ? chField('ch-pw', '새 비밀번호 (6자 이상)', 'password', 'autocomplete="new-password"') : '') +
+      '<div class="ch-btns"><button type="button" class="ch-main" id="ch-verify">' + (reset ? '비밀번호 바꾸기' : '확인') + '</button><button type="button" class="seg-btn" id="ch-resend">메일 다시 받기</button></div>' +
+      '<p id="ch-msg" class="ch-msg"></p>';
+  }
+  function acctResetHTML() {
+    return '<p class="note tight">가입한 이메일로 <b>6자리 코드</b>를 보내 드립니다. 코드를 넣고 새 비밀번호를 정하면 됩니다.</p>' +
+      chField('ch-email', '아이디(이메일)', 'email', 'autocomplete="username" autocapitalize="off" spellcheck="false" value="' + qa(chState.email) + '"') +
+      '<div class="ch-btns"><button type="button" class="ch-main" id="ch-send">코드 받기</button></div><p id="ch-msg" class="ch-msg"></p>';
+  }
+  function acctMainHTML(s, p) {
+    const c = sermonsDB.church, st = (p && p.church_status) || 'none';
+    const on = !!c;   // 승인된 교회 소속
+    const row = (k, v) => '<div class="ch-kv"><span>' + k + '</span><b>' + (v ? esc(v) : '<i>없음</i>') + '</b></div>';
+    const badge = { approved: ['등록됨', 'ok'], pending: ['확인 중', 'wait'], rejected: ['반려됨', 'bad'], none: ['없음', ''] }[st] || ['없음', ''];
+    let h = '<div class="adv-head">내 정보</div><div class="ch-card">' +
+      row('이름', p.name) + row('아이디', s.email) + row('성별', GENDER[p.gender] || '') + row('생년월일', birthLabel(p.birth)) + row('전화번호', p.phone || '') +
+      '</div><div class="ch-btns"><button type="button" class="seg-btn" id="ch-edit">정보 수정</button></div>';
+    h += '<div class="adv-head">소속 교회</div><div class="ch-card">' +
+      '<div class="ch-kv"><span>' + esc((on ? c.name : p.church_name) || '신청한 교회 없음') + '</span>' + (badge[1] ? '<em class="ch-badge ' + badge[1] + '">' + badge[0] + '</em>' : '') + '</div>';
+    if (on && c.role === 'admin') h += '<div class="ch-kv"><span>역할</span><b>교회 관리자</b></div>';
+    if (st === 'pending') h += '<p class="adv-desc">운영자가 교인 증빙 서류를 확인하고 있습니다. 확인이 끝나면 이 화면에 <b>등록됨</b>으로 바뀝니다.</p>';
+    if (st === 'rejected') h += '<p class="adv-desc">신청이 반려되었습니다' + (p.reject_reason ? ': <b>' + esc(p.reject_reason) + '</b>' : '.') + ' 서류를 다시 보내 주세요.</p>';
+    h += '</div><div class="ch-btns">' +
+      (st === 'none' || st === 'rejected' ? '<button type="button" class="ch-main" id="ch-go-church">교회 등록 신청</button>' : '') +
+      (on && c.role === 'admin' ? '<button type="button" class="seg-btn" id="ch-admin">설교 영상 관리 ›</button>' : '') +
+      '<button type="button" class="seg-btn" id="ch-sync">새로 고침</button>' +
+      (on ? '<button type="button" class="seg-btn ch-danger" id="ch-leave">교회 나가기</button>' : '') + '</div>';
+    const yes = '<b class="ch-yes">사용 중</b>', later = (t) => '<span class="ch-no">' + t + '</span>';
+    h += '<div class="adv-head">쓸 수 있는 기능</div><div class="ch-card ch-feat">' +
+      '<div class="ch-kv"><span>성경 읽기 · 하이라이트 · 설교노트 · 포토 카드 · 모임 장소</span>' + yes + '</div>' +
+      '<div class="ch-kv"><span>교회 설교 영상 (본문 옆 빨간 재생 탭)</span>' + (on ? yes : later('교회 등록 후')) + '</div>' +
+      '<div class="ch-kv"><span>교회 게시판</span>' + later(on ? '준비 중' : '교회 등록 후 · 준비 중') + '</div></div>';
     h += '<p id="ch-msg" class="ch-msg"></p>' +
-      '<div class="adv-head">계정</div><p class="adv-desc">계정을 지우면 서버의 로그인 정보와 소속이 지워집니다. 이 기기의 하이라이트·설교노트는 그대로 남습니다.</p>' +
+      '<div class="ch-btns"><button type="button" class="seg-btn" id="ch-logout">로그아웃</button></div>' +
+      '<div class="adv-head">계정 삭제</div><p class="adv-desc">계정을 지우면 서버의 개인 정보·소속·증빙 서류가 모두 지워집니다. 이 기기의 하이라이트·설교노트는 그대로 남습니다.</p>' +
       '<div class="ch-btns"><button type="button" class="seg-btn ch-danger" id="ch-delete">계정 삭제</button></div>';
     return h;
   }
   function churchAdminHTML() {
     const list = sermonList().slice().sort(sermonSort);
-    return '<div class="adv-head">설교 영상 넣기</div>' +
+    return '<div class="adv-head">설교 영상 넣기 <small class="sub">' + esc((sermonsDB.church && sermonsDB.church.name) || '') + '</small></div>' +
       chField('ch-yt', '유튜브 주소', 'url', 'placeholder="https://youtu.be/…" autocapitalize="off" spellcheck="false"') +
       chField('ch-ref', '설교 본문', 'text', 'placeholder="예: 요일 1:1-4" autocomplete="off"') +
       chField('ch-title', '설교 제목', 'text', 'maxlength="80" autocomplete="off"') +
@@ -2262,54 +2393,110 @@
       '<div class="adv-head">넣은 영상 <small class="sub">' + list.length + '개</small></div>' +
       (list.length ? list.map((x) => '<div class="row ch-srow"><span>' + esc(x.title || '설교 영상') + '<small class="sub">' +
         esc([passageLabel(x), x.preacher || '', dateLabel(x.date)].filter(Boolean).join(' · ')) + '</small></span>' +
-        '<button type="button" class="seg-btn ch-danger" data-del="' + esc(x.id).replace(/"/g, '&quot;') + '">지우기</button></div>').join('')
+        '<button type="button" class="seg-btn ch-danger" data-del="' + qa(x.id) + '">지우기</button></div>').join('')
         : '<p class="adv-desc">아직 넣은 영상이 없습니다.</p>');
   }
-  function bindChurch(s) {
+  function bindAccount(s) {
     const on = (id, fn) => { const b = $('#' + id); if (b) b.addEventListener('click', fn); };
     const val = (id) => { const x = $('#' + id); return x ? x.value.trim() : ''; };
-    const emailOk = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
-    const afterLogin = async (d) => {
-      const n = sessFrom(d);
+    const gender = () => { const b = sheetBody.querySelector('#ch-gender button.on'); return b ? b.dataset.g : ''; };
+    sheetBody.querySelectorAll('#ch-gender button').forEach((b) => b.addEventListener('click', () => {
+      sheetBody.querySelectorAll('#ch-gender button').forEach((x) => x.classList.toggle('on', x === b));
+    }));
+    const fileIn = $('#ch-proof');
+    if (fileIn) fileIn.addEventListener('change', () => chRun(async () => {
+      const f = fileIn.files && fileIn.files[0];
+      if (!f) return null;
+      try { chState.proof = await proofPrepare(f); } catch (e) { fileIn.value = ''; return e.message || '파일을 읽지 못했습니다.'; }
+      // 첨부 칸만 바꾼다(화면 전체를 다시 그리면 적던 비밀번호가 지워진다)
+      const pf = chState.proof, box = fileIn.closest('.ch-f');
+      fileIn.closest('.ch-file').firstChild.textContent = '다른 파일 고르기';
+      $('#ch-proof-name').textContent = pf.name + ' · ' + Math.max(1, Math.round(pf.bytes / 1024)) + 'KB';
+      let img = box.querySelector('.ch-thumb');
+      if (pf.thumb) {
+        if (!img) { img = document.createElement('img'); img.className = 'ch-thumb'; img.alt = '고른 서류 미리보기'; box.appendChild(img); }
+        img.src = pf.thumb;
+      } else if (img) img.remove();
+      chSay('서류를 골랐습니다.');
+      return null;
+    }));
+    function keepForm() {   // 화면을 다시 그려도 적던 내용이 남게
+      if (!$('#ch-name') && !$('#ch-church')) return;
+      if ($('#ch-email')) chState.email = val('ch-email');
+      chState.pending = Object.assign({}, chState.pending, { name: val('ch-name'), gender: gender(), birth: val('ch-birth'), phone: val('ch-phone'), church: val('ch-church') });
+    }
+    function readProfileForm(needChurch) {   // 이름·선택 항목·교회 확인. 문제가 있으면 문장, 없으면 값
+      const d = { name: val('ch-name'), gender: gender(), birth: val('ch-birth').replace(/[^0-9]/g, ''), phone: val('ch-phone'), church: val('ch-church') };
+      if (!d.name) return '이름을 적어 주세요.';
+      if (d.birth && !birthOk(d.birth)) return '생년월일은 8자리 숫자로 적어 주세요. 예: 19900101';
+      if (d.phone && !phoneOk(d.phone)) return '전화번호를 확인해 주세요. 예: 010-1234-5678';
+      if (needChurch && $('#ch-church')) {
+        if (d.church.length < 2) return '소속 교회 이름을 적어 주세요.';
+        if (!chState.proof) return '교인 증빙 서류(사진 또는 PDF)를 골라 주세요.';
+      }
+      if ($('#ch-agree1') && (!$('#ch-agree1').checked || !$('#ch-agree2').checked)) return '필수 동의 두 가지에 체크해 주세요.';
+      return d;
+    }
+    // 로그인된 뒤: 개인 정보 저장 → 서류 올리기 → 교회 신청 → 서버에서 다시 받기
+    async function finishRegistration(d) {
+      const r = await sbRpc('save_my_profile', { p_name: d.name, p_gender: d.gender || null, p_birth: d.birth || null, p_phone: d.phone || null, p_consent: true });
+      if (r.status !== 200 && r.status !== 204) return chErr(r);
+      if (!d.church) { await accountSync(); chState.pending = null; showAccount('main', '저장했습니다.'); return null; }   // 이미 교회에 소속된 계정
+      const e = await churchRequest(d.church, chState.proof);
+      await accountSync();
+      if (e) { showAccount('church', '계정과 개인 정보는 저장했지만 교회 신청은 보내지 못했습니다: ' + e); return null; }
+      chState.pending = null; chState.proof = null;
+      showAccount('main', '가입을 마쳤습니다. 소속 교회는 운영자가 서류를 확인한 뒤 등록됩니다.');
+      return null;
+    }
+    const afterLogin = async (data) => {
+      const n = sessFrom(data);
       if (!n) return '로그인 정보를 받지 못했습니다. 다시 시도해 주세요.';
       if (!n.email) n.email = chState.email;
       await sessSave(n);
-      await churchSync();
-      chSyncAt = Date.now();
-      showChurch('main', '로그인했습니다.');
+      if (chState.pending && chState.pending.ready) return finishRegistration(chState.pending);
+      await accountSync();
+      showAccount('main', '로그인했습니다.');
       return null;
     };
+    on('ch-go-signup', () => { chState.email = val('ch-email'); showAccount('signup'); sheetBody.scrollTop = 0; });
     on('ch-login', () => chRun(async () => {
-      const e = val('ch-email'), p = $('#ch-pw').value;
+      const e = val('ch-email'), pw = $('#ch-pw').value;
       chState.email = e;
-      if (!emailOk(e) || !p) return '이메일과 비밀번호를 넣어 주세요.';
-      const r = await sbHttp('POST', '/auth/v1/token?grant_type=password', { email: e, password: p });
+      if (!emailOk(e) || !pw) return '아이디(이메일)와 비밀번호를 넣어 주세요.';
+      const r = await sbHttp('POST', '/auth/v1/token?grant_type=password', { email: e, password: pw });
       if (r.status !== 200) {
         const m = chErr(r);
-        if (m === CH_ERR.email_not_confirmed) { showChurch('signup-code', m); return null; }
+        if (m === CH_ERR.email_not_confirmed) { showAccount('code', m); return null; }
         return m;
       }
       return afterLogin(r.data);
     }));
-    on('ch-signup', () => chRun(async () => {
-      const e = val('ch-email'), p = $('#ch-pw').value;
+    on('ch-submit', () => chRun(async () => {
+      const signup = !!$('#ch-pw2');
+      const d = readProfileForm(true);
+      if (typeof d === 'string') { keepForm(); return d; }
+      if (!signup) return finishRegistration(d);
+      const e = val('ch-email'), pw = $('#ch-pw').value;
       chState.email = e;
-      if (!emailOk(e)) return '이메일 주소를 확인해 주세요.';
-      if (p.length < 6) return CH_ERR.weak_password;
-      const r = await sbHttp('POST', '/auth/v1/signup', { email: e, password: p });
+      if (!emailOk(e)) return '아이디(이메일) 주소를 확인해 주세요.';
+      if (pw.length < 6) return CH_ERR.weak_password;
+      if (pw !== $('#ch-pw2').value) return '비밀번호 확인이 다릅니다.';
+      chState.pending = Object.assign({}, d, { ready: true });
+      const r = await sbHttp('POST', '/auth/v1/signup', { email: e, password: pw });
       if (r.status !== 200) return chErr(r);
       if (r.data && r.data.access_token) return afterLogin(r.data);   // 메일 확인을 끈 서버: 바로 로그인
-      showChurch('signup-code', '가입 신청을 받았습니다. 메일로 온 6자리 코드를 넣어 주세요.');
+      showAccount('code', '메일로 온 6자리 코드를 넣으면 가입이 끝납니다.');
       return null;
     }));
-    on('ch-forgot', () => { chState.email = val('ch-email'); showChurch('reset-email'); });
+    on('ch-forgot', () => { chState.email = val('ch-email'); showAccount('reset-email'); });
     on('ch-send', () => chRun(async () => {
       const e = val('ch-email');
       chState.email = e;
-      if (!emailOk(e)) return '이메일 주소를 확인해 주세요.';
+      if (!emailOk(e)) return '아이디(이메일) 주소를 확인해 주세요.';
       const r = await sbHttp('POST', '/auth/v1/recover', { email: e });
       if (r.status !== 200) return chErr(r);
-      showChurch('reset-code', '메일을 보냈습니다. 6자리 코드와 새 비밀번호를 넣어 주세요.');
+      showAccount('reset-code', '메일을 보냈습니다. 6자리 코드와 새 비밀번호를 넣어 주세요.');
       return null;
     }));
     on('ch-resend', () => chRun(async () => {
@@ -2324,12 +2511,12 @@
       const code = val('ch-code').replace(/\s/g, '');
       if (!/^\d{6,10}$/.test(code)) return '메일로 받은 숫자 코드를 넣어 주세요.';
       if (chState.view === 'reset-code') {
-        const p = $('#ch-pw').value;
-        if (p.length < 6) return CH_ERR.weak_password;
+        const pw = $('#ch-pw').value;
+        if (pw.length < 6) return CH_ERR.weak_password;
         const r = await sbHttp('POST', '/auth/v1/verify', { type: 'recovery', email: chState.email, token: code });
         const n = r.status === 200 ? sessFrom(r.data) : null;
         if (!n) return chErr(r);
-        const u = await sbHttp('PUT', '/auth/v1/user', { password: p }, n.at);
+        const u = await sbHttp('PUT', '/auth/v1/user', { password: pw }, n.at);
         if (u.status !== 200) return chErr(u);
         return afterLogin(r.data);
       }
@@ -2342,61 +2529,66 @@
       return afterLogin(r.data);
     }));
     if (!s) return;
+    on('ch-edit', () => { showAccount('edit'); sheetBody.scrollTop = 0; });
+    on('ch-save', () => chRun(async () => {
+      const d = readProfileForm(false);
+      if (typeof d === 'string') return d;
+      const r = await sbRpc('save_my_profile', { p_name: d.name, p_gender: d.gender || null, p_birth: d.birth || null, p_phone: d.phone || null, p_consent: false });
+      if (r.status !== 200 && r.status !== 204) return chErr(r);
+      await accountSync();
+      showAccount('main', '저장했습니다.');
+      return null;
+    }));
+    on('ch-go-church', () => { chState.proof = null; showAccount('church'); sheetBody.scrollTop = 0; });
+    on('ch-req', () => chRun(async () => {
+      const name = val('ch-church');
+      if (name.length < 2) return '소속 교회 이름을 적어 주세요.';
+      if (!chState.proof) return '교인 증빙 서류(사진 또는 PDF)를 골라 주세요.';
+      const e = await churchRequest(name, chState.proof);
+      if (e) return e;
+      chState.proof = null;
+      await accountSync();
+      showAccount('main', '교회 등록을 신청했습니다. 운영자가 확인한 뒤 등록됩니다.');
+      return null;
+    }));
     on('ch-logout', () => chRun(async () => {
       const t = sbSess && sbSess.at;
       if (t) await sbHttp('POST', '/auth/v1/logout', {}, t);   // 서버 쪽 정리는 실패해도 이 기기에서는 로그아웃
       await sessSave(null);
+      acctProfile = null; acctProfileLoaded = false;
       setSermons(null);
-      showChurch('main', '로그아웃했습니다.');
+      showAccount('main', '로그아웃했습니다.');
       return null;
     }));
     on('ch-sync', () => chRun(async () => {
-      const r = await churchSync();
+      const r = await accountSync();
       if (!r.ok) return chErr(r.r);
-      chSyncAt = Date.now();
-      showChurch(null, '새로 받았습니다.');
+      showAccount('main', '새로 받았습니다.');
       return null;
     }));
-    on('ch-join', () => chRun(async () => {
-      const code = val('ch-code');
-      if (code.replace(/[^0-9A-Za-z]/g, '').length < 6) return '초대코드를 넣어 주세요.';
-      const r = await sbRpc('join_church', { p_code: code });
-      if (r.status !== 200) return chErr(r);
-      await churchSync();
-      showChurch('main', '가입했습니다. 이제 이 교회의 설교 영상이 본문 옆에 보입니다.');
-      return null;
-    }));
-    on('ch-req', () => chRun(async () => {
-      const name = val('ch-name');
-      if (name.length < 2) return '교회 이름을 2자 이상 넣어 주세요.';
-      const r = await sbRpc('request_church', { p_name: name });
-      if (r.status !== 200) return chErr(r);
-      await churchSync();
-      showChurch('main', '개설 신청을 보냈습니다. 승인되면 알려 드릴게요.');
-      return null;
-    }));
-    on('ch-copy', async () => { const ok = await copyToClipboard(($('#ch-invite') || {}).textContent || ''); chSay(ok ? '초대코드를 복사했습니다.' : '복사하지 못했습니다. 코드를 직접 적어 주세요.', !ok); });
-    on('ch-admin', () => { showChurch('admin'); sheetBody.scrollTop = 0; });
+    on('ch-admin', () => { showAccount('admin'); sheetBody.scrollTop = 0; });
     const leave = $('#ch-leave');
     if (leave) chArm(leave, '한 번 더 누르면 나가기', () => chRun(async () => {
       const r = await sbRpc('leave_church');
       if (r.status !== 200 && r.status !== 204) return chErr(r);
-      await churchSync();
-      showChurch('main', '교회에서 나왔습니다.');
+      await accountSync();
+      showAccount('main', '교회에서 나왔습니다.');
       return null;
     }));
     const del = $('#ch-delete');
     if (del) chArm(del, '한 번 더 누르면 계정 삭제', () => chRun(async () => {
+      if (acctProfile && acctProfile.proof_path) await proofDelete(acctProfile.proof_path);   // 서류 파일 먼저
       const r = await sbRpc('delete_my_account');
       if (r.status !== 200 && r.status !== 204) return chErr(r);
       await sessSave(null);
+      acctProfile = null; acctProfileLoaded = false;
       setSermons(null);
-      showChurch('main', '계정을 지웠습니다.');
+      showAccount('main', '계정을 지웠습니다.');
       return null;
     }));
     on('ch-add', () => chRun(async () => {
       const c = sermonsDB.church;
-      if (!c || c.role !== 'admin' || c.status !== 'active') return '승인된 교회의 관리자만 영상을 넣을 수 있습니다.';
+      if (!c || c.role !== 'admin') return '등록된 교회의 관리자만 영상을 넣을 수 있습니다.';
       const yt = parseYt(val('ch-yt'));
       if (!yt) return '유튜브 영상 주소를 확인해 주세요. (예: https://youtu.be/…)';
       const rg = parseRange(val('ch-ref'));
@@ -2410,8 +2602,8 @@
         start_sec: yt.t, created_by: (sbSess && sbSess.uid) || null,
       }, 'return=minimal');
       if (r.status !== 201 && r.status !== 200 && r.status !== 204) return chErr(r);
-      await churchSync();
-      showChurch('admin', '넣었습니다: ' + title + ' (' + passageLabel({ bk: bible.books[rg.bi].id, c1: rg.c1, v1: rg.v1, c2: rg.c2, v2: rg.v2 }) + ')');
+      await accountSync();
+      showAccount('admin', '넣었습니다: ' + title + ' (' + passageLabel({ bk: bible.books[rg.bi].id, c1: rg.c1, v1: rg.v1, c2: rg.c2, v2: rg.v2 }) + ')');
       return null;
     }));
     sheetBody.querySelectorAll('[data-del]').forEach((b) => chArm(b, '한 번 더', () => chRun(async () => {
@@ -2419,8 +2611,8 @@
       if (!/^[0-9a-f-]{36}$/i.test(id)) return '지울 수 없는 항목입니다.';
       const r = await sbAuthed('DELETE', '/rest/v1/sermons?id=eq.' + id, undefined, 'return=minimal');
       if (r.status !== 204 && r.status !== 200) return chErr(r);
-      await churchSync();
-      showChurch('admin', '지웠습니다.');
+      await accountSync();
+      showAccount('admin', '지웠습니다.');
       return null;
     })));
   }
@@ -2460,7 +2652,8 @@
   }
 
   // 휴대폰 사진은 크므로 메일에 붙일 만큼만 줄인다(긴 변 1600px, JPEG)
-  async function askShrink(file) {
+  async function askShrink(file, edge, maxBytes) {   // v77: 증빙 서류는 더 크게(edge·maxBytes)
+    edge = edge || ASK_PHOTO_EDGE; maxBytes = maxBytes || ASK_PHOTO_BYTES;
     let src = null;
     if (window.createImageBitmap) { try { src = await createImageBitmap(file, { imageOrientation: 'from-image' }); } catch (e) { src = null; } }
     if (!src) {
@@ -2475,7 +2668,7 @@
     }
     const iw = src.width || src.naturalWidth, ih = src.height || src.naturalHeight;
     if (!iw || !ih) throw new Error('빈 이미지');
-    const k = Math.min(1, ASK_PHOTO_EDGE / Math.max(iw, ih));
+    const k = Math.min(1, edge / Math.max(iw, ih));
     const cv = document.createElement('canvas');
     cv.width = Math.max(1, Math.round(iw * k)); cv.height = Math.max(1, Math.round(ih * k));
     const cx = cv.getContext('2d');
@@ -2483,7 +2676,7 @@
     cx.drawImage(src, 0, 0, cv.width, cv.height);
     if (src.close) src.close();
     let q = 0.82, url = cv.toDataURL('image/jpeg', q);
-    while (url.length * 0.75 > ASK_PHOTO_BYTES && q > 0.45) { q -= 0.12; url = cv.toDataURL('image/jpeg', q); }
+    while (url.length * 0.75 > maxBytes && q > 0.45) { q -= 0.12; url = cv.toDataURL('image/jpeg', q); }
     const b64 = url.slice(url.indexOf(',') + 1);
     return { b64, url, bytes: Math.round(b64.length * 0.75) };
   }
@@ -5857,6 +6050,7 @@
   onMenu($('#btn-card'), () => { openPc(); });
   onMenu($('#btn-map'), () => { openMp(); });
   onMenu($('#btn-ask'), () => { showInquiry(); openSheet(false); });
+  onMenu($('#btn-acct'), () => { showAccount('main'); openSheet(false); });
   onMenu($('#btn-search'), () => {
     const input = showSearch();
     openSheet(true);
@@ -5890,7 +6084,7 @@
     if (!(pos.book >= 0 && pos.book < bible.books.length)) pos = { book: 0, chapter: 0, verse: 1 };
     migrateMarks();
     await rebuild(pos);
-    setTimeout(churchAutoSync, 1500);   // 교회 계정: 로그인돼 있으면 설교 영상 목록을 새로 받아 둔다
+    setTimeout(accountAutoSync, 1500);   // 교회 계정: 로그인돼 있으면 설교 영상 목록을 새로 받아 둔다
   }
 
   if (!NATIVE && 'serviceWorker' in navigator) {
