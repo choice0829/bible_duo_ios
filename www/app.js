@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v80';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v81';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -144,17 +144,20 @@
   const HEAD_STAGE_GAP = 6;  // 펼친 화면: 머리줄 아래에서 책 위쪽 가장자리까지
   const MENU_H = 36, MENU_H_COMPACT = 32;
   // v80: 한 쪽(일반 아이폰 세로·듀오 접힘) 화면 = 윗줄 책 이름, 그 아래 메뉴 8개 한 줄. 펼친 화면은 지금처럼 한 줄(책 이름 왼쪽·메뉴 오른쪽).
-  // 듀오 접힘(앱): 안전영역을 0으로 알려 오지만 오른쪽 위에 상태표시줄(시계·와이파이·배터리)이 있어, 메뉴 줄을 그 아래로 내린다.
-  // 상태표시줄 높이는 펼친 화면에서 잰 알약 끝(NATIVE_PILL_BOTTOM)을 그대로 쓴다(실기기에서 다르면 이 값만 고친다).
+  // v81 듀오 접힘(앱): 안전영역을 0으로 알려 오지만 오른쪽 위에 세로 상태 알약(위치·시계·배터리·신호)이 있다.
+  //   메뉴 8개를 그 알약 바로 아래부터 오른쪽 가장자리를 따라 세로 한 줄(레일)로 놓고, 본문·책 이름은 그 폭만큼 오른쪽을 비운다.
+  //   값은 사용자가 보낸 실기기 캡처(접은 화면, 폭 466)에서 잰 것: 알약 가로 약 395~441px, 아래 끝 약 160px.
   const MENU_COUNT = 8, MENU_COLS = 8, MENU_ROWS = 1;
   const STACK_GAP = 6;                              // 책 이름 줄과 메뉴 줄 사이
-  const DUO_FOLD_STATUS_BOTTOM = NATIVE_PILL_BOTTOM;
+  const DUO_FOLD_RAIL_TOP = 166;                    // 레일 맨 위(알약 아래 끝 약 160 + 6)
+  const DUO_FOLD_RAIL_RIGHT = 24;                   // 화면 오른쪽 끝에서 레일 오른쪽 끝까지(알약 오른쪽 끝에 맞춤)
+  const DUO_FOLD_RESERVE = DUO_FOLD_RAIL_RIGHT + 42 + 10;   // 본문·책 이름이 오른쪽에 비워 두는 폭(레일 + 간격)
   function headBox(spread, compact, duoFold) {
     const titleFs = compact ? 30 : 44, titleH = Math.ceil(titleFs * 1.2);
     const menuH = compact ? MENU_H_COMPACT : MENU_H;
     if (spread) return { titleFs, titleH, menuH, menuOff: 0, rowH: Math.max(titleH, menuH) };
-    // 머리줄 맨 위는 안전영역 + HEAD_TOP_GAP. 듀오 접힘은 안전영역이 0이므로 메뉴 줄의 화면 위치 = HEAD_TOP_GAP + menuOff
-    const menuOff = Math.max(titleH + STACK_GAP, duoFold ? DUO_FOLD_STATUS_BOTTOM - HEAD_TOP_GAP : 0);
+    if (duoFold) return { titleFs, titleH, menuH, menuOff: 0, rowH: titleH };   // 메뉴는 오른쪽 레일(머리줄 높이에 안 들어감)
+    const menuOff = titleH + STACK_GAP;
     return { titleFs, titleH, menuH, menuOff, rowH: menuOff + menuH };
   }
 
@@ -191,6 +194,7 @@
     // 본문 좌우는 끝까지 쓴다. 노치 아이폰 가로 화면(좌우가 같음)은 한 쪽 보기일 때 그만큼 비운다. (펼침은 책 자체를 안쪽으로 둔다)
     const padX0 = !spread && sym ? Math.max(SIDE_PAD, Math.round(Math.max(si.left, si.right))) : SIDE_PAD;
     const padX = NATIVE && !spread ? Math.max(NATIVE_SIDE_SINGLE, padX0) : padX0;   // 앱 한 쪽 화면은 좌우 여백을 넉넉히
+    const padR = duoFold ? Math.max(padX, DUO_FOLD_RESERVE) : padX;                 // v81 듀오 접힘: 오른쪽 메뉴 레일 자리를 비운다
     // 앱 펼침: 바깥쪽(화면 가장자리 쪽)·안쪽(책등 쪽) 글자 여백을 따로 둔다. 노치·왼쪽 열 같은 안전영역은 글자가 피한다(듀오 오른쪽 열은 알약이 맨 위에만 있어 쓴다).
     const sideSafe = duo ? 0 : Math.round(Math.max(si.left, si.right));
     const padOut = full ? Math.max(NATIVE_TEXT_OUT, sideSafe + SIDE_PAD) : padX;
@@ -217,10 +221,10 @@
     const txtTop = padTop - stageTop;
     // 머리줄(책 이름·메뉴)의 오른쪽 끝: 책의 오른쪽 본문 끝에 맞추되, 오른쪽 안전영역(상태 아이콘 자리)은 피한다
     const bookRight = spread ? shiftX + pageW * 2 : W;
-    const headR = Math.max(Math.round(W - bookRight + padOut), Math.round(si.right) + (spread ? 8 : 14), 14);
+    const headR = duoFold ? DUO_FOLD_RESERVE : Math.max(Math.round(W - bookRight + padOut), Math.round(si.right) + (spread ? 8 : 14), 14);
     return {
       W, H, spread, compact, duo, duoFold, sym, pageW, pageH, bookW: spread ? pageW * 2 : pageW,
-      padX: full ? padOut : padX, padOut, padIn, full, tabEdge: full ? Math.max(padOut - 10, 0) : shiftX,
+      padX: full ? padOut : padX, padR, padOut, padIn, full, tabEdge: full ? Math.max(padOut - 10, 0) : shiftX,
       padTop, padBottom, si, shiftX, eff, stageTop, txtTop, headR, intoPill,
       textW: pageW - padOut - padIn, textH: pageH - txtTop - padBottom,
     };
@@ -288,6 +292,10 @@
     root.setProperty('--serif', fstack);
     root.setProperty('--sans', fstack);   // 상단 메뉴·굵은 글씨·창도 같은 글씨체
     root.setProperty('--padx', g.padX + 'px');
+    root.setProperty('--padr', (g.padR || g.padX) + 'px');   // 한 쪽 화면 본문의 오른쪽 여백(듀오 접힘은 메뉴 레일 자리)
+    root.setProperty('--rail-top', DUO_FOLD_RAIL_TOP + 'px');
+    root.setProperty('--rail-right', DUO_FOLD_RAIL_RIGHT + 'px');
+    document.body.classList.toggle('duo-fold', !!g.duoFold);
     root.setProperty('--padout', g.padOut + 'px');   // 펼침 쪽의 바깥쪽·안쪽 글자 여백 (앱 펼침에서만 서로 다름)
     root.setProperty('--padin', g.padIn + 'px');
     root.setProperty('--padtop', g.padTop + 'px');
