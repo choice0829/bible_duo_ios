@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v81';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v82';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -149,7 +149,8 @@
   //   값은 사용자가 보낸 실기기 캡처(접은 화면, 폭 466)에서 잰 것: 알약 가로 약 395~441px, 아래 끝 약 160px.
   const MENU_COUNT = 8, MENU_COLS = 8, MENU_ROWS = 1;
   const STACK_GAP = 6;                              // 책 이름 줄과 메뉴 줄 사이
-  const DUO_FOLD_RAIL_TOP = 166;                    // 레일 맨 위(알약 아래 끝 약 160 + 6)
+  const DUO_FOLD_RAIL_TOP = 166;                    // 레일이 올라올 수 있는 맨 위(알약 아래 끝 약 160 + 6)
+  const DUO_FOLD_RAIL_BOTTOM = 16;                  // v82: 레일은 화면 아래쪽에, 바닥에서 이만큼 띄워 놓는다
   const DUO_FOLD_RAIL_RIGHT = 24;                   // 화면 오른쪽 끝에서 레일 오른쪽 끝까지(알약 오른쪽 끝에 맞춤)
   const DUO_FOLD_RESERVE = DUO_FOLD_RAIL_RIGHT + 42 + 10;   // 본문·책 이름이 오른쪽에 비워 두는 폭(레일 + 간격)
   function headBox(spread, compact, duoFold) {
@@ -238,10 +239,12 @@
     const base = lastTitleFs || 44;
     let fs = base;
     root.setProperty('--title-fs', fs + 'px');
-    while (fs > 16 && b.scrollWidth > b.clientWidth + 1) { fs -= 2; root.setProperty('--title-fs', fs + 'px'); }   // v70: 아이콘이 4열이 되어 좁아진 작은 폰(SE)에서 '데살로니가전·후서'가 잘리지 않도록 최소를 18 → 16px
+    // v82: 넘침은 소수점까지 잰다(scrollWidth 는 정수로 반올림돼 0.5px 미만 넘침을 놓치는데, 화면에는 그때도 줄임표가 그려진다)
+    const over = (el) => { const rg = document.createRange(); rg.selectNodeContents(el); return rg.getBoundingClientRect().width > el.getBoundingClientRect().width + 0.01; };
+    while (fs > 16 && over(b)) { fs -= 2; root.setProperty('--title-fs', fs + 'px'); }   // v70: 작은 폰(SE)에서 '데살로니가전·후서'가 잘리지 않도록 최소 16px
     // v80: 'with 교회이름'(장 표시 옆)까지 들어가도록 조금 더 줄인다(30px 아래로는 줄이지 않고, 그때는 교회 이름 끝을 줄임표로)
     const ch = $('#loc-church');
-    while (fs > 30 && ch && !ch.hidden && ch.scrollWidth > ch.clientWidth + 1) { fs -= 2; root.setProperty('--title-fs', fs + 'px'); }
+    while (fs > 30 && ch && !ch.hidden && (over(ch) || over(b))) { fs -= 2; root.setProperty('--title-fs', fs + 'px'); }
   }
   let lastTitleFs = 44;
 
@@ -294,6 +297,7 @@
     root.setProperty('--padx', g.padX + 'px');
     root.setProperty('--padr', (g.padR || g.padX) + 'px');   // 한 쪽 화면 본문의 오른쪽 여백(듀오 접힘은 메뉴 레일 자리)
     root.setProperty('--rail-top', DUO_FOLD_RAIL_TOP + 'px');
+    root.setProperty('--rail-bottom', Math.max(DUO_FOLD_RAIL_BOTTOM, Math.round(g.si.bottom) + 8) + 'px');
     root.setProperty('--rail-right', DUO_FOLD_RAIL_RIGHT + 'px');
     document.body.classList.toggle('duo-fold', !!g.duoFold);
     root.setProperty('--padout', g.padOut + 'px');   // 펼침 쪽의 바깥쪽·안쪽 글자 여백 (앱 펼침에서만 서로 다름)
@@ -321,7 +325,10 @@
     stage.style.marginLeft = g.shiftX ? g.shiftX + 'px' : '';   // 펼친 화면 가운데 맞춤
     root.setProperty('--shiftx', g.shiftX + 'px');
     // 머리줄(책 이름·메뉴)의 왼쪽 끝: 펼침은 책 왼쪽 가장자리 + 14, 한 쪽은 안전영역 + 14. (좌우가 같은 아이폰은 책 자체가 이미 안쪽이다)
-    root.setProperty('--headx', (g.full ? g.padOut : NATIVE && !g.spread ? g.padX : (g.spread ? (g.sym ? 0 : g.si.left) + g.shiftX : g.si.left) + 14) + 'px');
+    const headX = g.full ? g.padOut : NATIVE && !g.spread ? g.padX : (g.spread ? (g.sym ? 0 : g.si.left) + g.shiftX : g.si.left) + 14;
+    root.setProperty('--headx', headX + 'px');
+    // v82 펼친 화면: 책 이름 줄의 폭 = 왼쪽 쪽 본문의 오른쪽 끝(책 왼쪽 끝 + 쪽 폭 - 안쪽 여백)까지 → 'with 교회'가 가운데 접는 선 바로 왼쪽에 붙는다
+    root.setProperty('--title-w', g.spread ? Math.max(120, Math.round(g.shiftX + g.pageW - g.padIn - headX)) + 'px' : 'auto');
     stage.classList.toggle('spread', g.spread);
     document.body.classList.toggle('is-spread', g.spread);
     document.documentElement.classList.toggle('full', !!g.full);   // 앱 펼침: 책 카드 없이 한 색 바탕

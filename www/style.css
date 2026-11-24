@@ -142,7 +142,9 @@ body.is-spread .head-row { gap: 18px; }
 .title-btn b { font-size: var(--title-fs); font-weight: 800; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .title-btn span { font-size: calc(var(--title-fs) * .4); color: var(--muted); white-space: nowrap; }
 /* v80: 등록된 교회 'with 교회이름' — 장 표시('1장')와 같은 크기·색·줄(책 이름 버튼 안). 자리가 모자라면 이것부터 줄임표 */
-.title-btn .loc-church { flex: 0 100 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; margin-left: -2px; }
+.title-btn .loc-church { flex: 0 100 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; margin-left: auto; }   /* v82: 책 이름 줄의 오른쪽 끝에 맞춤 */
+/* v82 펼친 화면: 책 이름 줄을 왼쪽 쪽 본문의 오른쪽 끝(가운데 접는 선 바로 왼쪽)까지 넓혀, 'with 교회'가 그 끝에 붙게 한다. 메뉴가 자리를 더 쓰면 줄어든다 */
+body.is-spread .title-btn { flex: 0 1 var(--title-w, auto); width: var(--title-w, auto); }
 .loc-church[hidden] { display: none; }
 .menu-row { display: flex; gap: 7px; flex: none; margin-left: auto; }   /* 펼친 화면: 메뉴는 한 줄로 오른쪽 끝 */
 /* v80: 한 쪽 화면(일반 아이폰 세로·듀오 접힘): 윗줄 = 책 이름(넓게), 그 아래 한 줄 = 메뉴 8개(양 끝 맞춤).
@@ -152,7 +154,7 @@ body:not(.is-spread) .title-btn { width: 100%; }
 body:not(.is-spread) .menu-row { position: absolute; left: 0; right: 0; top: var(--menu-off, 60px); display: flex; justify-content: space-between; gap: 4px; margin: 0; }
 body:not(.is-spread) .menu-row > .icon-btn { flex: 0 1 42px; min-width: 37px; }
 /* v81 듀오 접힘(앱): 메뉴 8개를 오른쪽 위 상태 알약 바로 아래부터 오른쪽 가장자리를 따라 세로 한 줄로. 본문은 --padr 만큼 오른쪽을 비운다 */
-body.duo-fold .menu-row { position: fixed; top: var(--rail-top, 166px); right: var(--rail-right, 24px); left: auto; width: 42px; flex-direction: column; justify-content: flex-start; gap: 6px; }
+body.duo-fold .menu-row { position: fixed; top: auto; bottom: var(--rail-bottom, 16px); right: var(--rail-right, 24px); left: auto; width: 42px; flex-direction: column; justify-content: flex-start; gap: 6px; }   /* v82: 화면 아래쪽(바닥에서 조금 띄움) */
 body.duo-fold .menu-row > .icon-btn { flex: none; width: 42px; height: 36px; min-width: 0; }
 /* 낮은 화면(가로로 돌린 폰): 머리줄을 작게 */
 body.is-compact .head-row { gap: 12px; }

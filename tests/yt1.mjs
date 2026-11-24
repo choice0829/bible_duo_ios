@@ -49,8 +49,9 @@ const seed={fn:([n,s])=>{ window.__msgs=[]; window.webkit={messageHandlers:{bf:{
   { const t=await p.evaluate(()=>{ const R=(e)=>e.getBoundingClientRect(); const el=document.querySelector('#loc-church'), ch=document.querySelector('#loc-ch'), bk=document.querySelector('#loc-book'), icons=[...document.querySelectorAll('.menu-row > button')].map(R);
       const r=R(el), c=R(ch);
       return {text:el.textContent, hidden:el.hidden, fs:getComputedStyle(el).fontSize, chFs:getComputedStyle(ch).fontSize, color:getComputedStyle(el).color===getComputedStyle(ch).color,
-        dy:Math.round(Math.abs(r.bottom-c.bottom)), after:r.left>=c.right-1, inBtn:!!el.closest('#btn-pick'), cut:el.scrollWidth>el.clientWidth+1, bookCut:bk.scrollWidth>bk.clientWidth+1,
+        dy:Math.round(Math.abs(r.bottom-c.bottom)), after:r.left>=c.right-1, inBtn:!!el.closest('#btn-pick'), rightGap:Math.round(R(document.querySelector('#btn-pick')).right-r.right), pages:[...document.querySelectorAll('#stage .page')].map(R).filter(x=>x.width>10&&x.right>1&&x.left<innerWidth-1).length, leftTxtR:Math.round(Math.max(0,...[...document.querySelectorAll('#stage .page p[data-k]')].map(R).filter(x=>x.width>10&&x.left<innerWidth/2-20&&x.right>1).map(x=>x.right))), elR:Math.round(r.right), cut:el.scrollWidth>el.clientWidth+1, bookCut:bk.scrollWidth>bk.clientWidth+1,
         hitIcon:icons.some(i=>r.left<i.right&&i.left<r.right&&r.top<i.bottom&&i.top<r.bottom)}; });
+    ok('spread: v82 "with" ends at the right edge of the LEFT page text (just left of the fold)', Math.abs(t.elR-t.leftTxtR)<=2 && t.rightGap<=1, JSON.stringify({elR:t.elR,leftTxtR:t.leftTxtR,gap:t.rightGap}));
     ok('spread: v80 "with 한사람교회" right after the chapter label, same size·color·line, not cut, not over the icons', t.text==='with 한사람교회' && !t.hidden && t.fs===t.chFs && t.color && t.dy<=1 && t.after && t.inBtn && !t.cut && !t.bookCut && !t.hitIcon, JSON.stringify(t)); }
   ok('spread: no page errors', errs.length===0, JSON.stringify(errs)); await p.close(); }
 
@@ -70,8 +71,9 @@ const seed={fn:([n,s])=>{ window.__msgs=[]; window.webkit={messageHandlers:{bf:{
   { const t=await p.evaluate(()=>{ const R=(e)=>e.getBoundingClientRect(); const el=document.querySelector('#loc-church'), ch=document.querySelector('#loc-ch'), bk=document.querySelector('#loc-book'), icons=[...document.querySelectorAll('.menu-row > button')].map(R);
       const r=R(el), c=R(ch);
       return {text:el.textContent, hidden:el.hidden, fs:getComputedStyle(el).fontSize, chFs:getComputedStyle(ch).fontSize, color:getComputedStyle(el).color===getComputedStyle(ch).color,
-        dy:Math.round(Math.abs(r.bottom-c.bottom)), after:r.left>=c.right-1, inBtn:!!el.closest('#btn-pick'), cut:el.scrollWidth>el.clientWidth+1, bookCut:bk.scrollWidth>bk.clientWidth+1,
+        dy:Math.round(Math.abs(r.bottom-c.bottom)), after:r.left>=c.right-1, inBtn:!!el.closest('#btn-pick'), rightGap:Math.round(R(document.querySelector('#btn-pick')).right-r.right), pages:[...document.querySelectorAll('#stage .page')].map(R).filter(x=>x.width>10&&x.right>1&&x.left<innerWidth-1).length, leftTxtR:Math.round(Math.max(0,...[...document.querySelectorAll('#stage .page p[data-k]')].map(R).filter(x=>x.width>10&&x.left<innerWidth/2-20&&x.right>1).map(x=>x.right))), elR:Math.round(r.right), cut:el.scrollWidth>el.clientWidth+1, bookCut:bk.scrollWidth>bk.clientWidth+1,
         hitIcon:icons.some(i=>r.left<i.right&&i.left<r.right&&r.top<i.bottom&&i.top<r.bottom)}; });
+    ok('folded: v82 "with" right-aligned to the end of the title line', t.rightGap<=1, 'gap '+t.rightGap);
     ok('folded: v80 "with 한사람교회" right after the chapter label, same size·color·line, not cut, not over the icons', t.text==='with 한사람교회' && !t.hidden && t.fs===t.chFs && t.color && t.dy<=1 && t.after && t.inBtn && !t.cut && !t.bookCut && !t.hitIcon, JSON.stringify(t)); }
   ok('folded: no page errors', errs.length===0, JSON.stringify(errs)); await p.close(); }
 
