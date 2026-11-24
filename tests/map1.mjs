@@ -45,7 +45,9 @@ for (const [name,w,h,si,KB] of DEV) {
   ok(name+': 단추 8개가 화면 안에 있다', hdr.length===8 && hdr.every(x=>x.l>=0&&x.r<=w&&x.t>=0&&x.b<=h), JSON.stringify(hdr.map(x=>[Math.round(x.l),Math.round(x.t)])));
   const rows=new Set(hdr.map(x=>Math.round(x.t/10)));
   const spread=await p.evaluate(()=>document.body.classList.contains('is-spread'));
-  ok(name+': 배치 모양('+(spread?'펼침 한 줄':'한 쪽 윗줄 3·아랫줄 4')+')', spread?rows.size===1:rows.size===2, 'rows='+rows.size);
+  // v80·v81: 펼침 = 한 줄, 일반 아이폰 한 쪽 = 책 이름 아래 한 줄, 듀오 접힘(앱) = 오른쪽 세로 레일(8칸)
+  const duoFold=await p.evaluate(()=>document.body.classList.contains('duo-fold'));
+  ok(name+': 배치 모양('+(spread?'펼침 한 줄':duoFold?'듀오 접힘 오른쪽 세로 레일':'한 쪽 책 이름 아래 한 줄')+')', spread?rows.size===1:duoFold?rows.size===8:rows.size===1, 'rows='+rows.size);
   const ttl=await p.evaluate(R('#btn-pick')); const minL=Math.min(...hdr.map(x=>x.l));
   ok(name+': 책 이름과 메뉴가 겹치지 않는다', ttl.r<=minL+1, `title.r=${Math.round(ttl.r)} menu.l=${Math.round(minL)}`);
   await p.screenshot({path:`map1-${SN[name]}-header.png`,clip:{x:0,y:0,width:w,height:Math.min(h,170)}});
