@@ -64,7 +64,7 @@ for (const [name,w,h,si,KB] of [DUO,FOLD,IP]) {
   const {p,errs}=await openDev(DUO,{cfg:{places:[P(1,'다 카페',37.5301,127.1238),P(2,'가 카페',37.5401,127.1238)],loc:{error:'denied'}}}); await settle(p);
   await p.click('#btn-map'); await sleep(1200);
   const t1=await p.evaluate(()=>document.querySelector('#mp-loc').textContent);
-  ok('위치 거부: 안내(설정 → 책장성경 → 위치)', t1.includes('설정 → 책장성경 → 위치'), t1);
+  ok('위치 거부: 안내(설정 → 선한성경 → 위치)', t1.includes('설정 → 선한성경 → 위치'), t1);
   const names=await p.evaluate(()=>[...document.querySelectorAll('.mp-it-name')].map(e=>e.textContent));
   ok('위치를 모르면 이름순(가나다), 거리 표시 없음', JSON.stringify(names)==='["가 카페","다 카페"]' && (await p.evaluate(()=>document.querySelectorAll('.mp-it-d').length))===0, JSON.stringify(names));
   ok('위치 거부여도 지도·핀은 나온다', (await p.evaluate(()=>document.querySelectorAll('.mp-pin').length))===2);
