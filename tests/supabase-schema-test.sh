@@ -17,6 +17,8 @@ Q() { psql -h "$D" -p $PORT -U postgres -d postgres -v ON_ERROR_STOP=1 -qAt "$@"
 
 Q <<'SQL' || exit 1
 create role anon nologin; create role authenticated nologin;
+-- Supabase 는 pgcrypto 같은 확장을 'extensions' 폴더에 둔다(public 이 아님) → 그 배치를 그대로 흉내 낸다. (이 시험이 없던 때 gen_random_bytes 를 못 찾는 문제를 놓쳤다)
+create schema extensions; grant usage on schema extensions to anon, authenticated; create extension pgcrypto with schema extensions;
 create schema auth; grant usage on schema auth to anon, authenticated;
 create table auth.users (id uuid primary key);
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;

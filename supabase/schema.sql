@@ -63,8 +63,10 @@ language sql stable security definer set search_path = public as $$
     where m.user_id = auth.uid() and m.role = 'admin' and c.status = 'active')
 $$;
 
+-- ※ gen_random_bytes 는 pgcrypto 함수다. Supabase 는 확장을 'extensions' 폴더(스키마)에 두므로 search_path 에 extensions 도 넣어야 찾는다
+--   (public 만 쓰면 'function gen_random_bytes(integer) does not exist' 로 교회 개설 신청이 첫 번째부터 실패한다).
 create or replace function public.new_invite_code() returns text
-language plpgsql volatile set search_path = public as $$
+language plpgsql volatile set search_path = public, extensions as $$
 declare
   alphabet constant text := '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
   code text;
