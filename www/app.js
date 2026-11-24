@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v73';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v74';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -89,6 +89,11 @@
   // 설교노트: { items: [ { id, title, body, date:'YYYY-MM-DD', bk:'jhn', c1, v1, c2, v2 (장은 1부터), ts } ] }
   let notesDB = store.get('bf.notes', { items: [] });
   if (!Array.isArray(notesDB.items)) notesDB = { items: [] };
+  // 설교 영상(교회 계정 1단계): 가입한 교회의 영상 목록을 기기에 저장해 두고(오프라인에서도 탭이 보이게) 본문 옆에 빨간 재생 탭으로 보인다.
+  // { church: { id, name } | null, items: [ { id, yt:'유튜브 영상 ID 11자', bk, c1, v1, c2, v2, title, preacher, date:'YYYY-MM-DD', t: 시작 초(선택) } ], ts }
+  // 서버(교회 계정)와 맞추는 부분은 다음 단계에서 붙인다. 지금은 이 저장 칸에 들어 있는 것만 그린다.
+  let sermonsDB = store.get('bf.sermons', { church: null, items: [] });
+  if (!Array.isArray(sermonsDB.items)) sermonsDB = { church: null, items: [] };
   const NOTE_COLORS = ['#C2553B', '#2F7FB5', '#3E9468', '#B58A2B', '#7C5BB0', '#CC5C8E'];
   let sel = null;       // 지금 고른 낱말들 { items: [{ bookId, k, s, e }], act: 마지막으로 만진 범위 번호 }
   let selecting = false; // 길게 누른 채 끌어서 범위를 넓히는 중
@@ -885,7 +890,7 @@
   let scrollTimer = null;
   function chapterHTML(book, c) {
     const unit = book.id === 'psa' ? '편' : '장';
-    let h = '<h2 class="ch">' + (c + 1) + unit + '</h2><div class="nt-chips">' + noteChipsHTML(book.id, c) + '</div>';
+    let h = '<h2 class="ch">' + (c + 1) + unit + '</h2><div class="nt-chips">' + noteChipsHTML(book.id, c) + sermonChipsHTML(book.id, c) + '</div>';
     book.chapters[c].forEach((v) => {
       const k = c * 1000 + v.n;
       h += '<p data-k="' + k + '" data-o="0" data-e="' + v.t.length + '" data-h="1"' + noteAttrs(book.id, k) + '><sup class="vn">' + v.n + '</sup>' + annotate(book.id, k, 0, v.t) + '</p>';
@@ -944,7 +949,8 @@
       const b = e.target.closest && e.target.closest('.chnav button');
       if (b && !b.disabled) goChapter(+b.dataset.go);
       const chip = e.target.closest && e.target.closest('.nt-chip');
-      if (chip) { showNoteView(chip.dataset.note); openSheet(true); }
+      if (chip && chip.dataset.yt) openYtCard(chip.dataset.yt.split(' '), null);   // 설교 영상 칩: 미리보기 카드(유튜브에서 보기)
+      else if (chip) { showNoteView(chip.dataset.note); openSheet(true); }
     });
     refreshTabs();   // 접힌 화면에서는 표를 비운다
     // 읽던 위치 저장: 가로로 넘어가 멈췄을 때 장, 세로로 멈췄을 때 맨 위에 보이는 절
@@ -2472,6 +2478,39 @@
       .map((n) => '<button type="button" class="nt-chip" data-note="' + n.id + '" style="--n1:' + noteColor(n.id) + '"><i></i><span>' + esc(n.title) + '</span></button>').join('');
   }
 
+  // ---------- 설교 영상 (교회 계정 1단계) ----------
+  const YT_ID = /^[\w-]{11}$/;
+  const sermonOk = (x) => x && typeof x.id === 'string' && YT_ID.test(x.yt || '') && typeof x.bk === 'string' &&
+    [x.c1, x.v1, x.c2, x.v2].every((n) => Number.isInteger(n) && n >= 1) && (x.c2 > x.c1 || (x.c2 === x.c1 && x.v2 >= x.v1));
+  const sermonList = () => sermonsDB.items.filter(sermonOk);
+  const sermonById = (id) => sermonList().find((x) => x.id === id);
+  const sermonCovers = (x, bookId, k) => {   // k = (장-1)×1000 + 절
+    if (x.bk !== bookId) return false;
+    const c = Math.floor(k / 1000) + 1, v = k % 1000;
+    return (c > x.c1 || (c === x.c1 && v >= x.v1)) && (c < x.c2 || (c === x.c2 && v <= x.v2));
+  };
+  const sermonSort = (a, b) => (b.date || '').localeCompare(a.date || '') || (a.title || '').localeCompare(b.title || '');   // 최근 설교 먼저
+  function sermonChipsHTML(bookId, c0) {   // 접힌 화면: 이 장을 덮는 설교 영상마다 빨간 칩
+    return sermonList().filter((x) => x.bk === bookId && x.c1 <= c0 + 1 && x.c2 >= c0 + 1)
+      .sort((a, b) => (a.c1 - b.c1) || (a.v1 - b.v1) || sermonSort(a, b))   // 본문 순서대로, 같은 곳이면 최근 설교 먼저
+      .map((x) => '<button type="button" class="nt-chip yt-chip" data-yt="' + esc(x.id).replace(/"/g, '&quot;') + '" aria-label="설교 영상: ' + esc(x.title || '').replace(/"/g, '&quot;') + '">' +
+        '<i></i><span>' + esc(x.title || '설교 영상') + '</span></button>').join('');
+  }
+  function ytUrl(x) {
+    return 'https://www.youtube.com/watch?v=' + x.yt + (Number.isInteger(x.t) && x.t > 0 ? '&t=' + x.t + 's' : '');
+  }
+  function openYt(x) {   // 유튜브 앱이 있으면 그쪽으로 열릴 가능성이 높다(아이폰이 https 주소를 유튜브 앱에 넘김, 실기기 확인 필요)
+    const url = ytUrl(x), br = nativeBridge();
+    if (br) { try { br.postMessage({ open: url, fallback: url }); return; } catch (e) { /* 아래로 */ } }
+    window.open(url, '_blank', 'noopener');
+  }
+  // 교회 영상 목록을 새로 받으면(다음 단계의 서버 맞추기) 저장하고 화면의 칩·탭을 다시 그린다.
+  function setSermons(data) {
+    sermonsDB = { church: (data && data.church) || null, items: (data && Array.isArray(data.items) ? data.items : []).filter(sermonOk), ts: Date.now() };
+    store.set('bf.sermons', sermonsDB);
+    applyNoteMarks();
+  }
+
   // 화면에 이미 그려진 문단·칩에 노트 표시를 다시 입힌다 (저장·삭제·불러오기 뒤). 쪽 나누기는 건드리지 않는다.
   function applyNoteMarks() {
     noteIdx = null;
@@ -2494,7 +2533,7 @@
     if (scroller) {
       [...scroller.children].forEach((pane, c) => {
         const box = pane.querySelector('.nt-chips');
-        if (box) box.innerHTML = noteChipsHTML(bid, c);
+        if (box) box.innerHTML = noteChipsHTML(bid, c) + sermonChipsHTML(bid, c);
       });
     }
     refreshTabs();
@@ -2534,12 +2573,30 @@
         (p.dataset.n || '').split(' ').forEach((id) => { if (id && !(id in top)) { top[id] = y; where[id] = side; } });
       });
     });
+    const pickSide = (s0) => (s0 === 'R' ? (okR ? 'R' : 'L') : (okL ? 'L' : 'R'));
     const items = Object.keys(top).filter((id) => noteById(id)).map((id) => {
       const n = noteById(id);
       const label = Array.from(n.title.replace(/\s+/g, '')).slice(0, 6).join('');   // 제목 앞 6글자 (v64: 5 → 6)
-      const side = where[id] === 'R' ? (okR ? 'R' : 'L') : (okL ? 'L' : 'R');
-      return { id, y0: top[id], label, title: n.title, side, h: Math.round(Array.from(label).length * 12.5 + 24) };   // 글자 위아래 여유 12px(v65, 전 9px)
-    }).sort((p, q) => p.y0 - q.y0);
+      return { id, y0: top[id], label, title: n.title, side: pickSide(where[id]), h: Math.round(Array.from(label).length * 12.5 + 24) };   // 글자 위아래 여유 12px(v65, 전 9px)
+    });
+    // 설교 영상: 이 두 쪽에서 그 영상 본문이 처음 나오는 줄에 빨간 재생 탭 하나. 같은 줄에서 시작하는 영상이 여럿이면 탭 하나로 묶고 개수를 적는다(누르면 목록).
+    const sermons = pg.bookIndex != null && bible.books[pg.bookIndex] ? sermonList().filter((x) => x.bk === bible.books[pg.bookIndex].id) : [];
+    if (sermons.length) {
+      const bid = bible.books[pg.bookIndex].id, seen = {};
+      shown.forEach((x) => {
+        const side = x.r.left + x.r.width / 2 < W / 2 ? 'L' : 'R';
+        x.el.querySelectorAll('p[data-k], p[data-s]').forEach((p) => {
+          const k = +(p.dataset.k || p.dataset.s);
+          const ids = sermons.filter((m) => !seen[m.id] && sermonCovers(m, bid, k)).sort(sermonSort).map((m) => m.id);
+          if (!ids.length) return;
+          ids.forEach((id) => { seen[id] = 1; });
+          const first = sermonById(ids[0]);
+          items.push({ id: 'yt:' + ids.join(' '), yt: ids, y0: p.getBoundingClientRect().top, label: ids.length > 1 ? String(ids.length) : '',
+            title: ids.length > 1 ? '설교 영상 ' + ids.length + '개' : (first.title || '설교 영상'), side: pickSide(side), h: ids.length > 1 ? 52 : 38 });
+        });
+      });
+    }
+    items.sort((p, q) => p.y0 - q.y0);
     // 겹치지 않게 위에서부터 쌓고, 아래로 넘치면 위로 당긴다. 그래도 안 들어가면 나머지는 "+N" 하나로 줄인다. (왼쪽·오른쪽을 따로 쌓는다)
     // 오른쪽 탭은 듀오 오른쪽 위의 상태 알약(시계·배터리) 아래에서만 놓는다.
     const botLim = window.innerHeight - 10, gap = 5;
@@ -2563,9 +2620,14 @@
     const list = layout(items.filter((it) => it.side === 'L'), 'L').concat(layout(items.filter((it) => it.side === 'R'), 'R'));
     tabsEl.innerHTML = list.map((it) => {
       const right = it.side === 'R', tw = right ? twR : twL, left = right ? W - edgeR : edgeL - tw;   // 왼쪽 탭은 오른쪽 끝이, 오른쪽 탭은 왼쪽 끝이 책 가장자리에 닿는다
+      const geo = 'left:' + left + 'px;top:' + Math.round(it.y) + 'px;width:' + tw + 'px;height:' + it.h + 'px';
+      if (it.yt) {   // 설교 영상 탭: 빨간 배경 + 흰 재생 삼각형(+ 여러 개면 개수)
+        return '<button type="button" class="nt-tab yt-tab' + (right ? ' nt-r' : '') + '" data-note="' + esc(it.id).replace(/"/g, '&quot;') + '" data-yt="' + esc(it.yt.join(' ')).replace(/"/g, '&quot;') + '"' +
+          ' aria-label="설교 영상: ' + esc(it.title).replace(/"/g, '&quot;') + '" style="' + geo + '"><i></i>' + (it.label ? '<b>' + esc(it.label) + '</b>' : '') + '</button>';
+      }
       return '<button type="button" class="nt-tab' + (right ? ' nt-r' : '') + '" ' + (it.more ? 'data-more="1"' : 'data-note="' + it.id + '"') +
         ' aria-label="' + (it.more ? '설교노트 더 보기: ' : '설교노트: ') + esc(it.title).replace(/"/g, '&quot;') + '" ' +
-        'style="--n1:' + (it.more ? '#7A7A7A' : noteColor(it.id)) + ';left:' + left + 'px;top:' + Math.round(it.y) + 'px;width:' + tw + 'px;height:' + it.h + 'px">' +
+        'style="--n1:' + (it.more ? '#7A7A7A' : noteColor(it.id)) + ';' + geo + '">' +
         '<b>' + esc(it.label) + '</b></button>';
     }).join('');
   }
@@ -2574,6 +2636,7 @@
     if (!b) return;
     if (b.dataset.more) { closeSpot(); showNotes(); openSheet(true); return; }   // "+N" 탭은 노트 목록
     if (spot.id === b.dataset.note) { closeSpot(); return; }                       // 같은 탭을 한 번 더 누르면 닫기
+    if (b.dataset.yt) { openYtSpot(b.dataset.note, b.dataset.yt.split(' ')); return; }   // 설교 영상 탭
     openSpot(b.dataset.note);
   });
 
@@ -2589,6 +2652,7 @@
     tabsEl.querySelectorAll('.nt-tab.sel').forEach((t) => t.classList.remove('sel'));
     if (spotStyleEl) spotStyleEl.textContent = '';
     if (peekEl) peekEl.hidden = true;
+    if (ytPeekEl) ytPeekEl.hidden = true;
   }
   function buildPeek() {
     peekEl = document.createElement('div');
@@ -2627,8 +2691,10 @@
     placePeek(id);
   }
   // 카드는 밝게 남은 본문을 가리지 않는 쪽(오른쪽 쪽 아래 → 왼쪽 쪽 아래 → 가운데 아래)에 놓는다.
-  function placePeek(id) {
-    const W = window.innerWidth, H = window.innerHeight;
+  function placePeek(id, el0, isLit) {
+    const card = el0 || peekEl;
+    const lit = isLit || ((p) => p.classList.contains('nt') && (p.dataset.n || '').split(' ').indexOf(id) >= 0);
+    const W = window.innerWidth;
     const L = flip.getCurrentPageIndex(), all = stage.querySelectorAll('.page');
     const els = [all[L], all[L + 1]].filter(Boolean);
     const rects = [], pages = [];
@@ -2636,15 +2702,12 @@
       const pr = el.getBoundingClientRect();
       if (pr.width < 10 || pr.right <= 1 || pr.left >= W - 1) return;
       pages.push(pr);
-      el.querySelectorAll('p.nt').forEach((p) => {
-        if ((p.dataset.n || '').split(' ').indexOf(id) < 0) return;
-        rects.push(p.getBoundingClientRect());
-      });
+      el.querySelectorAll('p[data-k], p[data-s]').forEach((p) => { if (lit(p)) rects.push(p.getBoundingClientRect()); });
     });
     const cw = Math.min(400, W - 24);
-    peekEl.style.width = cw + 'px';
-    peekEl.hidden = false;
-    const pr0 = peekEl.getBoundingClientRect(), h = pr0.height, top = pr0.top;
+    card.style.width = cw + 'px';
+    card.hidden = false;
+    const pr0 = card.getBoundingClientRect(), h = pr0.height, top = pr0.top;
     const clampX = (x) => Math.round(Math.min(Math.max(x, 8), W - cw - 8));
     const cands = pages.slice().reverse().map((pr) => clampX(pr.left + (pr.width - cw) / 2));
     cands.push(clampX((W - cw) / 2));
@@ -2657,7 +2720,67 @@
       });
       if (s < bestScore) { bestScore = s; best = x; }
     });
-    peekEl.style.left = best + 'px';
+    card.style.left = best + 'px';
+  }
+
+  // ---------- 설교 영상 탭·칩을 누르면: (펼친 화면) 그 본문만 밝게 + 미리보기 카드, (접은 화면) 카드만. 카드의 단추로 유튜브를 연다 ----------
+  let ytPeekEl = null;
+  function buildYtPeek() {
+    ytPeekEl = document.createElement('div');
+    ytPeekEl.id = 'yt-peek';
+    ytPeekEl.className = 'yt-peek';
+    ytPeekEl.hidden = true;
+    ytPeekEl.setAttribute('role', 'dialog');
+    ytPeekEl.setAttribute('aria-label', '설교 영상');
+    ytPeekEl.innerHTML = '<div class="pk-head"><b class="pk-title"></b><span class="pk-ref"></span></div><div class="yt-list"></div>' +
+      '<div class="pk-act"><button type="button" class="pk-fold yt-close">닫기</button><span class="pk-hint">유튜브 앱(없으면 사파리)으로 열립니다</span></div>';
+    document.body.appendChild(ytPeekEl);
+    ytPeekEl.addEventListener('click', (e) => {
+      const go = e.target.closest('.yt-go');
+      if (go) { const x = sermonById(go.dataset.yt); closeSpot(); ytPeekEl.hidden = true; if (x) openYt(x); return; }
+      if (e.target.closest('.yt-close')) { closeSpot(); ytPeekEl.hidden = true; }
+    });
+  }
+  function fillYtCard(ids) {
+    if (!ytPeekEl) buildYtPeek();
+    const list = ids.map(sermonById).filter(Boolean);
+    if (!list.length) return null;
+    const church = sermonsDB.church && sermonsDB.church.name ? sermonsDB.church.name : '';
+    ytPeekEl.querySelector('.pk-title').textContent = list.length > 1 ? '설교 영상 ' + list.length + '개' : (list[0].title || '설교 영상');
+    ytPeekEl.querySelector('.pk-ref').textContent = list.length > 1 ? church : [passageLabel(list[0]), church].filter(Boolean).join(' · ');
+    ytPeekEl.querySelector('.yt-list').innerHTML = list.map((x) => {
+      const meta = [list.length > 1 ? passageLabel(x) : '', x.preacher || '', dateLabel(x.date)].filter(Boolean).join(' · ');
+      return '<div class="yt-row">' + (list.length > 1 ? '<b>' + esc(x.title || '설교 영상') + '</b>' : '') +
+        (meta ? '<span>' + esc(meta) + '</span>' : '') +
+        '<button type="button" class="yt-go" data-yt="' + esc(x.id).replace(/"/g, '&quot;') + '"><i></i>유튜브에서 보기</button></div>';
+    }).join('');
+    return list;
+  }
+  function openYtCard(ids) {   // 접은 화면: 스포트라이트 없이 가운데 아래 카드
+    if (!fillYtCard(ids)) return;
+    const W = window.innerWidth, cw = Math.min(400, W - 24);
+    ytPeekEl.style.width = cw + 'px';
+    ytPeekEl.style.left = Math.round((W - cw) / 2) + 'px';
+    ytPeekEl.hidden = false;
+  }
+  function openYtSpot(key, ids) {
+    if (scroller || !flip || !pg || !bible.books[pg.bookIndex]) return;
+    closeSpot();
+    const list = fillYtCard(ids);
+    if (!list) return;
+    if (!spotStyleEl) { spotStyleEl = document.createElement('style'); document.head.appendChild(spotStyleEl); }
+    const bid = bible.books[pg.bookIndex].id, ks = {};
+    stage.querySelectorAll('p[data-k], p[data-s]').forEach((p) => {
+      const k = +(p.dataset.k || p.dataset.s);
+      if (list.some((x) => sermonCovers(x, bid, k))) ks[k] = 1;
+    });
+    const keys = Object.keys(ks);
+    spotStyleEl.textContent = keys.length ? keys.map((k) => '#stage.spot p[data-k="' + k + '"], #stage.spot p[data-s="' + k + '"]').join(', ') + ' { opacity: 1; }' : '';
+    spot.id = key;
+    stage.classList.add('spot');
+    tabsEl.classList.add('spot');
+    tabsEl.querySelectorAll('.nt-tab').forEach((t) => t.classList.toggle('sel', t.dataset.note === key));
+    placePeek(key, ytPeekEl, (p) => !!ks[+(p.dataset.k || p.dataset.s)]);
   }
 
   // --- 작성 중인 내용은 입력할 때마다 기기에 임시 저장한다 (설교를 들으며 쓰다가 앱이 닫혀도 남도록) ---
