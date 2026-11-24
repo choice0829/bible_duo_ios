@@ -141,6 +141,9 @@ body.is-spread .head-row { gap: 18px; }
 .title-btn { display: flex; align-items: baseline; gap: 8px; min-width: 0; max-width: 100%; text-align: left; flex: 0 1 auto; }
 .title-btn b { font-size: var(--title-fs); font-weight: 800; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .title-btn span { font-size: calc(var(--title-fs) * .4); color: var(--muted); white-space: nowrap; }
+/* v75: 글자를 최소(16px)까지 줄여도 책 이름이 넘칠 때만(작은 폰 세로) 간격을 좁힌다 — app.js fitTitle 이 붙임 */
+body.title-tight .head-row { gap: 6px; }
+body.title-tight .title-btn { gap: 4px; }
 .menu-row { display: flex; gap: 7px; flex: none; margin-left: auto; }   /* 펼친 화면: 메뉴는 한 줄로 오른쪽 끝 */
 body:not(.is-spread) .menu-row { display: grid; grid-template-columns: repeat(var(--menu-cols, 4), auto); gap: 6px 7px; }   /* 한 쪽 화면: 윗줄 3개 · 아랫줄 4개 (v70). 둘 다 오른쪽 끝에 맞춘다 */
 body:not(.is-spread) .menu-row > :nth-child(-n+3) { grid-row: 1; }

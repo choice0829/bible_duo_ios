@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v73';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v75';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -221,8 +221,11 @@
     const root = document.documentElement.style;
     const base = lastTitleFs || 44;
     let fs = base;
+    document.body.classList.remove('title-tight');
     root.setProperty('--title-fs', fs + 'px');
     while (fs > 16 && b.scrollWidth > b.clientWidth + 1) { fs -= 2; root.setProperty('--title-fs', fs + 'px'); }   // v70: 아이콘이 4열이 되어 좁아진 작은 폰(SE)에서 '데살로니가전·후서'가 잘리지 않도록 최소를 18 → 16px
+    // v75: 최소(16px)로도 넘치면(SE 세로의 '데살로니가후서' 등) 글자를 더 줄이지 않고 책 이름·장·아이콘 사이 간격만 좁힌다. 다른 화면은 여기까지 오지 않아 그대로다
+    if (b.scrollWidth > b.clientWidth + 1) document.body.classList.add('title-tight');
   }
   let lastTitleFs = 44;
 
