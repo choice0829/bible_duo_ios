@@ -5,7 +5,9 @@
 --   · 교회는 운영자가 승인할 때 만든다(같은 이름이 있으면 그 교회에 연결). 교회 관리자는 운영자가 승인된 성도 중에서 지정한다.
 --   · 승인 전: 성경·노트 등 기본 기능만. 승인 후: 그 교회의 설교 영상(그리고 2단계의 교회 게시판).
 --   · 증빙 서류는 비공개 보관함 'proofs' 의 <사용자 ID>/ 폴더에 본인만 올리고·보고·지울 수 있다. 승인·반려 후 앱이 지운다(최소 보관).
--- 운영자 작업(SQL Editor에서): select * from public.pending_members;  →  select public.approve_member('이메일');  /  select public.reject_member('이메일', '사유');
+-- v78: 앱 안 운영자 화면 — 운영자로 지정된 계정은 앱의 '내 계정 › 운영자'에서 새 계정·승인 대기 목록을 보고, 서류를 보고, 승인·반려·교회 관리자 지정을 한다.
+--   운영자 지정(SQL Editor에서 한 번): select public.make_operator('내 이메일');
+-- SQL Editor 에서도 그대로 할 수 있다: select * from public.pending_members;  →  select public.approve_member('이메일');  /  select public.reject_member('이메일', '사유');
 -- ※ 개인정보: 교회 소속·교인 증빙 서류는 종교에 관한 정보라 민감정보로 볼 소지가 큼 → 배포 전 법률 전문가 확인 필요(이 파일은 법률 판단이 아님).
 
 create extension if not exists pgcrypto;
@@ -39,6 +41,12 @@ create table if not exists public.memberships (
   created_at timestamptz not null default now()
 );
 create index if not exists memberships_church_idx on public.memberships (church_id);
+
+-- 운영자(앱 전체 관리자). SQL Editor 의 make_operator 로만 지정한다(앱에서 스스로 될 수 없음)
+create table if not exists public.app_operators (
+  user_id    uuid primary key references auth.users (id) on delete cascade,
+  created_at timestamptz not null default now()
+);
 
 -- 개인 정보(본인만 읽음, 쓰기는 함수로만)
 create table if not exists public.profiles (
@@ -108,6 +116,16 @@ language sql stable security definer set search_path = public as $$
     select 1 from public.memberships m join public.churches c on c.id = m.church_id
     where m.user_id = auth.uid() and m.role = 'admin' and c.status = 'active')
 $$;
+
+create or replace function public.am_operator() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.app_operators where user_id = auth.uid())
+$$;
+
+-- 운영자는 모든 증빙 서류를 볼 수 있다(앱이 짧게 유효한 서명 주소를 받아 보여 준다). 올리기·지우기는 본인만.
+drop policy if exists proofs_read_operator on storage.objects;
+create policy proofs_read_operator on storage.objects for select to authenticated
+  using (bucket_id = 'proofs' and public.am_operator());
 
 -- v75 까지의 함수(교회 개설 신청·초대코드 가입)는 없앤다
 drop function if exists public.request_church(text);
@@ -189,6 +207,8 @@ end $$;
 create or replace function public.my_account() returns jsonb
 language sql stable security definer set search_path = public as $$
   select jsonb_build_object(
+    'operator', public.am_operator(),
+    'pending_count', case when public.am_operator() then (select count(*) from public.profiles where church_status = 'pending') else 0 end,
     'profile', case when p.user_id is null then null else jsonb_build_object(
         'name', p.name, 'gender', p.gender, 'birth', to_char(p.birth, 'YYYYMMDD'), 'phone', p.phone,
         'church_name', p.church_name, 'church_status', p.church_status, 'reject_reason', p.reject_reason, 'proof_path', p.proof_path) end,
@@ -212,23 +232,52 @@ create or replace view public.pending_members as
   where p.church_status = 'pending'
   order by p.requested_at;
 
+-- 내부 함수(사용자 ID 기준). 아래 이메일판(SQL Editor)과 op_ 판(앱의 운영자 화면)이 함께 쓴다.
 -- 승인: 교회 이름(생략하면 신청한 이름)과 같은 교회가 있으면 연결, 없으면 만든다. p_admin = true 면 그 교회 관리자.
-create or replace function public.approve_member(p_email text, p_church_name text default null, p_admin boolean default false)
-returns text language plpgsql security definer set search_path = public, auth as $$
-declare uid uuid; nm text; cid uuid;
+create or replace function public._approve_user(p_uid uuid, p_church_name text, p_admin boolean)
+returns text language plpgsql security definer set search_path = public as $$
+declare nm text; cid uuid;
 begin
-  select id into uid from auth.users where lower(email) = lower(btrim(p_email));
-  if uid is null then return '없는 이메일: ' || p_email; end if;
-  select coalesce(nullif(btrim(p_church_name), ''), church_name) into nm from public.profiles where user_id = uid;
-  if nm is null then return '교회 이름이 없습니다(신청 전이거나 개인 정보가 없음): ' || p_email; end if;
+  select coalesce(nullif(btrim(p_church_name), ''), church_name) into nm from public.profiles where user_id = p_uid;
+  if nm is null then return '교회 이름이 없습니다(신청 전이거나 개인 정보가 없음)'; end if;
+  if char_length(nm) not between 2 and 40 then return '교회 이름은 2~40자여야 합니다'; end if;
   select id into cid from public.churches where lower(btrim(name)) = lower(nm);
   if cid is null then insert into public.churches (name, status) values (nm, 'active') returning id into cid;
   else update public.churches set status = 'active' where id = cid; end if;
-  insert into public.memberships (user_id, church_id, role) values (uid, cid, case when p_admin then 'admin' else 'member' end)
+  insert into public.memberships (user_id, church_id, role) values (p_uid, cid, case when p_admin then 'admin' else 'member' end)
   on conflict (user_id) do update set church_id = excluded.church_id, role = excluded.role;
   update public.profiles set church_status = 'approved', church_name = nm, reject_reason = null, reviewed_at = now(), updated_at = now()
-  where user_id = uid;
-  return '승인: ' || p_email || ' → ' || nm || case when p_admin then ' (관리자)' else '' end;
+  where user_id = p_uid;
+  return '승인: ' || nm || case when p_admin then ' (관리자)' else '' end;
+end $$;
+
+create or replace function public._reject_user(p_uid uuid, p_reason text)
+returns text language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  update public.profiles set church_status = 'rejected', reject_reason = left(nullif(btrim(p_reason), ''), 200), reviewed_at = now(), updated_at = now()
+  where user_id = p_uid and church_status = 'pending';
+  get diagnostics n = row_count;
+  return case when n = 0 then '승인 대기 중인 신청이 없습니다' else '반려했습니다' end;
+end $$;
+
+create or replace function public._set_admin(p_uid uuid, p_admin boolean)
+returns text language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  update public.memberships set role = case when p_admin then 'admin' else 'member' end where user_id = p_uid;
+  get diagnostics n = row_count;
+  return case when n = 0 then '승인된 소속이 없습니다' when p_admin then '교회 관리자로 지정했습니다' else '교회 관리자에서 해제했습니다' end;
+end $$;
+
+-- SQL Editor 용(이메일)
+create or replace function public.approve_member(p_email text, p_church_name text default null, p_admin boolean default false)
+returns text language plpgsql security definer set search_path = public, auth as $$
+declare uid uuid;
+begin
+  select id into uid from auth.users where lower(email) = lower(btrim(p_email));
+  if uid is null then return '없는 이메일: ' || p_email; end if;
+  return public._approve_user(uid, p_church_name, p_admin) || ' ← ' || p_email;
 end $$;
 
 create or replace function public.reject_member(p_email text, p_reason text default null)
@@ -237,25 +286,77 @@ declare uid uuid;
 begin
   select id into uid from auth.users where lower(email) = lower(btrim(p_email));
   if uid is null then return '없는 이메일: ' || p_email; end if;
-  update public.profiles set church_status = 'rejected', reject_reason = left(nullif(btrim(p_reason), ''), 200), reviewed_at = now(), updated_at = now()
-  where user_id = uid;
-  return '반려: ' || p_email;
+  return public._reject_user(uid, p_reason) || ' ← ' || p_email;
 end $$;
 
 create or replace function public.set_church_admin(p_email text, p_admin boolean default true)
 returns text language plpgsql security definer set search_path = public, auth as $$
-declare uid uuid; n int;
+declare uid uuid;
 begin
   select id into uid from auth.users where lower(email) = lower(btrim(p_email));
-  update public.memberships set role = case when p_admin then 'admin' else 'member' end where user_id = uid;
-  get diagnostics n = row_count;
-  return case when n = 0 then '승인된 소속이 없는 이메일: ' || p_email else '관리자 ' || case when p_admin then '지정: ' else '해제: ' end || p_email end;
+  if uid is null then return '없는 이메일: ' || p_email; end if;
+  return public._set_admin(uid, p_admin) || ' ← ' || p_email;
+end $$;
+
+-- 운영자 지정·해제(SQL Editor 에서만)
+create or replace function public.make_operator(p_email text, p_on boolean default true)
+returns text language plpgsql security definer set search_path = public, auth as $$
+declare uid uuid;
+begin
+  select id into uid from auth.users where lower(email) = lower(btrim(p_email));
+  if uid is null then return '없는 이메일: ' || p_email; end if;
+  if p_on then insert into public.app_operators (user_id) values (uid) on conflict do nothing;
+  else delete from public.app_operators where user_id = uid; end if;
+  return '운영자 ' || case when p_on then '지정: ' else '해제: ' end || p_email;
+end $$;
+
+-- ---------- 앱의 운영자 화면이 부르는 함수 (운영자가 아니면 'operator only') ----------
+-- 계정 목록: p_kind = 'pending'(승인 대기, 신청 순) | 'all'(최근 가입 순, 300명까지)
+create or replace function public.op_list_accounts(p_kind text default 'all') returns jsonb
+language plpgsql stable security definer set search_path = public, auth as $$
+declare out jsonb;
+begin
+  if not public.am_operator() then raise exception 'operator only' using errcode = 'P0001'; end if;
+  select coalesce(jsonb_agg(row_to_json(x)::jsonb), '[]'::jsonb) into out from (
+    select u.id, u.email, u.created_at, p.name, p.gender, to_char(p.birth, 'YYYYMMDD') as birth, p.phone,
+           p.church_name, coalesce(p.church_status, 'noprofile') as church_status, p.reject_reason, p.proof_path, p.requested_at,
+           c.name as church, m.role, exists (select 1 from public.app_operators o where o.user_id = u.id) as operator
+    from auth.users u
+    left join public.profiles p on p.user_id = u.id
+    left join public.memberships m on m.user_id = u.id
+    left join public.churches c on c.id = m.church_id
+    where coalesce(p_kind, 'all') <> 'pending' or p.church_status = 'pending'
+    order by case when p_kind = 'pending' then p.requested_at end asc nulls last, u.created_at desc
+    limit 300) x;
+  return out;
+end $$;
+
+create or replace function public.op_approve(p_uid uuid, p_church_name text default null, p_admin boolean default false)
+returns text language plpgsql security definer set search_path = public as $$
+begin
+  if not public.am_operator() then raise exception 'operator only' using errcode = 'P0001'; end if;
+  return public._approve_user(p_uid, p_church_name, p_admin);
+end $$;
+
+create or replace function public.op_reject(p_uid uuid, p_reason text default null)
+returns text language plpgsql security definer set search_path = public as $$
+begin
+  if not public.am_operator() then raise exception 'operator only' using errcode = 'P0001'; end if;
+  return public._reject_user(p_uid, p_reason);
+end $$;
+
+create or replace function public.op_set_admin(p_uid uuid, p_admin boolean default true)
+returns text language plpgsql security definer set search_path = public as $$
+begin
+  if not public.am_operator() then raise exception 'operator only' using errcode = 'P0001'; end if;
+  return public._set_admin(p_uid, p_admin);
 end $$;
 
 -- ---------- 행 단위 접근 규칙 ----------
 alter table public.churches    enable row level security;
 alter table public.memberships enable row level security;
 alter table public.profiles    enable row level security;
+alter table public.app_operators enable row level security;
 alter table public.sermons     enable row level security;
 
 drop policy if exists churches_read on public.churches;
@@ -281,16 +382,20 @@ create policy sermons_admin_del on public.sermons for delete to authenticated
   using (public.am_church_admin() and church_id = public.my_active_church_id());
 
 -- ---------- 권한 (로그인 안 한 사용자 = anon 은 아무것도 못 함) ----------
-revoke all on public.churches, public.memberships, public.profiles, public.sermons, public.pending_members from anon, authenticated;
+revoke all on public.churches, public.memberships, public.profiles, public.sermons, public.pending_members, public.app_operators from anon, authenticated;
 grant select (id, name, status, created_at) on public.churches to authenticated;
 grant select on public.memberships to authenticated;
 grant select on public.profiles to authenticated;
 grant select, insert, update, delete on public.sermons to authenticated;
-revoke all on function public.my_church_id(), public.my_active_church_id(), public.am_church_admin() from public, anon;
-grant execute on function public.my_church_id(), public.my_active_church_id(), public.am_church_admin() to authenticated;
+revoke all on function public.my_church_id(), public.my_active_church_id(), public.am_church_admin(), public.am_operator() from public, anon;
+grant execute on function public.my_church_id(), public.my_active_church_id(), public.am_church_admin(), public.am_operator() to authenticated;
 revoke all on function public.save_my_profile(text, text, text, text, boolean), public.request_church_membership(text, text),
   public.clear_my_proof(), public.leave_church(), public.delete_my_account(), public.my_account() from public, anon;
 grant execute on function public.save_my_profile(text, text, text, text, boolean), public.request_church_membership(text, text),
   public.clear_my_proof(), public.leave_church(), public.delete_my_account(), public.my_account() to authenticated;
-revoke all on function public.approve_member(text, text, boolean), public.reject_member(text, text), public.set_church_admin(text, boolean)
+revoke all on function public.approve_member(text, text, boolean), public.reject_member(text, text), public.set_church_admin(text, boolean),
+  public.make_operator(text, boolean), public._approve_user(uuid, text, boolean), public._reject_user(uuid, text), public._set_admin(uuid, boolean)
   from public, anon, authenticated;
+-- 앱의 운영자 화면용: 로그인 사용자는 부를 수 있지만, 함수 안에서 운영자인지 확인한다
+revoke all on function public.op_list_accounts(text), public.op_approve(uuid, text, boolean), public.op_reject(uuid, text), public.op_set_admin(uuid, boolean) from public, anon;
+grant execute on function public.op_list_accounts(text), public.op_approve(uuid, text, boolean), public.op_reject(uuid, text), public.op_set_admin(uuid, boolean) to authenticated;

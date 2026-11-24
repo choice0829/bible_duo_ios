@@ -393,6 +393,9 @@ html.kb #sheet.tall .panel { height: 100%; }
 }
 /* 설교 영상 탭(교회 계정 1단계): 노트 탭과 같은 가장자리에 섞여 쌓이고, 빨간 배경에 흰 재생 삼각형(여러 개면 아래에 개수) */
 .yt-tab { --n1: #D2302B; background: #D2302B; flex-direction: column; gap: 5px; }
+/* v78: 노트 탭 바로 밑에서 그 뒤로 10px 들어가 겹치는 영상 탭(노트 탭이 앞). 재생 표시는 보이는 부분 가운데에 */
+.nt-tab { z-index: 2; }
+.yt-tab.tuck { z-index: 1; padding-top: 10px; }
 .yt-tab i { width: 0; height: 0; border-style: solid; border-width: 6px 0 6px 10px; border-color: transparent transparent transparent #fff; margin-left: 2px; pointer-events: none; }
 .yt-tab b { writing-mode: horizontal-tb; -webkit-writing-mode: horizontal-tb; font-size: 11px; }
 /* 설교 영상 미리보기 카드: 노트 카드와 같은 모양, 윗줄만 빨강 */
@@ -922,3 +925,23 @@ html.kb .mp-view { padding-bottom: 24px; }
 .ch-feat .ch-kv > span { color: var(--fg); font-size: 13.5px; }
 .ch-yes { flex: none; color: #2E7D4F; font-size: 12.5px; }
 .ch-no { flex: none; color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+/* ---------- 역할 배지 · 운영자 화면 (v78) ---------- */
+.ch-roles { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 4px; }
+.ch-role { font-style: normal; font-size: 12.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px; color: #fff; background: var(--muted); white-space: nowrap; }
+.ch-role.op { background: #5B4BB0; }
+.ch-role.admin { background: #2F7FB5; }
+.ch-role.member { background: #2E7D4F; }
+.ch-role.none { background: var(--line); color: var(--fg); }
+.ch-role.sm { font-size: 10.5px; padding: 2px 7px; vertical-align: 1px; }
+.ch-count { font-style: normal; display: inline-block; min-width: 20px; padding: 1px 6px; border-radius: 999px; background: #C0392B; color: #fff; font-size: 12px; font-weight: 700; text-align: center; }
+.ch-new { font-style: normal; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 6px; background: #C0392B; color: #fff; vertical-align: 1px; }
+.ch-urow .chev { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.ch-urow > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.ch-proof-img { display: block; width: 100%; max-height: 70vh; margin-top: 10px; border-radius: 10px; border: 1px solid var(--line); object-fit: contain; background: #fff; }
+.ch-chk-row { margin-top: 12px; font-size: 13.5px; color: var(--fg); }
+/* 머리줄 사람 아이콘: 운영자일 때 승인 대기 건수 */
+#btn-acct { position: relative; }
+.acct-dot {
+  position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 9px;
+  background: #C0392B; color: #fff; font: 700 11px/18px var(--sans); text-align: center; pointer-events: none; box-shadow: 0 0 0 2px var(--bg);
+}

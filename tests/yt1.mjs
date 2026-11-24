@@ -18,11 +18,15 @@ const seed={fn:([n,s])=>{ window.__msgs=[]; window.webkit={messageHandlers:{bf:{
   const tabs=await p.evaluate(()=>[...document.querySelectorAll('.nt-tab')].map(t=>{const r=t.getBoundingClientRect(); return {id:t.dataset.note||'more',yt:t.dataset.yt||'',n:(t.querySelector('b')||{}).textContent||'',l:Math.round(r.left),r:Math.round(r.right),t:Math.round(r.top),h:Math.round(r.height),right:t.classList.contains('nt-r'),bg:getComputedStyle(t).backgroundColor};}));
   console.log('tabs',JSON.stringify(tabs));
   const y1=tabs.find(t=>t.yt==='s1'), grp=tabs.find(t=>t.yt.split(' ').length===2), note=tabs.find(t=>t.id==='n1abc');
-  ok('a red play tab for s1 (1:3-5) on the left edge, stacked with the note tab of the same line without overlap', !!y1 && !!note && !y1.right && y1.bg==='rgb(210, 48, 43)' && (y1.t>=note.t+note.h || note.t>=y1.t+y1.h) && y1.l===note.l, JSON.stringify([y1,note]));
+  ok('v78: s1 (same passage as the note) is a red tab tucked 10px behind the bottom of the note tab', !!y1 && !!note && !y1.right && y1.bg==='rgb(210, 48, 43)' && y1.t===note.t+note.h-10 && y1.h===48 && y1.l===note.l, JSON.stringify([y1,note]));
+  { const z=await p.evaluate(()=>{ const n=document.querySelector('.nt-tab[data-note="n1abc"]').getBoundingClientRect(), y=document.querySelector('.yt-tab[data-yt="s1"]').getBoundingClientRect(); const at=(x,yy)=>{const e=document.elementFromPoint(x,yy); const t=e&&e.closest('.nt-tab'); return t?(t.dataset.yt||t.dataset.note):null;}; return {overlap:at(n.left+n.width/2,n.bottom-4), visible:at(y.left+y.width/2,y.top+10+(y.height-10)/2), tuck:document.querySelector('.yt-tab[data-yt="s1"]').classList.contains('tuck')}; });
+    ok('v78: in the overlap the note tab is in front; the visible part belongs to the video tab', z.overlap==='n1abc' && z.visible==='s1' && z.tuck, JSON.stringify(z)); }
+  { const g=await p.evaluate(()=>{ const t=document.querySelector('.yt-tab[data-yt="s3 s2"]'); return {tuck:t.classList.contains('tuck'), h:Math.round(t.getBoundingClientRect().height)}; });
+    ok('v78: a video tab with no note above it is not tucked (normal height)', !g.tuck && g.h===52, JSON.stringify(g)); }
   ok('s2·s3 (both start at 1:11, right page) share ONE right tab showing 2, newest first', !!grp && grp.right && grp.n==='2' && grp.yt==='s3 s2', JSON.stringify(grp));
   ok('other-book (s4) and invalid entries get no tab', !tabs.some(t=>/s4|bad/.test(t.yt)), JSON.stringify(tabs));
   const lt=tabs.filter(t=>!t.right);
-  ok('left-side tabs do not overlap each other', lt.sort((a,c)=>a.t-c.t).every((t,i)=>i===0||t.t>=lt[i-1].t+lt[i-1].h), JSON.stringify(lt));
+  ok('left-side tabs do not overlap, except a video tab tucked exactly 10px behind the note above it (v78)', lt.sort((a,c)=>a.t-c.t).every((t,i)=>i===0||t.t>=lt[i-1].t+lt[i-1].h||(t.yt&&!lt[i-1].yt&&t.t===lt[i-1].t+lt[i-1].h-10)), JSON.stringify(lt));
   await p.screenshot({path:'yt1-spread.png'});
   // 묶인 탭 누르기 → 스포트라이트 + 목록 카드
   await p.evaluate(()=>document.querySelector('.nt-tab[data-yt="s3 s2"]').click()); await sleep(450);
