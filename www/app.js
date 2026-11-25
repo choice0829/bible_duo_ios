@@ -38,7 +38,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v93';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v94';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -216,7 +216,8 @@
     // 아이폰 앱(듀오): 글자가 오른쪽 열 쪽까지 들어와 상태 알약(약 x 877~930, y 22~114)과 겹치면, 본문과 책장 넘김 영역의 윗면을 알약 아래로 내린다.
     const cardRight = shiftX + pageW * 2;
     const intoPill = NATIVE && spread && !sym && si.right >= 60 && cardRight > W - si.right + NATIVE_PILL_LEFT;
-    const padTop = Math.max(
+    // v94 듀오 접힘: 머리줄(남색) 높이·위치를 듀오 펼침과 같게(책 이름 위 29px, 남색 아래 끝 118px)
+    const padTop = duoFold ? Math.max(Math.ceil(si.top + HEAD_TOP_GAP + hb.rowH + NATIVE_HEAD_STAGE_GAP), NATIVE_PILL_BOTTOM) : Math.max(
       si.top + 56,
       Math.ceil(si.top + HEAD_TOP_GAP + hb.rowH + HEAD_BODY_GAP),
       // v85: 로고 줄만큼 머리줄이 높아져, 낮은 펼침 화면(가로 아이폰·iPad)에서 머리줄이 책 윗면에 걸리지 않도록 책(무대)을 그 아래에서 시작시킨다
@@ -226,7 +227,7 @@
     );
     // v89: 화면 아래 책 약자 줄(읽기 진도)은 책 영역 밖 아래 여백에 둔다 → 책(펼침 무대·접힘 스크롤 영역)이 그 위에서 끝난다
     // 아래 안전영역(홈 막대 자리)까지 약자 줄 바탕이 채운다. v90: 듀오 접힘은 아래 안전영역이 넓게 잡혀 약자 줄 아래가 많이 비므로 6px만 둔다
-    const rdInset = duoFold ? Math.min(Math.round(si.bottom), 6) : Math.max(Math.round(si.bottom), spread ? 6 : 0);
+    const rdInset = duoFold ? 6 :   /* v94: 듀오 접힘도 펼침과 같은 약자 줄(30 + 아래 6px) */ Math.max(Math.round(si.bottom), spread ? 6 : 0);
     const rdArea = RD_H + rdInset;
     const stripH = 0;
     const padBottom = spread ? eff.bottomSpread : 10;
@@ -344,7 +345,7 @@
     lastTitleFs = titleFs;
     root.setProperty('--title-fs', titleFs + 'px');
     root.setProperty('--menu-cols', MENU_COLS);
-    root.setProperty('--head-top', Math.max(g.si.top + HEAD_TOP_GAP, (g.spread ? g.stageTop - (NATIVE ? NATIVE_HEAD_STAGE_GAP : HEAD_STAGE_GAP) : g.padTop - 12) - rowH) + 'px');
+    root.setProperty('--head-top', Math.max(g.si.top + HEAD_TOP_GAP, (g.spread ? g.stageTop - (NATIVE ? NATIVE_HEAD_STAGE_GAP : HEAD_STAGE_GAP) : g.duoFold ? g.padTop - NATIVE_HEAD_STAGE_GAP : g.padTop - 12) - rowH) + 'px');
     applyDesk();
     stage.style.width = g.bookW + 'px';
     stage.style.height = g.pageH + 'px';
