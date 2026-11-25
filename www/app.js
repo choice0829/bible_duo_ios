@@ -27,6 +27,7 @@
   const NATIVE_HEAD_STAGE_GAP = 16;     // 머리줄(책 이름·메뉴) 아래에서 카드 윗면까지(px). 웹앱은 6 (v40: 책 이름을 10px 위로)
   const NATIVE_BOTTOM_GAP_COMPACT = 10;
   const NATIVE_PAD_BOTTOM = 14;         // 앱 펼침: 위 간격에 더하는 본문 아래 여백(px)
+  const DUO_SPREAD_PAD = 6;             // v91 듀오 펼침: 책장 위 끝 ~ 첫 줄, 마지막 줄 ~ 책장 아래 끝 여백(px). 예전 26 → 위아래 보이는 여백이 약 절반
   const NATIVE_PILL_BOTTOM = 118;       // 듀오 오른쪽 열의 상태 알약(시계·배터리)이 끝나는 높이(실기기 화면에서 잰 약 114px + 4px). 글자가 알약 쪽까지 올 때 본문·책장 넘김 영역은 이 아래에서 시작한다
   const NATIVE_PILL_LEFT = 10;          // 알약이 오른쪽 열(안전영역) 왼쪽 끝에서 안쪽으로 들어온 만큼(px)
   // 여백 기본값을 바꿀 때 이 번호를 올리면, 기기에 저장돼 있던 펼침 여백 값이 새 기본값으로 한 번 바뀐다.
@@ -35,7 +36,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v90';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v91';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -186,7 +187,7 @@
       topSpread: compact ? TOP_COMPACT.topSpread : TOP_DEFAULT.topSpread,
       topSingle: compact ? TOP_COMPACT.topSingle : TOP_DEFAULT.topSingle,
       shiftX: duo ? SHIFT_DEFAULT : Math.max(Math.round(si.left), SPREAD_MIN_SHIFT),
-      bottomSpread: NATIVE && spread ? NATIVE_PAD_BOTTOM + Math.max(compact ? NATIVE_BOTTOM_GAP_COMPACT : NATIVE_BOTTOM_GAP, Math.round(si.bottom)) : duo ? BOTTOM_SPREAD_DEFAULT : Math.max(Math.round(si.bottom), compact ? 10 : BOTTOM_SPREAD_DEFAULT),
+      bottomSpread: NATIVE && spread && duo && !compact ? DUO_SPREAD_PAD : NATIVE && spread ? NATIVE_PAD_BOTTOM + Math.max(compact ? NATIVE_BOTTOM_GAP_COMPACT : NATIVE_BOTTOM_GAP, Math.round(si.bottom)) : duo ? BOTTOM_SPREAD_DEFAULT : Math.max(Math.round(si.bottom), compact ? 10 : BOTTOM_SPREAD_DEFAULT),
     };
     const eff = {};
     Object.keys(auto).forEach((k) => { eff[k] = typeof settings[k] === 'number' ? settings[k] : auto[k]; });
@@ -233,7 +234,7 @@
     const pageH = H - stageTop - rdArea;
     // v86 아이폰 앱 펼침: 책장 맨 위(남색 머리줄 아래 끝)에서 첫 줄까지 = 마지막 줄 아래 ~ 화면 바닥 여백(padBottom)이 되게 한다.
     // 남는 높이(쪽마다 다름)는 pageElement 에서 위·아래로 반씩 나눈다(spreadTopShift).
-    const txtTop = full ? Math.max(padTop - stageTop, padBottom - stripH) : padTop - stageTop;
+    const txtTop = full ? (duo && !compact && padBottom === DUO_SPREAD_PAD ? padBottom : Math.max(padTop - stageTop, padBottom - stripH)) : padTop - stageTop;   // v91 듀오 펼침: 위아래 같은 여백
     // 머리줄(책 이름·메뉴)의 오른쪽 끝: 책의 오른쪽 본문 끝에 맞추되, 오른쪽 안전영역(상태 아이콘 자리)은 피한다
     const bookRight = spread ? shiftX + pageW * 2 : W;
     const headR = duoFold ? DUO_FOLD_RESERVE : Math.max(Math.round(W - bookRight + padOut), Math.round(si.right) + (spread ? 8 : 14), 14);
