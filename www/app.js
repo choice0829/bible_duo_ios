@@ -311,6 +311,9 @@
     root.setProperty('--headr', g.headR + 'px');
     flipUp = g.full ? Math.max(0, NATIVE_HEAD_STAGE_GAP - 1) : 0;   // 아이폰 앱 펼침(html.full)에서만. 웹(PC)은 책 카드 그림자가 있어 예전 그대로 둔다
     root.setProperty('--flip-up', flipUp + 'px');   // style.css: #stage 가 위쪽으로 이만큼 더 보여 준다(책장이 넘어갈 때 윗부분이 한 줄로 잘리지 않게)
+    // v85: 머리줄이 남색이 되어, 넘기는 책장 위로 번지는 옅은 그림자가 --flip-up(15px)에서 곧은 선으로 잘려 보였다(예전엔 종이색 위라 안 보임).
+    // 책장이 들리는 높이(liftMax, flipUp 기준)는 그대로 두고, 자르는 창만 머리줄 영역 전체(stageTop)까지 넓힌다. 머리줄(z 10)은 그 위에 그려진다.
+    root.setProperty('--flip-clip', (g.full ? Math.max(flipUp, g.stageTop) : 0) + 'px');
     root.setProperty('--padbottom', g.padBottom + 'px');
     // 상단: 접힘 = 책 이름 위, 메뉴 아래(본문 바로 위) / 펼침 = 한 줄(책 이름 왼쪽, 메뉴 오른쪽)
     const hb = headBox(g.spread, g.compact, g.duoFold), titleFs = hb.titleFs, rowH = hb.rowH;
