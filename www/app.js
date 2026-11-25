@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v87';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v88';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -3384,7 +3384,7 @@
   function readMarkHTML(bookId, ch) {
     const d = readOf(bookId)[ch];
     return '<div class="rd-mark" data-rb="' + bookId + '" data-rc="' + ch + '"><button type="button" class="rd-btn' + (d ? ' on' : '') + '" aria-pressed="' + !!d + '" aria-label="' + ch + '장 읽음 표시">' +
-      '<i aria-hidden="true"></i><span>' + (d ? dateLabel(d) + ' 읽음' : '') + '</span></button></div>';
+      '<span>' + (d ? dateLabel(d) + ' 읽음' : '') + '</span><i aria-hidden="true"></i></button></div>';   // v88: 날짜는 ●의 왼쪽
   }
   function setRead(bookId, ch, on) {
     const m = readDB[bookId] || (readDB[bookId] = {});

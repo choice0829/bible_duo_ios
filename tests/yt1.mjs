@@ -74,7 +74,9 @@ const seed={fn:([n,s])=>{ window.__msgs=[]; window.webkit={messageHandlers:{bf:{
         dy:Math.round(Math.abs(r.bottom-c.bottom)), after:r.left>=c.right-1, inBtn:!!el.closest('#btn-pick'), rightGap:Math.round(R(document.querySelector('#btn-pick')).right-r.right), pages:[...document.querySelectorAll('#stage .page')].map(R).filter(x=>x.width>10&&x.right>1&&x.left<innerWidth-1).length, leftTxtR:Math.round(Math.max(0,...[...document.querySelectorAll('#stage .page p[data-k]')].map(R).filter(x=>x.width>10&&x.left<innerWidth/2-20&&x.right>1).map(x=>x.right))), elR:Math.round(r.right), cut:el.scrollWidth>el.clientWidth+1, bookCut:bk.scrollWidth>bk.clientWidth+1,
         hitIcon:icons.some(i=>r.left<i.right&&i.left<r.right&&r.top<i.bottom&&i.top<r.bottom)}; });
     ok('folded: v82 "with" right-aligned to the end of the title line', t.rightGap<=1, 'gap '+t.rightGap);
-    ok('folded: v80 "with 한사람교회" right after the chapter label, same size·color·line, not cut, not over the icons', t.text==='with 한사람교회' && !t.hidden && t.fs===t.chFs && t.color && t.dy<=1 && t.after && t.inBtn && !t.cut && !t.bookCut && !t.hitIcon, JSON.stringify(t)); }
+    // v88: 한 쪽 화면은 머리줄의 장 수를 숨긴다 → with 는 장 수가 있던 자리 크기(책 이름의 0.4배)로 줄 오른쪽 끝에
+    { const h=await p.evaluate(()=>({chHidden:getComputedStyle(document.querySelector('#loc-ch')).display==='none', bookFs:parseFloat(getComputedStyle(document.querySelector('#loc-book')).fontSize), fs:parseFloat(getComputedStyle(document.querySelector('#loc-church')).fontSize)}));
+      ok('folded: v88 chapter number hidden in the header; "with 한사람교회" at chapter-label size (0.4 × title), not cut, not over the icons', h.chHidden && Math.abs(h.fs-h.bookFs*0.4)<0.6 && t.text==='with 한사람교회' && !t.hidden && t.inBtn && !t.cut && !t.bookCut && !t.hitIcon, JSON.stringify({h,t})); } }
   ok('folded: no page errors', errs.length===0, JSON.stringify(errs)); await p.close(); }
 
 // ---- 영상 목록이 없으면(지금 모든 사용자) 아무것도 안 보임 ----

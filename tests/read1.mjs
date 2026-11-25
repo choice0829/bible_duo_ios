@@ -71,7 +71,11 @@ const pageIdx=(p)=>p.evaluate(()=>{const pages=[...document.querySelectorAll('#s
   const mk=(await visMarks(p)).find(m=>m.ch==='1');
   ok('folded: chapter 1 end shows ○ after the last verse, above the strip', !!mk && !mk.on && mk.b<=s.r.top, JSON.stringify(mk));
   if (mk) { await p.touchscreen.tap(mk.x,mk.y); await sleep(500);
-    ok('folded: tap → ● with date, saved', (await visMarks(p)).find(m=>m.ch==='1').on && (await readLS(p)).gen['1']===today); }
+    ok('folded: tap → ● with date, saved', (await visMarks(p)).find(m=>m.ch==='1').on && (await readLS(p)).gen['1']===today);
+    const lr=await p.evaluate(()=>{const b=document.querySelector('.rd-mark[data-rc="1"] .rd-btn'); return {span:b.querySelector('span').getBoundingClientRect().right, dot:b.querySelector('i').getBoundingClientRect().left};});
+    ok('v88: the date is LEFT of the ●', lr.span<=lr.dot, JSON.stringify(lr)); }
+  const gap=await p.evaluate(()=>{const c=[...document.querySelectorAll('#book .chap')].find(x=>{const r=x.getBoundingClientRect(); return r.left>-2&&r.left<innerWidth/2;}); c.scrollTop=0; return c.querySelector('h2.ch').getBoundingClientRect().top-document.querySelector('#book').getBoundingClientRect().top;});
+  ok('v88: folded text starts a little below the header (≥ 14px gap)', gap>=14, 'gap='+Math.round(gap));
   await p.screenshot({path:'read1-folded.png',captureBeyondViewport:false});
   ok('no page errors (folded)', errs.length===0, JSON.stringify(errs)); await p.close(); }
 
