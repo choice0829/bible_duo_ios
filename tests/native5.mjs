@@ -30,7 +30,7 @@ await p.screenshot({path:'native5-turn.png'});
 const hdr=await p.evaluate(()=>{ const st=document.querySelector('#stage').getBoundingClientRect(); return {top:st.top, ov:getComputedStyle(document.querySelector('#stage')).overflow, cp:getComputedStyle(document.querySelector('#stage')).clipPath}; });
 await p.touchscreen.touchEnd(); await sleep(1600);
 // v56: 자르는 창이 clip-path(위쪽으로만 15px, 머리줄과 책 사이 간격 안쪽)로 바뀜 — 책장은 y 103 보다 위(머리줄)로는 올라가지 않는다
-ok('stage top == 118 and clips (overflow clip or clip-path inset ≤ 15px upward)', Math.abs(hdr.top-118)<=0.5 && (/clip|hidden/.test(hdr.ov) || (hdr.ov==='visible' && /^inset\(-(\d+(\.\d+)?)px 0px 0px\)$/.test(hdr.cp) && parseFloat(hdr.cp.match(/-([\d.]+)px/)[1])<=15)), JSON.stringify(hdr));
+ok('stage top == 118 and clips (overflow clip, or clip-path widened upward no further than the header area = stage top; v85: 남색 머리줄에서 넘김 그림자가 잘려 보이지 않게)', Math.abs(hdr.top-118)<=0.5 && (/clip|hidden/.test(hdr.ov) || (hdr.ov==='visible' && /^inset\(-(\d+(\.\d+)?)px 0px 0px\)$/.test(hdr.cp) && parseFloat(hdr.cp.match(/-([\d.]+)px/)[1])<=hdr.top+0.5)), JSON.stringify(hdr));
 console.log('tabs',JSON.stringify(tabs));
 { const lt=tabs.filter(t=>!t.right), rt=tabs.filter(t=>t.right);
   ok('left tabs: 10px in from the screen edge, width>=16, >=8px before the text (text starts at 38)', lt.length>=2 && lt.every(t=>Math.abs(t.l-10)<=0.5 && t.r-t.l>=16 && 38-t.r>=8), JSON.stringify(lt));
