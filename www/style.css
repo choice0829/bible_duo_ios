@@ -111,7 +111,7 @@ html.full #stage:not(.scroll) { overflow: visible; clip-path: inset(calc(var(--f
   color: var(--fg);
 }
 /* 절마다 새 줄 */
-.typo p { margin: 0 0 .22em; }
+.typo p { margin: 0 0 .06em; }   /* v93: 절 사이 간격을 줄임(예전 .22em) */
 .typo p:last-child { margin-bottom: 0; }
 /* 쉬운 말 풀이: 개역한글 절 바로 아래에 작게. 쪽 나누기(#measure)와 실제 쪽(.txt)에 똑같이 적용된다 */
 .typo p.std { font-size: .88em; line-height: 1.66; color: var(--std); margin: -.02em 0 .5em; }

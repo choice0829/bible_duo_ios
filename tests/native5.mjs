@@ -1,6 +1,6 @@
 import {serve,launch,sleep,openDevice} from './devlib.mjs';
 serve(8930); const b=await launch(); let fails=0; const ok=(n,c,x='')=>{console.log((c?'ok  ':'FAIL')+' '+n+' '+x); if(!c) fails++;};
-const notes={items:[{id:'n1abc',ci:0,title:'창조의 순서',body:'본문 묵상',date:'2026-11-18',bk:'gen',c1:1,v1:3,c2:1,v2:5,ts:1},{id:'n2abc',ci:1,title:'기초의 복음서 공부',body:'여섯 글자 탭',date:'2026-11-19',bk:'gen',c1:1,v1:6,c2:1,v2:7,ts:2},{id:'n3abc',ci:2,title:'셋째 날 묵상',body:'오른쪽 쪽',date:'2026-11-20',bk:'gen',c1:1,v1:9,c2:1,v2:10,ts:3},{id:'n4abc',ci:3,title:'광명체 이야기',body:'오른쪽 쪽에서 시작해 다음 쪽으로 이어짐',date:'2026-11-21',bk:'gen',c1:1,v1:12,c2:1,v2:14,ts:4}]};
+const notes={items:[{id:'n1abc',ci:0,title:'창조의 순서',body:'본문 묵상',date:'2026-11-18',bk:'gen',c1:1,v1:3,c2:1,v2:5,ts:1},{id:'n2abc',ci:1,title:'기초의 복음서 공부',body:'여섯 글자 탭',date:'2026-11-19',bk:'gen',c1:1,v1:6,c2:1,v2:7,ts:2},{id:'n3abc',ci:2,title:'셋째 날 묵상',body:'오른쪽 쪽',date:'2026-11-20',bk:'gen',c1:1,v1:9,c2:1,v2:10,ts:3},{id:'n4abc',ci:3,title:'광명체 이야기',body:'오른쪽 쪽에서 시작해 다음 쪽으로 이어짐',date:'2026-11-21',bk:'gen',c1:1,v1:14,c2:1,v2:15,ts:4}]};
 const seed={fn:(n)=>{ window.webkit={messageHandlers:{bf:{postMessage:()=>{}}}}; if(!sessionStorage.getItem('s')){sessionStorage.setItem('s','1'); localStorage.clear(); localStorage.setItem('bf.pos',JSON.stringify({book:0,chapter:0,verse:1})); localStorage.setItem('bf.notes',JSON.stringify(n));}}, arg:notes};
 const {p,errs}=await openDevice(b,['d',951,669,{top:0,right:84,bottom:0,left:0}],{seed,port:8930,query:'?native=1'}); await sleep(700);
 await p.screenshot({path:'native5-rest.png'});
@@ -8,7 +8,7 @@ const readTabs=()=>p.evaluate(()=>[...document.querySelectorAll('.nt-tab')].map(
 const tabs=await readTabs();
 { const lb=await p.evaluate(()=>[...document.querySelectorAll('.nt-tab')].map(t=>({t:t.querySelector('b').textContent,h:Math.round(t.getBoundingClientRect().height),w:Math.round(t.getBoundingClientRect().width)})));
   ok('v64: note tab label shows the first 6 chars (spaces removed)', lb.some(x=>x.t==='기초의복음서') && lb.some(x=>x.t==='창조의순서'), JSON.stringify(lb));
-  ok('v67: only the first-line page decides the side: notes on the left page (n1 1:3-5, n2 1:6-7) are left tabs, notes whose first line is on the right page (n3 1:9-10, n4 1:12-14) are right tabs (v89: verses moved for the shorter page)', (()=>{const g=(id)=>tabs.find(t=>t.id===id); return g('n1abc')&&g('n2abc')&&g('n3abc')&&g('n4abc')&&!g('n1abc').right&&!g('n2abc').right&&g('n3abc').right&&g('n4abc').right;})(), JSON.stringify(tabs));
+  ok('v67: only the first-line page decides the side: notes on the left page (n1 1:3-5, n2 1:6-7) are left tabs, notes whose first line is on the right page (n3 1:9-10, n4 1:14-15) are right tabs (v89·v93: verses moved as the page length changed)', (()=>{const g=(id)=>tabs.find(t=>t.id===id); return g('n1abc')&&g('n2abc')&&g('n3abc')&&g('n4abc')&&!g('n1abc').right&&!g('n2abc').right&&g('n3abc').right&&g('n4abc').right;})(), JSON.stringify(tabs));
   ok('v64/v66: 6-char tab is taller than the 5-char one (99 vs 86.5) and both are 18px wide', (()=>{const a=lb.find(x=>x.t==='기초의복음서'),c=lb.find(x=>x.t==='창조의순서'); return a&&c&&a.h>c.h&&a.h>=98&&a.w===18&&c.w===18;})(), JSON.stringify(lb)); }
 await p.screenshot({path:'native5-rest.png'});
 
@@ -36,7 +36,7 @@ console.log('tabs',JSON.stringify(tabs));
   ok('left tabs: 10px in from the screen edge, width>=16, >=8px before the text (text starts at 38)', lt.length>=2 && lt.every(t=>Math.abs(t.l-10)<=0.5 && t.r-t.l>=16 && 38-t.r>=8), JSON.stringify(lt));
   ok('v67: right tabs mirror the left ones: 10px in from the right screen edge (W-10), same width, >=8px after the text (text ends at W-38)', rt.length>=2 && rt.every(t=>Math.abs((951-t.r)-10)<=0.5 && t.r-t.l===(lt[0].r-lt[0].l) && t.l-(951-38)>=8), JSON.stringify(rt));
   ok('v67: right tabs stay below the status pill (y>=118) and do not overlap each other', rt.every(t=>t.t>=118) && rt.every((t,i)=>i===0||t.t>=rt[i-1].t+rt[i-1].h), JSON.stringify(rt)); }
-// 다음 쪽으로 넘어가면: 오른쪽 쪽에서 시작했던 n4(1:12-14, v89)가 이번엔 왼쪽 쪽에서 이어지므로 왼쪽 탭으로 돌아온다
+// 다음 쪽으로 넘어가면: 오른쪽 쪽에서 시작했던 n4(1:14-15, v93)가 이번엔 왼쪽 쪽에서 이어지므로 왼쪽 탭으로 돌아온다
 { const ta=await readTabs(); console.log('tabs after turn',JSON.stringify(ta));
   const n4=ta.find(t=>t.id==='n4abc');
   ok('v67: after turning the page, the note that continues on the new LEFT page is a left tab again (and notes no longer on screen have no tab)', !!n4 && !n4.right && Math.abs(n4.l-10)<=0.5 && !ta.some(t=>t.id==='n3abc'), JSON.stringify(ta)); }
