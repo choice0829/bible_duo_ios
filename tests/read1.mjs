@@ -70,6 +70,8 @@ const pageIdx=(p)=>p.evaluate(()=>{const pages=[...document.querySelectorAll('#s
   ok('folded: strip at the very bottom, full width, scrolls sideways', Math.round(s.r.bottom)===s.H && s.r.left===0 && Math.round(s.r.right)===s.W && s.over && s.tops.length===1, JSON.stringify({r:s.r,over:s.over}));
   const railBot=await p.evaluate(()=>Math.max(...[...document.querySelectorAll('.menu-row > button')].map(x=>x.getBoundingClientRect().bottom)));
   ok('folded: strip does not overlap the right menu rail', railBot<=s.r.top, 'rail.bottom='+Math.round(railBot)+' strip.top='+Math.round(s.r.top));
+  await p.evaluate(()=>{ window.__firstP=document.querySelector('#book .chap p[data-k]'); }); await sleep(3600);
+  ok('v89 folded: no repeated rebuild after opening', await p.evaluate(()=>!!window.__firstP && window.__firstP.isConnected));
   const bkB=await p.evaluate(()=>document.querySelector('#book').getBoundingClientRect().bottom);
   ok('v89 folded: the scrolling text area ends at the strip top (no text under/below the strip)', Math.abs(bkB-s.r.top)<=1, 'book.bottom='+Math.round(bkB)+' strip.top='+Math.round(s.r.top));
   await p.evaluate(()=>{const c=[...document.querySelectorAll('#book .chap')].find(x=>{const r=x.getBoundingClientRect(); return r.left>-2&&r.left<innerWidth/2;}); c.scrollTop=c.scrollHeight;}); await sleep(500);
@@ -88,6 +90,9 @@ const pageIdx=(p)=>p.evaluate(()=>{const pages=[...document.querySelectorAll('#s
 { const {p,errs}=await openDevice(b,DEVICES.find(d=>d[0]==='15 세로'),{seed:mkSeed(0,0,1,{}),port:8947,query:'?native=1'}); await sleep(900);
   const s=await strip(p);
   const r=await p.evaluate(()=>{const R=(e)=>e.getBoundingClientRect(); const bs=[...document.querySelectorAll('#rd-strip .rd-b')].map(R); return {book:R(document.querySelector('#book')).bottom, btnBottom:Math.max(...bs.map(x=>x.bottom))};});
+  await p.evaluate(()=>{ window.__firstP=document.querySelector('#book .chap p[data-k]'); });
+  await sleep(3600);
+  ok('v89: no repeated rebuild after opening (layout check expects the text area to end at the strip top)', await p.evaluate(()=>!!window.__firstP && window.__firstP.isConnected));
   ok('15: strip touches the screen bottom, buttons stay above the home-indicator inset (34px), text area ends at strip top', Math.round(s.r.bottom)===s.H && r.btnBottom<=s.H-34+1 && Math.abs(r.book-s.r.top)<=1, JSON.stringify({strip:s.r,...r}));
   ok('no page errors (15)', errs.length===0, JSON.stringify(errs)); await p.close(); }
 

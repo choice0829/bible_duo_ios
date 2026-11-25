@@ -22,8 +22,7 @@ const ghostClick = (p, pt) => p.evaluate(({ x, y }) => {
 async function openAndSelect(dev, where, gap = 0) {
   const { p, cdp, errs } = await openDevice(b, dev, { port: 8991, seed });
   const pt = await p.evaluate((w) => {
-    // v89: 책은 화면 아래 약자 줄 위에서 끝난다 → 누를 자리에 그 문단이 실제로 보이는(가려지지 않은) 것만 고른다
-    const ps = [...document.querySelectorAll('#stage p[data-k]')].filter((q) => { const r = q.getBoundingClientRect(); if (!(r.width > 60 && r.height > 14 && r.top > 110 && r.bottom < innerHeight - 20)) return false; const at = document.elementFromPoint(r.left + Math.min(r.width * 0.3, 90), r.top + 8); return !!at && q.contains(at); });
+    const ps = [...document.querySelectorAll('#stage p[data-k]')].filter((q) => { const r = q.getBoundingClientRect(); return r.width > 60 && r.height > 14 && r.top > 110 && r.bottom < innerHeight - 20; });
     const half = innerHeight * 0.5;
     const c = ps.filter((q) => { const r = q.getBoundingClientRect(); return w === 'upper' ? r.top + 8 < half * 0.8 : r.top + 8 > half * 1.15; });
     const q = c[0] || ps[Math.min(2, ps.length - 1)], r = q.getBoundingClientRect();

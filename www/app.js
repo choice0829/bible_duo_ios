@@ -1666,7 +1666,7 @@
     }
     if (scroller) {
       const r = scroller.getBoundingClientRect();
-      if (!near(r.top, g.padTop) || !near(r.bottom, g.H)) out.push('본문칸 ' + Math.round(r.top) + '~' + Math.round(r.bottom));
+      if (!near(r.top, g.padTop) || !near(r.bottom, g.H - (g.rdArea || 0))) out.push('본문칸 ' + Math.round(r.top) + '~' + Math.round(r.bottom));   // v89: 본문칸은 아래 약자 줄 위에서 끝난다
     } else if (flip) {
       try {
         const rc = flip.getRender().getRect();
