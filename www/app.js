@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v84';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v85';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -155,12 +155,14 @@
   // v84: 레일은 상태 알약 아래 끝부터 화면 바닥까지의 세로 가운데(알약과의 간격 = 바닥과의 간격)
   const DUO_FOLD_RAIL_RIGHT = 24;                   // 화면 오른쪽 끝에서 레일 오른쪽 끝까지(알약 오른쪽 끝에 맞춤)
   const DUO_FOLD_RESERVE = DUO_FOLD_RAIL_RIGHT + 42 + 10;   // 본문·책 이름이 오른쪽에 비워 두는 폭(레일 + 간격)
+  // v85: 머리줄 맨 위에 로고 줄(작은 로고 + '선한성경')을 둔다. 책 이름·메뉴는 그 아래(style.css .head-row 의 padding-top = BRAND_H)
+  const BRAND_H = 20;
   function headBox(spread, compact, duoFold) {
     const titleFs = compact ? 30 : 44, titleH = Math.ceil(titleFs * 1.2);
     const menuH = compact ? MENU_H_COMPACT : MENU_H;
-    if (spread) return { titleFs, titleH, menuH, menuOff: 0, rowH: Math.max(titleH, menuH) };
-    if (duoFold) return { titleFs, titleH, menuH, menuOff: 0, rowH: titleH };   // 메뉴는 오른쪽 레일(머리줄 높이에 안 들어감)
-    const menuOff = titleH + STACK_GAP;
+    if (spread) return { titleFs, titleH, menuH, menuOff: 0, rowH: BRAND_H + Math.max(titleH, menuH) };
+    if (duoFold) return { titleFs, titleH, menuH, menuOff: 0, rowH: BRAND_H + titleH };   // 메뉴는 오른쪽 레일(머리줄 높이에 안 들어감)
+    const menuOff = BRAND_H + titleH + STACK_GAP;
     return { titleFs, titleH, menuH, menuOff, rowH: menuOff + menuH };
   }
 
@@ -213,6 +215,8 @@
     const padTop = Math.max(
       si.top + 56,
       Math.ceil(si.top + HEAD_TOP_GAP + hb.rowH + HEAD_BODY_GAP),
+      // v85: 로고 줄만큼 머리줄이 높아져, 낮은 펼침 화면(가로 아이폰·iPad)에서 머리줄이 책 윗면에 걸리지 않도록 책(무대)을 그 아래에서 시작시킨다
+      spread ? Math.ceil(si.top + HEAD_TOP_GAP + hb.rowH + (NATIVE ? NATIVE_HEAD_STAGE_GAP : HEAD_STAGE_GAP) + TXT_GAP) : 0,
       Math.min(TOP_MAX, Math.round(topSetting) || (spread ? TOP_DEFAULT.topSpread : TOP_DEFAULT.topSingle)),
       intoPill ? NATIVE_PILL_BOTTOM + TXT_GAP : 0
     );
@@ -309,6 +313,9 @@
     root.setProperty('--headr', g.headR + 'px');
     flipUp = g.full ? Math.max(0, NATIVE_HEAD_STAGE_GAP - 1) : 0;   // 아이폰 앱 펼침(html.full)에서만. 웹(PC)은 책 카드 그림자가 있어 예전 그대로 둔다
     root.setProperty('--flip-up', flipUp + 'px');   // style.css: #stage 가 위쪽으로 이만큼 더 보여 준다(책장이 넘어갈 때 윗부분이 한 줄로 잘리지 않게)
+    // v85: 머리줄이 남색이 되어, 넘기는 책장 위로 번지는 옅은 그림자가 --flip-up(15px)에서 곧은 선으로 잘려 보였다(예전엔 종이색 위라 안 보임).
+    // 책장이 들리는 높이(liftMax, flipUp 기준)는 그대로 두고, 자르는 창만 머리줄 영역 전체(stageTop)까지 넓힌다. 머리줄(z 10)은 그 위에 그려진다.
+    root.setProperty('--flip-clip', (g.full ? Math.max(flipUp, g.stageTop) : 0) + 'px');
     root.setProperty('--padbottom', g.padBottom + 'px');
     // 상단: 접힘 = 책 이름 위, 메뉴 아래(본문 바로 위) / 펼침 = 한 줄(책 이름 왼쪽, 메뉴 오른쪽)
     const hb = headBox(g.spread, g.compact, g.duoFold), titleFs = hb.titleFs, rowH = hb.rowH;
@@ -6270,7 +6277,7 @@
       const res = await fetch('data/krv.json');
       bible = await res.json();
     } catch (e) {
-      $('#loading').textContent = '본문을 불러오지 못했습니다. 인터넷 연결을 확인하고 다시 열어 주세요.';
+      ($('#loading-msg') || $('#loading')).textContent = '본문을 불러오지 못했습니다. 인터넷 연결을 확인하고 다시 열어 주세요.';
       return;
     }
     if (!(pos.book >= 0 && pos.book < bible.books.length)) pos = { book: 0, chapter: 0, verse: 1 };
