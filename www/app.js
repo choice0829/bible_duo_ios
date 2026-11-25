@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v86';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v88';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -221,21 +221,22 @@
       Math.min(TOP_MAX, Math.round(topSetting) || (spread ? TOP_DEFAULT.topSpread : TOP_DEFAULT.topSingle)),
       intoPill ? NATIVE_PILL_BOTTOM + TXT_GAP : 0
     );
-    const padBottom = spread ? eff.bottomSpread : si.bottom + 10;
+    const stripH = RD_H;   // v87: 화면 아래 책 약자 줄(읽기 진도)
+    const padBottom = (spread ? eff.bottomSpread : si.bottom + 10) + stripH;
     // 펼친 화면: 책 자체를 머리줄 아래(본문 첫 줄 위 TXT_GAP)에서 시작시킨다. 본문 글자가 놓이는 화면 위치와 쪽 나누기(textH)는 그대로다.
     // 한 쪽(접힘) 화면은 본문 스크롤 영역이 이미 머리줄 아래(--padtop)에서 시작한다.
     const stageTop = spread ? Math.max(0, padTop - TXT_GAP) : 0;
     const pageH = H - stageTop;
     // v86 아이폰 앱 펼침: 책장 맨 위(남색 머리줄 아래 끝)에서 첫 줄까지 = 마지막 줄 아래 ~ 화면 바닥 여백(padBottom)이 되게 한다.
     // 남는 높이(쪽마다 다름)는 pageElement 에서 위·아래로 반씩 나눈다(spreadTopShift).
-    const txtTop = full ? Math.max(padTop - stageTop, padBottom) : padTop - stageTop;
+    const txtTop = full ? Math.max(padTop - stageTop, padBottom - stripH) : padTop - stageTop;
     // 머리줄(책 이름·메뉴)의 오른쪽 끝: 책의 오른쪽 본문 끝에 맞추되, 오른쪽 안전영역(상태 아이콘 자리)은 피한다
     const bookRight = spread ? shiftX + pageW * 2 : W;
     const headR = duoFold ? DUO_FOLD_RESERVE : Math.max(Math.round(W - bookRight + padOut), Math.round(si.right) + (spread ? 8 : 14), 14);
     return {
       W, H, spread, compact, duo, duoFold, sym, pageW, pageH, bookW: spread ? pageW * 2 : pageW,
       padX: full ? padOut : padX, padR, padOut, padIn, full, tabEdge: full ? Math.max(padOut - 10, 0) : shiftX,
-      padTop, padBottom, si, shiftX, eff, stageTop, txtTop, headR, intoPill,
+      padTop, padBottom, stripH, si, shiftX, eff, stageTop, txtTop, headR, intoPill,
       textW: pageW - padOut - padIn, textH: pageH - txtTop - padBottom,
     };
   }
@@ -320,6 +321,13 @@
     // 책장이 들리는 높이(liftMax, flipUp 기준)는 그대로 두고, 자르는 창만 머리줄 영역 전체(stageTop)까지 넓힌다. 머리줄(z 10)은 그 위에 그려진다.
     root.setProperty('--flip-clip', (g.full ? Math.max(flipUp, g.stageTop) : 0) + 'px');
     root.setProperty('--padbottom', g.padBottom + 'px');
+    // v87 약자 줄 자리: 펼친 화면은 책 본문 폭(두 쪽) 아래, 한 쪽 화면은 화면 아래 끝(옆으로 밂)
+    const rdL = g.spread ? (g.full ? 0 : g.shiftX) + g.padOut : 0, rdR = g.spread ? Math.max(0, g.W - (g.shiftX + g.bookW)) + g.padOut : 0;
+    root.setProperty('--rd-left', rdL + 'px');
+    root.setProperty('--rd-right', rdR + 'px');
+    root.setProperty('--rd-bottom', Math.max(Math.round(g.si.bottom), g.spread ? 8 : 0) + 'px');
+    root.setProperty('--rd-h', RD_H + 'px');
+    root.setProperty('--rd-padx', (g.spread ? 0 : g.padX) + 'px');
     // 상단: 접힘 = 책 이름 위, 메뉴 아래(본문 바로 위) / 펼침 = 한 줄(책 이름 왼쪽, 메뉴 오른쪽)
     const hb = headBox(g.spread, g.compact, g.duoFold), titleFs = hb.titleFs, rowH = hb.rowH;
     root.setProperty('--menu-off', hb.menuOff + 'px');   // 한 쪽 화면: 머리줄 맨 위에서 메뉴 줄까지
@@ -631,7 +639,7 @@
   }
 
   // ---------- 본문 → 조각(unit) ----------
-  // 조각 종류: 0 = 장 제목, 1 = 절 번호, 2 = 낱말, 3 = 쉬운 말 풀이의 낱말(절 아래 작은 글씨)
+  // 조각 종류: 0 = 장 제목, 1 = 절 번호, 2 = 낱말, 3 = 쉬운 말 풀이의 낱말(절 아래 작은 글씨), 4 = 장 끝 읽음 표시(○/●, v87)
   // K[i] = 그 조각이 속한 절의 표식(장 번호 × 1000 + 절 번호). 이동 후 절 강조에 쓴다.
   function buildUnits(bookIndex) {
     const book = bible.books[bookIndex];
@@ -655,6 +663,7 @@
         const st = sb ? stdFor(book.id, c, v.n) : '';
         if (st) st.split(/\s+/).filter(Boolean).forEach((w) => { T.push(3); K.push(key); H.push(esc(w) + ' '); W.push(w); O.push(-1); });   // 3 = 쉬운 말 낱말
       });
+      T.push(4); K.push(c * 1000 + (verses.length ? verses[verses.length - 1].n : 0)); H.push(''); W.push(''); O.push(-1);   // 4 = 장 끝 읽음 표시
       verseAt.push(va);
     });
     return { T, H, K, W, O, chapterStart, verseAt, unitName, bookIndex, bookId: book.id, stdVer: sb ? String(sb.v || 1) : '' };
@@ -679,6 +688,7 @@
     for (let i = a; i < b; i++) {
       const t = u.T[i];
       if (t === 0) { close(); out += u.H[i]; continue; }
+      if (t === 4) { close(); out += readMarkHTML(u.bookId, Math.floor(u.K[i] / 1000) + 1); continue; }
       if (t === 1) { close(); cur = { k: u.K[i], head: u.H[i], off: -1, raw: '' }; continue; }   // 절 번호 = 새 줄
       if (t === 3) {
         if (!cur || !cur.std) { close(); cur = { k: u.K[i], std: true, raw: '' }; }
@@ -923,7 +933,7 @@
     const j = i % 2 === 0 ? i + 1 : i - 1;
     const h = Math.max(pageUsedH(i), j >= 0 && j < pg.starts.length ? pageUsedH(j) : 0);
     const free = Math.max(0, g.textH - h);
-    return Math.max(0, Math.min(free, Math.round((free + g.padBottom - g.txtTop) / 2)));
+    return Math.max(0, Math.min(free, Math.round((free + g.padBottom - (g.stripH || 0) - g.txtTop) / 2)));
   }
 
   function pageElement(i) {
@@ -962,6 +972,7 @@
       const st = settings.std ? stdFor(book.id, c, v.n) : '';
       if (st) h += '<p class="std" data-s="' + k + '"' + stdNoteAttr(book.id, k) + '>' + esc(st) + '</p>';
     });
+    h += readMarkHTML(book.id, c + 1);   // v87: 장 끝 읽음 표시
     const bi = bible.books.indexOf(book);
     const prev = c > 0 ? '‹ ' + c + unit : (bi > 0 ? '‹ ' + bible.books[bi - 1].name : '');
     const nextB = bi < bible.books.length - 1 ? bible.books[bi + 1].name : '';
@@ -1013,6 +1024,8 @@
     root.addEventListener('click', (e) => {
       const b = e.target.closest && e.target.closest('.chnav button');
       if (b && !b.disabled) goChapter(+b.dataset.go);
+      const rd = e.target.closest && e.target.closest('.rd-btn');
+      if (rd) { toggleReadMark(rd); return; }
       const chip = e.target.closest && e.target.closest('.nt-chip');
       if (chip && chip.dataset.yt) openYtCard(chip.dataset.yt.split(' '), null);   // 설교 영상 칩: 미리보기 카드(유튜브에서 보기)
       else if (chip) { showNoteView(chip.dataset.note); openSheet(true); }
@@ -1100,6 +1113,7 @@
     $('#loc-book').textContent = book.name;
     $('#loc-ch').textContent = (pos.chapter + 1) + (book.id === 'psa' ? '편' : '장');
     updateChurchTag();
+    renderReadStrip();
     fitTitle();
   }
 
@@ -1458,7 +1472,8 @@
     clearTimeout(pressTimer);
     pressTimer = setTimeout(() => {
       if (!down || drag) return;
-      if (e.target.closest && e.target.closest('.nt-chip')) { down = null; return; }
+      if (e.target.closest && e.target.closest('.nt-chip, .rd-btn')) { down = null; return; }
+      { const at = document.elementFromPoint(down.x, down.y); if (at && at.closest && at.closest('.rd-btn')) { down = null; return; } }
       closeSpot();
       const d = down;
       down = null;
@@ -1501,7 +1516,7 @@
     down = null; drag = null;
     if (scroller) {
       if (!d || cancelled || performance.now() - d.t > 450 || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10) return;
-      if (e.target.closest && e.target.closest('.nt-chip')) return;   // 설교노트 칩은 자기 click으로 처리
+      if (e.target.closest && e.target.closest('.nt-chip, .rd-btn')) return;   // 설교노트 칩·읽음 표시는 자기 click으로 처리
       const rr = stage.getBoundingClientRect();
       const fx = (e.clientX - rr.left) / rr.width;
       if (sel) guard(() => tapSelect(e.clientX, e.clientY));   // 고르는 중에는 어디를 눌러도 낱말을 더하거나 뺀다
@@ -1511,6 +1526,11 @@
       return;
     }
     if (!d || !flip) return;
+    // v87: 장 끝 읽음 표시(○)를 짧게 누르면 책장을 넘기지 않고 읽음만 바꾼다 (책장이 손가락을 잡고 있어 누른 자리의 요소로 찾는다)
+    if (!dg && !cancelled && Math.hypot(e.clientX - d.x, e.clientY - d.y) <= 10) {
+      const at = document.elementFromPoint(e.clientX, e.clientY), rb = at && at.closest && at.closest('.rd-btn');
+      if (rb) { toggleReadMark(rb); return; }
+    }
     if (spot.id && !dg) { closeSpot(); return; }   // 스포트라이트가 켜진 동안의 탭은 닫기만 한다 (책장은 넘기지 않는다)
     const dx = e.clientX - d.x, dy = e.clientY - d.y;
     const took = performance.now() - d.t;
@@ -3048,7 +3068,7 @@
   function backupText() {
     return JSON.stringify({
       app: 'bibleflip', ver: 1, savedAt: new Date().toISOString(),
-      pos, tool, anns, notes: notesDB.items, places: mpDB.items, reviews: rvDB.items, reviewsIn: rvDB.inc,
+      pos, tool, anns, notes: notesDB.items, places: mpDB.items, reviews: rvDB.items, reviewsIn: rvDB.inc, read: readDB,
       settings: { fontSize: settings.fontSize, theme: settings.theme, font: settings.font, layout: settings.layout, std: !!settings.std },
     });
   }
@@ -3095,6 +3115,20 @@
       rvSave();
       reviews = rvDB.items.length;
     }
+    let readBooks = null;
+    if (d.read && typeof d.read === 'object' && !Array.isArray(d.read)) {   // 읽기 진도(v87). 예전 백업에는 없으므로 그때는 그대로 둔다
+      const clean2 = {};
+      Object.keys(d.read).forEach((bk) => {
+        const bi = bookIdx(bk), m = d.read[bk];
+        if (bi < 0 || !m || typeof m !== 'object') return;
+        const n = bible.books[bi].chapters.length, out = {};
+        Object.keys(m).forEach((c) => { if (/^\d+$/.test(c) && +c >= 1 && +c <= n && /^\d{4}-\d{2}-\d{2}$/.test(m[c])) out[String(+c)] = m[c]; });
+        if (Object.keys(out).length) clean2[bk] = out;
+      });
+      readDB = clean2;
+      saveRead();
+      readBooks = Object.keys(clean2).length;
+    }
     const p = d.pos;
     if (p && Number.isInteger(p.book) && p.book >= 0 && p.book < bible.books.length &&
         Number.isInteger(p.chapter) && p.chapter >= 0 && p.chapter < bible.books[p.book].chapters.length) {
@@ -3113,7 +3147,7 @@
     if (typeof s.std === 'boolean') patch.std = s.std;
     settings = Object.assign({}, settings, patch);
     store.set('bf.settings', settings);
-    return { verses, marks, notes: notes ? notes.length : null, places: places ? places.length : null, reviews };
+    return { verses, marks, notes: notes ? notes.length : null, places: places ? places.length : null, reviews, readBooks };
   }
   // 백업에서 읽은 노트를 검사해 쓸 수 있는 것만 남긴다
   function cleanNotes(list) {
@@ -3181,7 +3215,7 @@
         const r = applyBackup(inp.value);
         closeSheet();
         rebuild(pos);
-        showToastLine('불러왔습니다 · ' + r.verses + '구절, 표시 ' + r.marks + '개' + (r.notes === null ? '' : ', 설교노트 ' + r.notes + '개') + (r.places === null ? '' : ', 모임 장소 ' + r.places + '곳') + (r.reviews ? ', 리뷰 ' + r.reviews + '개' : ''));
+        showToastLine('불러왔습니다 · ' + r.verses + '구절, 표시 ' + r.marks + '개' + (r.notes === null ? '' : ', 설교노트 ' + r.notes + '개') + (r.places === null ? '' : ', 모임 장소 ' + r.places + '곳') + (r.reviews ? ', 리뷰 ' + r.reviews + '개' : '') + (r.readBooks ? ', 읽기 진도 ' + r.readBooks + '권' : ''));
       } catch (err) {
         inMsg.textContent = err.message || '불러오지 못했습니다.';
       }
@@ -3334,6 +3368,104 @@
     applyNoteMarks();
     updateChurchTag();
   }
+  // ---------- 읽기 진도 (v87): 장 끝 ○ 체크 + 화면 아래 책 약자 줄 + 약자를 누르면 장 번호 칸 ----------
+  // 저장: bf.read = { 책ID: { '장 번호(1부터)': 'YYYY-MM-DD'(체크한 날) } }. 데이터 백업에 함께 들어간다.
+  let readDB = store.get('bf.read', {});
+  const saveRead = () => store.set('bf.read', readDB);
+  const RD_H = 30;   // 아래 약자 줄 높이(px). 펼친 화면은 아래 여백을 이만큼 늘려 그 안에 놓는다
+  let bookAbbrList = null;
+  function bookAbbr(bi) {   // 검색용 약칭 표(ABBR)를 거꾸로: 책 번호 → '창'·'삼상'…
+    if (!bookAbbrList) { bookAbbrList = []; Object.keys(ABBR).forEach((k) => { bookAbbrList[ABBR[k]] = k; }); }
+    return bookAbbrList[bi] || (bible ? bible.books[bi].name.slice(0, 1) : '');
+  }
+  const readOf = (bookId) => readDB[bookId] || {};
+  const readCount = (bookId) => Object.keys(readOf(bookId)).length;
+  // 장 끝(마지막 절 다음 줄)의 ○/● — 높이는 읽음 여부와 상관없이 같아 쪽 나누기가 바뀌지 않는다
+  function readMarkHTML(bookId, ch) {
+    const d = readOf(bookId)[ch];
+    return '<div class="rd-mark" data-rb="' + bookId + '" data-rc="' + ch + '"><button type="button" class="rd-btn' + (d ? ' on' : '') + '" aria-pressed="' + !!d + '" aria-label="' + ch + '장 읽음 표시">' +
+      '<span>' + (d ? dateLabel(d) + ' 읽음' : '') + '</span><i aria-hidden="true"></i></button></div>';   // v88: 날짜는 ●의 왼쪽
+  }
+  function setRead(bookId, ch, on) {
+    const m = readDB[bookId] || (readDB[bookId] = {});
+    if (on) m[ch] = m[ch] || todayStr(); else delete m[ch];
+    if (!Object.keys(m).length) delete readDB[bookId];
+  }
+  function readChanged(bookId) {
+    saveRead();
+    document.querySelectorAll('.rd-mark[data-rb="' + bookId + '"]').forEach((el) => {
+      const d = readOf(bookId)[el.dataset.rc], b = el.querySelector('.rd-btn');
+      if (!b) return;
+      b.classList.toggle('on', !!d);
+      b.setAttribute('aria-pressed', String(!!d));
+      b.querySelector('span').textContent = d ? dateLabel(d) + ' 읽음' : '';
+    });
+    renderReadStrip();
+  }
+  function toggleReadMark(el) {
+    const mark = el.closest('.rd-mark');
+    if (!mark) return;
+    const bookId = mark.dataset.rb, ch = mark.dataset.rc;
+    setRead(bookId, ch, !readOf(bookId)[ch]);
+    readChanged(bookId);
+  }
+  // 화면 아래 약자 줄: 지금 읽는 쪽이 구약이면 구약 39권, 신약이면 신약 27권
+  let rdStrip = null;
+  function renderReadStrip() {
+    if (!bible) return;
+    if (!rdStrip) {
+      rdStrip = document.createElement('nav');
+      rdStrip.id = 'rd-strip';
+      rdStrip.setAttribute('aria-label', '성경 읽기 진도');
+      document.body.appendChild(rdStrip);
+      rdStrip.addEventListener('click', (e) => {
+        const b = e.target.closest('.rd-b');
+        if (b) { showReadBook(+b.dataset.bi); openSheet(false); }
+      });
+    }
+    const nt = pos.book >= 39, from = nt ? 39 : 0, to = nt ? bible.books.length : 39;
+    let h = '';
+    for (let i = from; i < to; i++) {
+      const bk = bible.books[i], n = readCount(bk.id), all = bk.chapters.length;
+      const st = n === 0 ? 'none' : n >= all ? 'done' : 'part';
+      h += '<button type="button" class="rd-b ' + st + (i === pos.book ? ' cur' : '') + '" data-bi="' + i + '" aria-label="' + esc(bk.name) + ' ' + n + '/' + all + '장 읽음">' + esc(bookAbbr(i)) + '</button>';
+    }
+    if (rdStrip.dataset.sig !== h) {
+      rdStrip.innerHTML = h;
+      rdStrip.dataset.sig = h;
+      const cur = rdStrip.querySelector('.cur');   // 옆으로 미는 줄(한 쪽 화면)은 지금 읽는 책이 보이게
+      if (cur && rdStrip.scrollWidth > rdStrip.clientWidth + 1) rdStrip.scrollLeft = Math.max(0, cur.offsetLeft - rdStrip.clientWidth / 2 + cur.offsetWidth / 2);
+    }
+  }
+  // 약자를 누르면: 장 번호 칸(누를 때마다 읽음/안 읽음), 모두 읽음 · 모두 지우기
+  function showReadBook(bi) {
+    const book = bible.books[bi], unit = book.id === 'psa' ? '편' : '장', n = book.chapters.length;
+    sheetTitle.textContent = book.name;
+    setSheetAct(null);
+    backBtn.hidden = true;
+    sheetBack = null;
+    const draw = () => {
+      const m = readOf(book.id), cnt = Object.keys(m).length;
+      let cells = '';
+      for (let c = 1; c <= n; c++) {
+        const d = m[c];
+        cells += '<button type="button" class="rd-cell' + (d ? ' on' : '') + '" data-c="' + c + '" aria-pressed="' + !!d + '" aria-label="' + c + unit + (d ? ' ' + dateLabel(d) + ' 읽음' : ' 안 읽음') + '">' +
+          '<b>' + c + '</b>' + (d ? '<small>' + d.slice(5).replace('-', '.') + '</small>' : '') + '</button>';
+      }
+      sheetBody.innerHTML = '<p class="note tight">읽은 ' + unit + ' <b>' + cnt + '</b> / ' + n + ' · 칸을 누르면 읽음과 안 읽음이 바뀝니다. 본문 ' + unit + ' 끝의 ○과 같이 바뀝니다.</p>' +
+        '<div class="rd-grid">' + cells + '</div>' +
+        '<div class="ch-btns"><button type="button" class="seg-btn" id="rd-all">모두 읽음</button><button type="button" class="seg-btn ch-danger" id="rd-none">모두 지우기</button></div>';
+      sheetBody.querySelectorAll('.rd-cell').forEach((b) => b.addEventListener('click', () => {
+        setRead(book.id, b.dataset.c, !readOf(book.id)[b.dataset.c]);
+        readChanged(book.id);
+        const keep = sheetBody.scrollTop; draw(); sheetBody.scrollTop = keep;
+      }));
+      $('#rd-all').addEventListener('click', () => { for (let c = 1; c <= n; c++) setRead(book.id, String(c), true); readChanged(book.id); draw(); });
+      chArm($('#rd-none'), '한 번 더 누르면 모두 지우기', () => { delete readDB[book.id]; readChanged(book.id); draw(); });
+    };
+    draw();
+  }
+
   // v79·v80: 머리줄 책 이름 옆 'with 등록된 교회' (교회가 등록된 계정만, 장 표시 옆)
   function updateChurchTag() {
     const el = $('#loc-church');

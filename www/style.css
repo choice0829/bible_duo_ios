@@ -978,3 +978,41 @@ html.kb .mp-view { padding-bottom: 24px; }
   position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 9px;
   background: #C0392B; color: #fff; font: 700 11px/18px var(--sans); text-align: center; pointer-events: none; box-shadow: 0 0 0 2px var(--bg);
 }
+/* ---------- 읽기 진도 (v87) ---------- */
+/* 장 끝 읽음 표시: 마지막 절 다음 줄(오른쪽 끝). 높이는 본문 한 줄과 같고 읽음 여부와 상관없이 같다(쪽 나누기 고정) */
+.rd-mark { height: 1.78em; display: flex; align-items: center; justify-content: flex-end; margin: 0; }
+.rd-btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 100%; padding: 0 2px 0 10px;   /* v88: [날짜 읽음] [●] 순서 */ background: none; border: 0;
+  font: 500 12.5px/1 var(--sans); color: var(--muted); touch-action: manipulation; cursor: pointer;
+}
+.rd-btn i { flex: none; width: 15px; height: 15px; box-sizing: border-box; border-radius: 50%; border: 1.6px solid var(--muted); }
+.rd-btn.on { color: var(--accent); }
+.rd-btn.on i { border-color: var(--accent); background: var(--accent); }
+.rd-btn span:empty { display: none; }
+#book.scroll .chap .rd-mark { margin: 2px 0 0; }
+/* 화면 아래 책 약자 줄: 안 읽음은 연하게, 읽는 중은 보통, 다 읽음은 강조색. 지금 읽는 책은 밑줄 */
+#rd-strip {
+  position: fixed; z-index: 8; left: var(--rd-left, 0); right: var(--rd-right, 0); bottom: var(--rd-bottom, 0); height: var(--rd-h, 30px);
+  display: flex; align-items: center; justify-content: space-between; gap: 2px; padding: 0 var(--rd-padx, 0);
+  font: 600 12.5px/1 var(--sans); background: var(--bg); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+#rd-strip::-webkit-scrollbar { display: none; }
+body:not(.is-spread) #rd-strip { justify-content: flex-start; gap: 4px; border-top: 1px solid var(--line); }
+.rd-b { flex: none; height: 100%; min-width: 18px; padding: 0 3px; background: none; border: 0; color: var(--fg); font: inherit; white-space: nowrap; touch-action: manipulation; position: relative; }
+body:not(.is-spread) .rd-b { padding: 0 7px; }
+.rd-b.none { color: var(--muted); opacity: .55; }
+.rd-b.part { color: var(--fg); }
+.rd-b.done { color: var(--accent); font-weight: 800; }
+.rd-b.cur::after { content: ''; position: absolute; left: 3px; right: 3px; bottom: 3px; height: 2px; border-radius: 1px; background: currentColor; opacity: .8; }
+/* 약자를 누르면 뜨는 장 번호 칸 */
+.rd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 6px; margin-top: 10px; }
+.rd-cell {
+  height: 46px; border-radius: 10px; background: var(--chip); color: var(--fg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-family: var(--sans); touch-action: manipulation; border: 1.5px solid transparent;
+}
+.rd-cell b { font-size: 15px; font-weight: 700; }
+.rd-cell small { font-size: 10.5px; opacity: .85; }
+.rd-cell.on { background: var(--accent); color: #fff; }
+/* v88: 한 쪽 화면(듀오 접힘·일반 아이폰) — 머리줄의 장 수('1장') 숨김(본문 장 제목으로 충분), 본문 시작을 머리줄에서 조금 띄움 */
+body:not(.is-spread) #loc-ch { display: none; }
+#book.scroll .chap { padding-top: 18px; }
