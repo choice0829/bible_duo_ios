@@ -13,10 +13,10 @@ for (const [name,w,h,si] of DEVS) {
   ok(name+' no shadow/outline, square corners', r.shadow==='none' && r.rad==='0px', r.shadow+' '+r.rad);
   const m=await p.evaluate(()=>{const c=document.querySelector('#book .chap'); const cs=getComputedStyle(c); const q=(s)=>document.querySelector(s); const rb=q('.head-row .mini-btn:last-child').getBoundingClientRect(); const t=q('#btn-pick').getBoundingClientRect(); const pl=parseFloat(cs.paddingLeft), pr=parseFloat(cs.paddingRight); const cr=c.getBoundingClientRect(); const p=c.querySelector('.typo p, p'); const pr2=p?p.getBoundingClientRect():null; return {pl,pr,W:innerWidth,menuR:rb.right,titleL:t.left,pL:pr2&&pr2.left,pR:pr2&&pr2.right, cl:cr.left, crr:cr.right}});
   console.log('  margins', JSON.stringify(m));
-  // v81: 듀오 접힘 앱은 오른쪽 메뉴 레일 자리를 비운다(오른쪽 76 = 레일 24 + 42 + 간격 10). 다른 아이폰은 24/24
-  const wantR=name==='Duo 접힘 앱'?76:24;
+  // v81: 듀오 접힘 앱은 오른쪽 메뉴 레일 자리를 비운다(v86: 오른쪽 84 = 레일 22 + 52 + 간격 10). 다른 아이폰은 24/24
+  const wantR=name==='Duo 접힘 앱'?84:24;
   ok(name+' side margins 24/'+wantR, m.pl===24 && m.pr===wantR, m.pl+' / '+m.pr);
-  ok(name+' title and menu aligned to text edges', Math.abs(m.titleL-24)<=3 && Math.abs((m.W-m.menuR)-24)<=1.5, 'title '+m.titleL+' menuR gap '+(m.W-m.menuR));
+  ok(name+' title and menu aligned to text edges', Math.abs(m.titleL-24)<=3 && Math.abs((m.W-m.menuR)-(name==='Duo 접힘 앱'?22:24))<=1.5, 'title '+m.titleL+' menuR gap '+(m.W-m.menuR));
   ok(name+' no page errors', errs.length===0, JSON.stringify(errs));
   await p.screenshot({path:'native6-'+name.replace(/[^\w]/g,'_')+'.png'});
   if (name==='Duo 접힘 앱') {

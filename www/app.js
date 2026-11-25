@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v85';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v86';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -150,11 +150,12 @@
   const MENU_COUNT = 8, MENU_COLS = 8, MENU_ROWS = 1;
   const STACK_GAP = 6;                              // 책 이름 줄과 메뉴 줄 사이
   const DUO_FOLD_RAIL_TOP = 166;                    // 레일이 올라올 수 있는 맨 위(알약 아래 끝 약 160 + 6)
-  const DUO_FOLD_RAIL_H = 8 * 36 + 7 * 6;           // 레일 높이(아이콘 8개 · 간격 6)
+  const DUO_FOLD_BTN_W = 52, DUO_FOLD_BTN_H = 44, DUO_FOLD_BTN_GAP = 12;   // v86: 단추 폭 = 상태 알약 폭(실기기 캡처에서 약 52px), 바탕 투명, 간격 넓힘
+  const DUO_FOLD_RAIL_H = 8 * DUO_FOLD_BTN_H + 7 * DUO_FOLD_BTN_GAP;   // 레일 높이(아이콘 8개 · 간격)
   const DUO_FOLD_STATUS_BOTTOM = 160;               // 상태 알약 아래 끝(사용자 실기기 캡처에서 잼)
   // v84: 레일은 상태 알약 아래 끝부터 화면 바닥까지의 세로 가운데(알약과의 간격 = 바닥과의 간격)
-  const DUO_FOLD_RAIL_RIGHT = 24;                   // 화면 오른쪽 끝에서 레일 오른쪽 끝까지(알약 오른쪽 끝에 맞춤)
-  const DUO_FOLD_RESERVE = DUO_FOLD_RAIL_RIGHT + 42 + 10;   // 본문·책 이름이 오른쪽에 비워 두는 폭(레일 + 간격)
+  const DUO_FOLD_RAIL_RIGHT = 22;                   // 화면 오른쪽 끝에서 레일 오른쪽 끝까지(알약 오른쪽 끝에 맞춤, v86 캡처: 알약 x 약 392~444)
+  const DUO_FOLD_RESERVE = DUO_FOLD_RAIL_RIGHT + DUO_FOLD_BTN_W + 10;   // 본문·책 이름이 오른쪽에 비워 두는 폭(레일 + 간격)
   // v85: 머리줄 맨 위에 로고 줄(작은 로고 + '선한성경')을 둔다. 책 이름·메뉴는 그 아래(style.css .head-row 의 padding-top = BRAND_H)
   const BRAND_H = 20;
   function headBox(spread, compact, duoFold) {
@@ -225,7 +226,9 @@
     // 한 쪽(접힘) 화면은 본문 스크롤 영역이 이미 머리줄 아래(--padtop)에서 시작한다.
     const stageTop = spread ? Math.max(0, padTop - TXT_GAP) : 0;
     const pageH = H - stageTop;
-    const txtTop = padTop - stageTop;
+    // v86 아이폰 앱 펼침: 책장 맨 위(남색 머리줄 아래 끝)에서 첫 줄까지 = 마지막 줄 아래 ~ 화면 바닥 여백(padBottom)이 되게 한다.
+    // 남는 높이(쪽마다 다름)는 pageElement 에서 위·아래로 반씩 나눈다(spreadTopShift).
+    const txtTop = full ? Math.max(padTop - stageTop, padBottom) : padTop - stageTop;
     // 머리줄(책 이름·메뉴)의 오른쪽 끝: 책의 오른쪽 본문 끝에 맞추되, 오른쪽 안전영역(상태 아이콘 자리)은 피한다
     const bookRight = spread ? shiftX + pageW * 2 : W;
     const headR = duoFold ? DUO_FOLD_RESERVE : Math.max(Math.round(W - bookRight + padOut), Math.round(si.right) + (spread ? 8 : 14), 14);
@@ -897,13 +900,40 @@
     maybeShowHint();
   }
 
+  // v86: 쪽에 담긴 글이 실제로 차지하는 높이(px). 쪽 나누기와 같은 #measure 상자(같은 폭·글꼴)에 그려 잰다
+  function pageUsedH(i) {
+    const used = pg._used || (pg._used = {});
+    if (used[i] != null) return used[i];
+    const first = pg.starts[i], end = i + 1 < pg.starts.length ? pg.starts[i + 1] : pg.T.length;
+    measure.style.width = pg.g.textW + 'px';
+    measure.style.height = 'auto';
+    measure.innerHTML = sliceHTML(pg, first, end);
+    // 마지막 줄의 실제 아래 끝까지(문단 아래 여백은 빼고) — 위 여백도 첫 줄 윗면 기준이라 둘이 같은 잣대가 된다
+    const last = measure.lastElementChild;
+    used[i] = last ? Math.ceil(last.getBoundingClientRect().bottom - measure.getBoundingClientRect().top) : measure.scrollHeight;
+    measure.innerHTML = '';
+    measure.style.height = (pg.g.textH - 2) + 'px';
+    return used[i];
+  }
+  // v86 아이폰 앱 펼침: 본문을 머리줄(남색) 아래 ~ 화면 바닥 사이 세로 가운데에 둔다.
+  // 마주 보는 두 쪽 중 더 긴 쪽을 기준으로, 위 여백(머리줄~첫 줄) = 아래 여백(마지막 줄~화면 바닥)이 되게 두 쪽을 같은 만큼 내린다(첫 줄 높이가 양쪽에서 같게).
+  function spreadTopShift(i) {
+    const g = pg.g;
+    if (!g.full) return 0;
+    const j = i % 2 === 0 ? i + 1 : i - 1;
+    const h = Math.max(pageUsedH(i), j >= 0 && j < pg.starts.length ? pageUsedH(j) : 0);
+    const free = Math.max(0, g.textH - h);
+    return Math.max(0, Math.min(free, Math.round((free + g.padBottom - g.txtTop) / 2)));
+  }
+
   function pageElement(i) {
     const first = pg.starts[i];
     const end = i + 1 < pg.starts.length ? pg.starts[i + 1] : pg.T.length;
     const el = document.createElement('div');
     el.className = 'page' + (pg.g.spread ? (i % 2 === 0 ? ' pl' : ' pr') : ' pl');   // 펼침: 짝수 쪽 = 왼쪽, 홀수 쪽 = 오른쪽
+    const shift = spreadTopShift(i);
     el.innerHTML =
-      '<div class="txt typo">' + sliceHTML(pg, first, end) + '</div>';
+      '<div class="txt typo"' + (shift ? ' style="padding-top:' + shift + 'px"' : '') + '>' + sliceHTML(pg, first, end) + '</div>';
     return el;
   }
 

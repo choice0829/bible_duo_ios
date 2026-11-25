@@ -93,7 +93,7 @@ for (const name of HEAD_PICK) {
     // v81: 듀오 접힘(앱)은 오른쪽 위 상태 알약(아래 끝 약 160px) 아래부터 오른쪽 가장자리를 따라 세로 한 줄, 본문은 그 왼쪽까지만.
     if (duoFold) {
       const xs = new Set(r.bs.map((x) => Math.round(x.l))), ys = r.bs.map((x) => x.t);
-      ok(name + ': 메뉴 8개가 오른쪽 가장자리에 세로 한 줄(같은 x, 위에서 아래 순서)', xs.size === 1 && ys.every((y, i) => i === 0 || y > ys[i - 1]) && Math.abs(r.W - Math.max(...r.bs.map((x) => x.r)) - 24) <= 1, 'x=' + [...xs].join(',') + ' right=' + Math.round(r.W - Math.max(...r.bs.map((x) => x.r))));
+      ok(name + ': 메뉴 8개가 오른쪽 가장자리에 세로 한 줄(같은 x, 위에서 아래 순서)', xs.size === 1 && ys.every((y, i) => i === 0 || y > ys[i - 1]) && Math.abs(r.W - Math.max(...r.bs.map((x) => x.r)) - 22) <= 1 && r.bs.every((x) => Math.abs(x.r - x.l - 52) <= 1), 'x=' + [...xs].join(',') + ' right=' + Math.round(r.W - Math.max(...r.bs.map((x) => x.r))));
       const gapB = r.H - Math.max(...r.bs.map((x) => x.b));
       ok(name + ': v84 레일이 상태 알약 아래 끝(160px) ~ 화면 바닥의 세로 가운데(알약과의 간격 = 바닥과의 간격)', Math.abs(gapB - (ys[0] - 160)) <= 2 && ys[0] > 160, 'top=' + Math.round(ys[0]) + ' gap above(from 160)=' + Math.round(ys[0] - 160) + ' gap below=' + Math.round(gapB));
       ok(name + ': 본문 글자가 레일 왼쪽에서 끝난다(겹치지 않음)', r.textR <= Math.min(...r.bs.map((x) => x.l)) - 4, 'text.right=' + Math.round(r.textR) + ' rail.left=' + Math.round(Math.min(...r.bs.map((x) => x.l))));
