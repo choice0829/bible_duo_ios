@@ -215,6 +215,8 @@
     const padTop = Math.max(
       si.top + 56,
       Math.ceil(si.top + HEAD_TOP_GAP + hb.rowH + HEAD_BODY_GAP),
+      // v85: 로고 줄만큼 머리줄이 높아져, 낮은 펼침 화면(가로 아이폰·iPad)에서 머리줄이 책 윗면에 걸리지 않도록 책(무대)을 그 아래에서 시작시킨다
+      spread ? Math.ceil(si.top + HEAD_TOP_GAP + hb.rowH + (NATIVE ? NATIVE_HEAD_STAGE_GAP : HEAD_STAGE_GAP) + TXT_GAP) : 0,
       Math.min(TOP_MAX, Math.round(topSetting) || (spread ? TOP_DEFAULT.topSpread : TOP_DEFAULT.topSingle)),
       intoPill ? NATIVE_PILL_BOTTOM + TXT_GAP : 0
     );
