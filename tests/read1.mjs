@@ -15,9 +15,12 @@ const pageIdx=(p)=>p.evaluate(()=>{const pages=[...document.querySelectorAll('#s
 { const {p,errs}=await openDevice(b,['Duo 펼침',951,669,{top:0,right:84,bottom:0,left:0}],{seed:mkSeed(0,2,20,{gen:{'1':'2026-11-20','2':'2026-11-21'},exo}),port:8947,query:'?native=1'}); await sleep(900);
   const s=await strip(p);
   ok('spread Genesis: 39 Old-Testament abbreviations in ONE row, 창 … 말', s.n===39 && s.abbr[0]==='창' && s.abbr[38]==='말' && s.abbr.includes('삼상') && s.tops.length===1 && !s.over, JSON.stringify({n:s.n,tops:s.tops,over:s.over}));
-  ok('strip sits in the bottom margin, inside the screen, under the book text', s.r.bottom<=s.H && s.r.top>=s.H-60 && s.r.left>=30 && s.r.right<=s.W-30, JSON.stringify(s.r));
+  const bx=await p.evaluate(()=>{const bs=[...document.querySelectorAll('#rd-strip .rd-b')].map(x=>x.getBoundingClientRect()); return {l:bs[0].left, r:bs[bs.length-1].right};});
+  ok('strip sits in the bottom margin; the abbreviations line up with the book text width', s.r.bottom<=s.H && s.r.top>=s.H-60 && bx.l>=30 && bx.r<=s.W-30, JSON.stringify({r:s.r,bx}));
   const tb=await p.evaluate(()=>Math.max(...[...document.querySelectorAll('#stage .page p[data-k]')].map(x=>x.getBoundingClientRect()).filter(r=>r.width>10&&r.left>=0&&r.left<innerWidth).map(r=>r.bottom)));
   ok('book text ends above the strip (no overlap)', tb<=s.r.top-4, 'text.bottom='+Math.round(tb)+' strip.top='+Math.round(s.r.top));
+  const stB=await p.evaluate(()=>document.querySelector('#stage').getBoundingClientRect().bottom);
+  ok('v89: the book (stage) ends at the strip top — the strip is in the margin, not a band over the pages', Math.abs(stB-s.r.top)<=1 && Math.round(s.r.bottom)===s.H && s.r.left===0 && Math.round(s.r.right)===s.W, 'stage.bottom='+Math.round(stB)+' strip='+JSON.stringify(s.r));
   ok('states: 창 = reading(part)+current, 출 = done, 레 = none', /part/.test(s.cls['창'])&&/cur/.test(s.cls['창'])&&/done/.test(s.cls['출'])&&/none/.test(s.cls['레']), JSON.stringify([s.cls['창'],s.cls['출'],s.cls['레']]));
   await p.screenshot({path:'read1-spread.png',captureBeyondViewport:false});
   // 2. 장 끝 ○ (창 1장 끝이 보이는 쪽으로)
@@ -67,6 +70,10 @@ const pageIdx=(p)=>p.evaluate(()=>{const pages=[...document.querySelectorAll('#s
   ok('folded: strip at the very bottom, full width, scrolls sideways', Math.round(s.r.bottom)===s.H && s.r.left===0 && Math.round(s.r.right)===s.W && s.over && s.tops.length===1, JSON.stringify({r:s.r,over:s.over}));
   const railBot=await p.evaluate(()=>Math.max(...[...document.querySelectorAll('.menu-row > button')].map(x=>x.getBoundingClientRect().bottom)));
   ok('folded: strip does not overlap the right menu rail', railBot<=s.r.top, 'rail.bottom='+Math.round(railBot)+' strip.top='+Math.round(s.r.top));
+  await p.evaluate(()=>{ window.__firstP=document.querySelector('#book .chap p[data-k]'); }); await sleep(3600);
+  ok('v89 folded: no repeated rebuild after opening', await p.evaluate(()=>!!window.__firstP && window.__firstP.isConnected));
+  const bkB=await p.evaluate(()=>document.querySelector('#book').getBoundingClientRect().bottom);
+  ok('v89 folded: the scrolling text area ends at the strip top (no text under/below the strip)', Math.abs(bkB-s.r.top)<=1, 'book.bottom='+Math.round(bkB)+' strip.top='+Math.round(s.r.top));
   await p.evaluate(()=>{const c=[...document.querySelectorAll('#book .chap')].find(x=>{const r=x.getBoundingClientRect(); return r.left>-2&&r.left<innerWidth/2;}); c.scrollTop=c.scrollHeight;}); await sleep(500);
   const mk=(await visMarks(p)).find(m=>m.ch==='1');
   ok('folded: chapter 1 end shows ○ after the last verse, above the strip', !!mk && !mk.on && mk.b<=s.r.top, JSON.stringify(mk));
@@ -78,6 +85,16 @@ const pageIdx=(p)=>p.evaluate(()=>{const pages=[...document.querySelectorAll('#s
   ok('v88: folded text starts a little below the header (≥ 14px gap)', gap>=14, 'gap='+Math.round(gap));
   await p.screenshot({path:'read1-folded.png',captureBeyondViewport:false});
   ok('no page errors (folded)', errs.length===0, JSON.stringify(errs)); await p.close(); }
+
+// ---- v89: 아래 안전영역이 있는 아이폰(15 세로): 약자 줄이 바닥까지 붙고(안전영역은 줄 바탕이 채움) 본문은 그 위에서 끝난다 ----
+{ const {p,errs}=await openDevice(b,DEVICES.find(d=>d[0]==='15 세로'),{seed:mkSeed(0,0,1,{}),port:8947,query:'?native=1'}); await sleep(900);
+  const s=await strip(p);
+  const r=await p.evaluate(()=>{const R=(e)=>e.getBoundingClientRect(); const bs=[...document.querySelectorAll('#rd-strip .rd-b')].map(R); return {book:R(document.querySelector('#book')).bottom, btnBottom:Math.max(...bs.map(x=>x.bottom))};});
+  await p.evaluate(()=>{ window.__firstP=document.querySelector('#book .chap p[data-k]'); });
+  await sleep(3600);
+  ok('v89: no repeated rebuild after opening (layout check expects the text area to end at the strip top)', await p.evaluate(()=>!!window.__firstP && window.__firstP.isConnected));
+  ok('15: strip touches the screen bottom, buttons stay above the home-indicator inset (34px), text area ends at strip top', Math.round(s.r.bottom)===s.H && r.btnBottom<=s.H-34+1 && Math.abs(r.book-s.r.top)<=1, JSON.stringify({strip:s.r,...r}));
+  ok('no page errors (15)', errs.length===0, JSON.stringify(errs)); await p.close(); }
 
 // ---- 일반 아이폰(SE): 약자 줄이 본문을 가리지 않는다 ----
 { const {p,errs}=await openDevice(b,DEVICES.find(d=>d[0]==='SE3 세로'),{seed:mkSeed(42,0,1,{}),port:8947,query:'?native=1'}); await sleep(900);

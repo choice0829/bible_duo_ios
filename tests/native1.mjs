@@ -21,7 +21,9 @@ ok('theme posted to native', st.msgs.length>=1 && st.msgs.every(m=>typeof m.them
 const H=669, L=st.stage.left, Rm=st.W-st.stage.right;
 ok('v41 html.full set', ex.full);
 ok('stage spans full width (no side margins)', L<=1 && Rm<=1.5, L+' / '+Rm);
-ok('stage reaches screen bottom', Math.abs(H-st.stage.bottom)<=0.5, String(H-st.stage.bottom));
+// v89: 책(무대)은 화면 아래 읽기 진도 약자 줄(30px + 아래 안전영역, 펼침은 최소 6) 위에서 끝난다
+{ const rdArea=await p.evaluate(()=>parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--rd-area'))||0);
+  ok('stage ends at the reading strip top (v89)', rdArea>=30 && Math.abs(H-rdArea-st.stage.bottom)<=0.5, 'H-stage.bottom='+String(H-st.stage.bottom)+' rdArea='+rdArea); }
 ok('text left edge 38 (v64: 30 -> 24, v65: 26, v66: 38 so the note tab has 10px on both sides)', Math.abs(ex.txtL-38)<=1.5, String(ex.txtL));
 ok('text right edge W-38', Math.abs((st.W-ex.txtR)-38)<=1.5, String(st.W-ex.txtR));
 ok('text width 415 both pages', Math.abs(ex.txtWl-415)<=1 && Math.abs(ex.txtWr-415)<=1, ex.txtWl+' / '+ex.txtWr);

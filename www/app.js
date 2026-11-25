@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v88';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v89';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -221,12 +221,15 @@
       Math.min(TOP_MAX, Math.round(topSetting) || (spread ? TOP_DEFAULT.topSpread : TOP_DEFAULT.topSingle)),
       intoPill ? NATIVE_PILL_BOTTOM + TXT_GAP : 0
     );
-    const stripH = RD_H;   // v87: 화면 아래 책 약자 줄(읽기 진도)
-    const padBottom = (spread ? eff.bottomSpread : si.bottom + 10) + stripH;
+    // v89: 화면 아래 책 약자 줄(읽기 진도)은 책 영역 밖 아래 여백에 둔다 → 책(펼침 무대·접힘 스크롤 영역)이 그 위에서 끝난다
+    const rdInset = Math.max(Math.round(si.bottom), spread ? 6 : 0);   // 아래 안전영역(홈 막대 자리)까지 약자 줄 바탕이 채운다
+    const rdArea = RD_H + rdInset;
+    const stripH = 0;
+    const padBottom = spread ? eff.bottomSpread : 10;
     // 펼친 화면: 책 자체를 머리줄 아래(본문 첫 줄 위 TXT_GAP)에서 시작시킨다. 본문 글자가 놓이는 화면 위치와 쪽 나누기(textH)는 그대로다.
     // 한 쪽(접힘) 화면은 본문 스크롤 영역이 이미 머리줄 아래(--padtop)에서 시작한다.
     const stageTop = spread ? Math.max(0, padTop - TXT_GAP) : 0;
-    const pageH = H - stageTop;
+    const pageH = H - stageTop - rdArea;
     // v86 아이폰 앱 펼침: 책장 맨 위(남색 머리줄 아래 끝)에서 첫 줄까지 = 마지막 줄 아래 ~ 화면 바닥 여백(padBottom)이 되게 한다.
     // 남는 높이(쪽마다 다름)는 pageElement 에서 위·아래로 반씩 나눈다(spreadTopShift).
     const txtTop = full ? Math.max(padTop - stageTop, padBottom - stripH) : padTop - stageTop;
@@ -236,7 +239,7 @@
     return {
       W, H, spread, compact, duo, duoFold, sym, pageW, pageH, bookW: spread ? pageW * 2 : pageW,
       padX: full ? padOut : padX, padR, padOut, padIn, full, tabEdge: full ? Math.max(padOut - 10, 0) : shiftX,
-      padTop, padBottom, stripH, si, shiftX, eff, stageTop, txtTop, headR, intoPill,
+      padTop, padBottom, stripH, rdArea, rdInset, si, shiftX, eff, stageTop, txtTop, headR, intoPill,
       textW: pageW - padOut - padIn, textH: pageH - txtTop - padBottom,
     };
   }
@@ -306,7 +309,7 @@
     root.setProperty('--sans', fstack);   // 상단 메뉴·굵은 글씨·창도 같은 글씨체
     root.setProperty('--padx', g.padX + 'px');
     root.setProperty('--padr', (g.padR || g.padX) + 'px');   // 한 쪽 화면 본문의 오른쪽 여백(듀오 접힘은 메뉴 레일 자리)
-    root.setProperty('--rail-top', Math.max(DUO_FOLD_RAIL_TOP, Math.round(DUO_FOLD_STATUS_BOTTOM + (g.H - DUO_FOLD_STATUS_BOTTOM - DUO_FOLD_RAIL_H) / 2)) + 'px');
+    root.setProperty('--rail-top', Math.max(DUO_FOLD_RAIL_TOP, Math.round(DUO_FOLD_STATUS_BOTTOM + (g.H - g.rdArea - DUO_FOLD_STATUS_BOTTOM - DUO_FOLD_RAIL_H) / 2)) + 'px');   // v89: 바닥 대신 약자 줄 위 끝까지
     root.setProperty('--rail-right', DUO_FOLD_RAIL_RIGHT + 'px');
     document.body.classList.toggle('duo-fold', !!g.duoFold);
     root.setProperty('--padout', g.padOut + 'px');   // 펼침 쪽의 바깥쪽·안쪽 글자 여백 (앱 펼침에서만 서로 다름)
@@ -325,7 +328,8 @@
     const rdL = g.spread ? (g.full ? 0 : g.shiftX) + g.padOut : 0, rdR = g.spread ? Math.max(0, g.W - (g.shiftX + g.bookW)) + g.padOut : 0;
     root.setProperty('--rd-left', rdL + 'px');
     root.setProperty('--rd-right', rdR + 'px');
-    root.setProperty('--rd-bottom', Math.max(Math.round(g.si.bottom), g.spread ? 8 : 0) + 'px');
+    root.setProperty('--rd-area', g.rdArea + 'px');    // 약자 줄 영역 전체 높이(줄 + 아래 안전영역)
+    root.setProperty('--rd-inset', g.rdInset + 'px');
     root.setProperty('--rd-h', RD_H + 'px');
     root.setProperty('--rd-padx', (g.spread ? 0 : g.padX) + 'px');
     // 상단: 접힘 = 책 이름 위, 메뉴 아래(본문 바로 위) / 펼침 = 한 줄(책 이름 왼쪽, 메뉴 오른쪽)
@@ -1662,7 +1666,7 @@
     }
     if (scroller) {
       const r = scroller.getBoundingClientRect();
-      if (!near(r.top, g.padTop) || !near(r.bottom, g.H)) out.push('본문칸 ' + Math.round(r.top) + '~' + Math.round(r.bottom));
+      if (!near(r.top, g.padTop) || !near(r.bottom, g.H - (g.rdArea || 0))) out.push('본문칸 ' + Math.round(r.top) + '~' + Math.round(r.bottom));   // v89: 본문칸은 아래 약자 줄 위에서 끝난다
     } else if (flip) {
       try {
         const rc = flip.getRender().getRect();

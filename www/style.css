@@ -991,14 +991,15 @@ html.kb .mp-view { padding-bottom: 24px; }
 .rd-btn span:empty { display: none; }
 #book.scroll .chap .rd-mark { margin: 2px 0 0; }
 /* 화면 아래 책 약자 줄: 안 읽음은 연하게, 읽는 중은 보통, 다 읽음은 강조색. 지금 읽는 책은 밑줄 */
-#rd-strip {
-  position: fixed; z-index: 8; left: var(--rd-left, 0); right: var(--rd-right, 0); bottom: var(--rd-bottom, 0); height: var(--rd-h, 30px);
-  display: flex; align-items: center; justify-content: space-between; gap: 2px; padding: 0 var(--rd-padx, 0);
+#rd-strip {   /* v89: 책 영역 밖 화면 아래 여백(띠가 본문 위에 덮이지 않음). 바탕은 종이색, 아래 안전영역까지 채운다 */
+  position: fixed; z-index: 8; left: 0; right: 0; bottom: 0; height: var(--rd-area, 30px); box-sizing: border-box;
+  padding: 0 calc(var(--rd-right, 0px) + var(--rd-padx, 0px)) var(--rd-inset, 0px) calc(var(--rd-left, 0px) + var(--rd-padx, 0px));
+  display: flex; align-items: center; justify-content: space-between; gap: 2px;
   font: 600 12.5px/1 var(--sans); background: var(--bg); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -webkit-overflow-scrolling: touch;
 }
 #rd-strip::-webkit-scrollbar { display: none; }
 body:not(.is-spread) #rd-strip { justify-content: flex-start; gap: 4px; border-top: 1px solid var(--line); }
-.rd-b { flex: none; height: 100%; min-width: 18px; padding: 0 3px; background: none; border: 0; color: var(--fg); font: inherit; white-space: nowrap; touch-action: manipulation; position: relative; }
+.rd-b { flex: none; height: var(--rd-h, 30px); min-width: 18px; padding: 0 3px; background: none; border: 0; color: var(--fg); font: inherit; white-space: nowrap; touch-action: manipulation; position: relative; }
 body:not(.is-spread) .rd-b { padding: 0 7px; }
 .rd-b.none { color: var(--muted); opacity: .55; }
 .rd-b.part { color: var(--fg); }

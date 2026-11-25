@@ -22,7 +22,9 @@ for (const [name,w,h,si,o] of DEVS) {
     console.log('  text', JSON.stringify(tx));
     ok(name+' spread + full', st.spread && tx.full);
     ok(name+' stage spans width', st.stage.left<=1.5 && st.W-st.stage.right<=1.5, st.stage.left+' / '+(st.W-st.stage.right));
-    ok(name+' stage reaches bottom', Math.abs(st.H-st.stage.bottom)<=0.6, String(st.H-st.stage.bottom));
+    // v89: 책(무대)은 화면 아래 읽기 진도 약자 줄 위에서 끝난다(약자 줄 영역 --rd-area 만큼 위)
+    { const rdArea=await p.evaluate(()=>parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--rd-area'))||0);
+      ok(name+' stage ends at the reading strip top (v89)', rdArea>=30 && Math.abs(st.H-rdArea-st.stage.bottom)<=0.6, 'H-stage.bottom='+String(st.H-st.stage.bottom)+' rdArea='+rdArea); }
     ok(name+' text margins equal', Math.abs(tx.l-(st.W-tx.r))<=1.5 && tx.l>=8, tx.l+' / '+(st.W-tx.r));
     ok(name+' text widths equal', Math.abs(tx.wl-tx.wr)<=1 && tx.wl>150, tx.wl+' / '+tx.wr);
     const sd=o.sideSafe||0; ok(name+' text inside safe area', tx.l>=sd && st.W-tx.r>=sd, 'safe '+sd);
