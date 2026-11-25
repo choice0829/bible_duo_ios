@@ -23,6 +23,7 @@
   --padtop: 56px;
   --padbottom: 26px;
   --title-fs: 44px; --head-top: 14px;
+  --brand: #1E3A5F; --brand-ink: #F3E7CF; --brand-sub: #D9C29A;   /* v85 로고 색: 남색 바탕 · 세피아 글자 */
   --sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Noto Sans CJK KR", sans-serif;
   --serif: "AppleMyungjo", "Noto Serif KR", "Noto Serif CJK KR", "Apple SD Gothic Neo", serif;
 }
@@ -70,7 +71,7 @@ html.native .desk-edge { display: none; }   /* 아이폰 앱: 화면 전체를 �
 }
 /* 아이폰 앱(v42): 접은·세로 화면(위아래로 읽는 장 영역)도 책 카드(상자)를 없앤다 — 윤곽·그림자·둥근 모서리·책상 질감 없이 바탕을 종이색 한 가지로 맞춘다.
    (펼친 화면은 아래 html.full 블록: 화면 전체를 책장으로 쓰고 글자 여백만 따로 둔다) */
-html.native, html.native body { background-color: var(--bg) !important; background-image: none !important; }
+html.native, html.native body { background-color: var(--brand) !important; background-image: none !important; }   /* v85: 머리줄(책장 위 영역)을 로고 남색으로. 책장·본문은 각자 종이색(--bg)을 칠한다 */
 html.native #book.scroll { border-radius: 0; box-shadow: none; }
 /* v41 — 아이폰 앱 펼침(html.full): 책 카드를 없애고 화면 전체를 책장으로 쓴다. 바탕은 위 html.native 규칙대로 종이색 한 가지(상자 윤곽·그림자·책상 질감 없음).
    책장이 넘어가는 효과는 #stage(머리줄 아래부터 화면 맨 아래까지, 좌우는 화면 끝까지) 안에서만 보인다 — 맨 위 머리줄(책 이름·메뉴) 위로는 넘어가지 않는다.
@@ -138,6 +139,17 @@ html.full #stage:not(.scroll) { overflow: visible; clip-path: inset(calc(var(--f
   display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 14px;   /* 책 이름은 왼쪽, 메뉴는 오른쪽 */
 }
 body.is-spread .head-row { gap: 18px; }
+/* v85: 로고 줄 — 머리줄 맨 위(책 이름 위)에 작은 로고 + '선한성경'. 높이는 app.js BRAND_H 와 같게 */
+.head-row { padding-top: 20px; }
+.brand { position: absolute; top: 0; left: 0; height: 16px; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: .02em; line-height: 1; color: var(--muted); white-space: nowrap; pointer-events: none; }
+.brand svg { width: 16px; height: 16px; flex: none; }
+html.native .brand { color: var(--brand-sub); }
+html.native .title-btn b { color: var(--brand-ink); }
+html.native .title-btn span { color: var(--brand-sub); }
+html.native body:not(.duo-fold) .head-row .icon-btn { color: var(--brand-ink); }   /* 듀오 접힘의 오른쪽 레일은 책장 위라 예전 색 그대로 */
+html.native body:not(.duo-fold) .head-row .mini-btn { background: rgba(255, 255, 255, .08); }
+html.native body:not(.duo-fold) .head-row .icon-btn.on { background: rgba(255, 255, 255, .2); }
+html.native body:not(.duo-fold) .head-row .icon-btn.on svg { color: var(--brand-ink); }
 .title-btn { display: flex; align-items: baseline; gap: 8px; min-width: 0; max-width: 100%; text-align: left; flex: 0 1 auto; }
 .title-btn b { font-size: var(--title-fs); font-weight: 800; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .title-btn span { font-size: calc(var(--title-fs) * .4); color: var(--muted); white-space: nowrap; }
@@ -268,9 +280,15 @@ html.kb #sheet.tall .panel { height: 100%; }
 }
 #hint button { color: #ffd9a8; font-weight: 700; }
 #loading {
-  position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 40; display: flex; align-items: center; justify-content: center;
-  background: var(--bg); color: var(--muted); font-size: 15px;
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px;
+  padding: 24px calc(env(safe-area-inset-right) + 24px) 24px calc(env(safe-area-inset-left) + 24px);
+  background: var(--brand); color: var(--brand-sub); font-size: 15px; text-align: center;
 }
+/* v85 시작 화면: 로고(아이콘 + '선한성경')를 크게. 좁은 화면에서는 글자·아이콘을 화면 폭에 맞춰 줄인다 */
+.ld-logo { display: flex; align-items: center; gap: min(36px, 4vw); }
+.ld-logo svg { width: min(168px, 18vw); height: min(168px, 18vw); flex: none; }
+.ld-logo b { font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; font-weight: 700; font-size: min(84px, 11vw); line-height: 1.1; letter-spacing: -0.02em; color: var(--brand-ink); white-space: nowrap; }
+#loading-msg { margin: 0; }
 
 /* 하이라이트 목록 */
 .hrow { display: flex; gap: 8px; margin-bottom: 6px; }

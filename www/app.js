@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v84';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v85';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -155,12 +155,14 @@
   // v84: 레일은 상태 알약 아래 끝부터 화면 바닥까지의 세로 가운데(알약과의 간격 = 바닥과의 간격)
   const DUO_FOLD_RAIL_RIGHT = 24;                   // 화면 오른쪽 끝에서 레일 오른쪽 끝까지(알약 오른쪽 끝에 맞춤)
   const DUO_FOLD_RESERVE = DUO_FOLD_RAIL_RIGHT + 42 + 10;   // 본문·책 이름이 오른쪽에 비워 두는 폭(레일 + 간격)
+  // v85: 머리줄 맨 위에 로고 줄(작은 로고 + '선한성경')을 둔다. 책 이름·메뉴는 그 아래(style.css .head-row 의 padding-top = BRAND_H)
+  const BRAND_H = 20;
   function headBox(spread, compact, duoFold) {
     const titleFs = compact ? 30 : 44, titleH = Math.ceil(titleFs * 1.2);
     const menuH = compact ? MENU_H_COMPACT : MENU_H;
-    if (spread) return { titleFs, titleH, menuH, menuOff: 0, rowH: Math.max(titleH, menuH) };
-    if (duoFold) return { titleFs, titleH, menuH, menuOff: 0, rowH: titleH };   // 메뉴는 오른쪽 레일(머리줄 높이에 안 들어감)
-    const menuOff = titleH + STACK_GAP;
+    if (spread) return { titleFs, titleH, menuH, menuOff: 0, rowH: BRAND_H + Math.max(titleH, menuH) };
+    if (duoFold) return { titleFs, titleH, menuH, menuOff: 0, rowH: BRAND_H + titleH };   // 메뉴는 오른쪽 레일(머리줄 높이에 안 들어감)
+    const menuOff = BRAND_H + titleH + STACK_GAP;
     return { titleFs, titleH, menuH, menuOff, rowH: menuOff + menuH };
   }
 
@@ -6270,7 +6272,7 @@
       const res = await fetch('data/krv.json');
       bible = await res.json();
     } catch (e) {
-      $('#loading').textContent = '본문을 불러오지 못했습니다. 인터넷 연결을 확인하고 다시 열어 주세요.';
+      ($('#loading-msg') || $('#loading')).textContent = '본문을 불러오지 못했습니다. 인터넷 연결을 확인하고 다시 열어 주세요.';
       return;
     }
     if (!(pos.book >= 0 && pos.book < bible.books.length)) pos = { book: 0, chapter: 0, verse: 1 };

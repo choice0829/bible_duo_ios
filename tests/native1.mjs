@@ -25,7 +25,7 @@ ok('stage reaches screen bottom', Math.abs(H-st.stage.bottom)<=0.5, String(H-st.
 ok('text left edge 38 (v64: 30 -> 24, v65: 26, v66: 38 so the note tab has 10px on both sides)', Math.abs(ex.txtL-38)<=1.5, String(ex.txtL));
 ok('text right edge W-38', Math.abs((st.W-ex.txtR)-38)<=1.5, String(st.W-ex.txtR));
 ok('text width 415 both pages', Math.abs(ex.txtWl-415)<=1 && Math.abs(ex.txtWr-415)<=1, ex.txtWl+' / '+ex.txtWr);
-ok('background is paper colour = page colour, no texture', ex.bgHtml===ex.bgPage && ex.bgImg==='none', ex.bgHtml+' vs '+ex.bgPage+' img='+ex.bgImg);
+ok('v85: background (header area) is brand navy, pages stay paper, no texture', ex.bgHtml==='rgb(30, 58, 95)' && ex.bgPage!==ex.bgHtml && ex.bgImg==='none', ex.bgHtml+' vs '+ex.bgPage+' img='+ex.bgImg);
 // v56: 책을 자르는 창이 overflow:clip 에서 clip-path(위쪽으로만 15px 넓힘)로 바뀌었다 — 어느 쪽이든 '자른다'(왼쪽·오른쪽·아래는 책 가장자리 그대로)
 ok('stage clips (overflow clip, or clip-path inset widened only upward)', ex.clip==='clip' || ex.clip==='hidden' || (/^inset\(/.test(ex.cp) && /^inset\(-?\d+(\.\d+)?px 0px 0px\)$/.test(ex.cp)), ex.clip+' / '+ex.cp);
 ok('stage/text top clears the status pill (>=114)', st.stage.top>=114, String(st.stage.top));

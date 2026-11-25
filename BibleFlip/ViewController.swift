@@ -29,11 +29,12 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
     })();
     """
 
-    // 책상 색 (웹앱 style.css의 --desk 와 같은 값)
+    // 웹뷰 뒤 바탕색. v85부터 테마와 관계없이 머리줄 로고 남색(style.css --brand #1E3A5F)
+    private static let brandNavy = UIColor(red: 30/255, green: 58/255, blue: 95/255, alpha: 1)
     private static let deskColors: [String: UIColor] = [
-        "paper": UIColor(red: 220/255, green: 212/255, blue: 194/255, alpha: 1),
-        "sepia": UIColor(red: 205/255, green: 186/255, blue: 144/255, alpha: 1),
-        "night": UIColor(red: 10/255, green: 11/255, blue: 13/255, alpha: 1),
+        "paper": brandNavy,
+        "sepia": brandNavy,
+        "night": brandNavy,
     ]
 
     override func loadView() {
@@ -41,7 +42,7 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         config.setURLSchemeHandler(BundleSchemeHandler(), forURLScheme: "bibleflip")
         config.allowsInlineMediaPlayback = true
         // 지도 바탕(OpenStreetMap) 서버가 앱을 알아볼 수 있도록 앱 이름을 접속 정보(User-Agent)에 덧붙인다
-        config.applicationNameForUserAgent = "BibleFlip/84"
+        config.applicationNameForUserAgent = "BibleFlip/85"
         let controller = WKUserContentController()
         controller.add(WeakMessageHandler(self), name: "bf")
         controller.addUserScript(WKUserScript(source: ViewController.diagScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
@@ -120,7 +121,7 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
     }
 
     override var preferredStatusBarStyle: UIStatusBarStyle {
-        return theme == "night" ? .lightContent : .darkContent
+        return .lightContent   // v85: 상태 표시줄은 언제나 남색 머리줄 위 → 밝은 글자
     }
 
     func userContentController(_ ucc: WKUserContentController, didReceive message: WKScriptMessage) {
