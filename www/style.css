@@ -1007,6 +1007,9 @@ html.kb .mp-view { padding-bottom: 24px; }
 body:not(.is-spread) #rd-strip { justify-content: flex-start; gap: 4px; border-top: 1px solid var(--line); }
 .rd-b { flex: none; height: var(--rd-h, 30px); min-width: 18px; padding: 0 3px; background: none; border: 0; color: var(--fg); font: inherit; white-space: nowrap; touch-action: manipulation; position: relative; }
 body:not(.is-spread) .rd-b { padding: 0 7px; }
+/* v94 듀오 접힘: 약자 줄을 펼친 화면과 같은 크기로(약자 칸 여백 3px · 간격 2px · 위 줄 없음). 다 안 들어가는 만큼은 가로로 민다 */
+body.duo-fold #rd-strip { gap: 2px; border-top: 0; }
+body.duo-fold .rd-b { padding: 0 3px; }
 .rd-b.none { color: var(--muted); opacity: .55; }
 .rd-b.part { color: var(--fg); }
 .rd-b.done { color: var(--accent); font-weight: 800; }
