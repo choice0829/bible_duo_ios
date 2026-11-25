@@ -291,6 +291,12 @@ html.kb #sheet.tall .panel { height: 100%; }
 .ld-logo svg { width: min(168px, 18vw); height: min(168px, 18vw); flex: none; }
 .ld-logo b { font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; font-weight: 700; font-size: min(84px, 11vw); line-height: 1.1; letter-spacing: -0.02em; color: var(--brand-ink); white-space: nowrap; }
 #loading-msg { margin: 0; }
+/* v90: 화면을 돌리거나 듀오를 접고 펼 때는 '불러오는 중' 화면 대신 종이색 바탕으로만 잠깐 가린다 */
+#loading.quiet { background: var(--bg); }
+#loading.quiet > * { visibility: hidden; }
+/* v90: 아이폰 앱 펼침 — 책장 뒤의 종이색 받침(화면 왼쪽 끝 ~ 오른쪽 끝). 넘김 중 쪽 가장자리 틈으로 남색 바탕이 비치지 않게 한다 */
+#stage-fill { position: fixed; left: 0; right: 0; background: var(--bg); pointer-events: none; }
+#stage-fill[hidden] { display: none; }
 
 /* 하이라이트 목록 */
 .hrow { display: flex; gap: 8px; margin-bottom: 6px; }

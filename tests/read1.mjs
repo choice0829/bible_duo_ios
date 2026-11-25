@@ -119,4 +119,27 @@ const pageIdx=(p)=>p.evaluate(()=>{const pages=[...document.querySelectorAll('#s
   const rd=await readLS(p);
   ok('restore: read progress replaced, invalid chapters/books dropped', JSON.stringify(rd)==='{"exo":{"2":"2026-08-08"}}', JSON.stringify(rd));
   ok('no page errors (backup)', errs.length===0, JSON.stringify(errs)); await p.close(); }
+
+// ---- v90: 듀오 접힘(아래 안전영역 34): 약자 줄 아래는 6px만 비운다 · 접기/펴기 때 남색 '불러오는 중' 화면 대신 종이색으로만 잠깐 가린다 ----
+{ const {p,errs,cdp}=await openDevice(b,['Duo 접힘',466,678,{top:0,right:0,bottom:34,left:0}],{seed:mkSeed(0,0,1,{}),port:8947,query:'?native=1'}); await sleep(900);
+  const s=await strip(p);
+  const bh=await p.evaluate(()=>{const st=document.querySelector('#rd-strip'); const r=st.getBoundingClientRect(); const b0=st.querySelector('.rd-b').getBoundingClientRect(); return {h:Math.round(r.height), below:Math.round(r.bottom-b0.bottom)};});
+  ok('v90 folded: strip height = 30 + 6 (not 30 + the whole bottom safe area)', bh.h===36, JSON.stringify(bh));
+  ok('v90 folded: strip still at the very bottom', Math.round(s.r.bottom)===s.H);
+  // 펼치기 → 접기: 가리는 화면이 남색 로고 화면이 아니어야 한다
+  await p.evaluate(()=>{ window.__ld=[]; const el=document.querySelector('#loading'); new MutationObserver(()=>{ if(!el.hidden) window.__ld.push({quiet:el.classList.contains('quiet'), bg:getComputedStyle(el).backgroundColor, logo:getComputedStyle(el.querySelector('.ld-logo')).visibility}); }).observe(el,{attributes:true}); });
+  await cdp.send('Emulation.setSafeAreaInsetsOverride',{insets:{top:0,left:0,bottom:0,right:84}}); await p.setViewport({width:951,height:669,deviceScaleFactor:2,isMobile:true,hasTouch:true}); await sleep(3500);
+  await cdp.send('Emulation.setSafeAreaInsetsOverride',{insets:{top:0,left:0,bottom:34,right:0}}); await p.setViewport({width:466,height:678,deviceScaleFactor:2,isMobile:true,hasTouch:true}); await sleep(3500);
+  const ld=await p.evaluate(()=>({seen:window.__ld, bodyBg:getComputedStyle(document.body).getPropertyValue('--bg').trim(), hidden:document.querySelector('#loading').hidden}));
+  ok('v90: fold/unfold covers only with the paper colour (no navy logo loading screen)', ld.seen.length>0 && ld.seen.every(x=>x.quiet && x.logo==='hidden' && x.bg!=='rgb(30, 58, 95)'), JSON.stringify(ld.seen.slice(0,3)));
+  ok('v90: cover removed after relayout', ld.hidden===true);
+  ok('no page errors (v90 folded)', errs.length===0, JSON.stringify(errs)); await p.close(); }
+
+// ---- v90: 듀오 펼침(폭 951, 홀수): 책장이 정수 위치(왼쪽 0)에 붙고, 남는 1px 줄은 종이색 받침이 채운다(넘길 때 회색 선 방지) ----
+{ const {p,errs}=await openDevice(b,['Duo 펼침',951,669,{top:0,right:84,bottom:0,left:0}],{seed:mkSeed(0,1,1,{}),port:8947,query:'?native=1'}); await sleep(900);
+  const r=await p.evaluate(()=>{const st=document.querySelector('#stage').getBoundingClientRect(); const f=document.querySelector('#stage-fill'); const fr=f&&f.getBoundingClientRect();
+    return {st:[st.left,st.top,st.width,st.height], pages:[...document.querySelectorAll('#stage .page')].map(x=>x.getBoundingClientRect()).filter(q=>q.width>10&&q.left>=-1&&q.left<innerWidth).map(q=>q.left), fill:fr&&[fr.left,fr.top,fr.right,fr.height], fillBg:f&&getComputedStyle(f).backgroundColor, paper:getComputedStyle(document.querySelector('#rd-strip')).backgroundColor};});
+  ok('v90 spread: stage at x=0 and page edges on whole pixels', r.st[0]===0 && r.pages.every(x=>Number.isInteger(x)), JSON.stringify(r));
+  ok('v90 spread: paper filler behind the stage spans the full width', !!r.fill && r.fill[0]===0 && r.fill[2]===951 && r.fill[1]===r.st[1] && r.fill[3]===r.st[3] && r.fillBg===r.paper, JSON.stringify(r.fill)+' '+r.fillBg);
+  ok('no page errors (v90 spread)', errs.length===0, JSON.stringify(errs)); await p.close(); }
 console.log(fails?'FAILS '+fails:'ALL PASS'); await b.close(); process.exit(0);

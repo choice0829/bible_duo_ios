@@ -35,7 +35,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v89';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v90';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -222,7 +222,8 @@
       intoPill ? NATIVE_PILL_BOTTOM + TXT_GAP : 0
     );
     // v89: 화면 아래 책 약자 줄(읽기 진도)은 책 영역 밖 아래 여백에 둔다 → 책(펼침 무대·접힘 스크롤 영역)이 그 위에서 끝난다
-    const rdInset = Math.max(Math.round(si.bottom), spread ? 6 : 0);   // 아래 안전영역(홈 막대 자리)까지 약자 줄 바탕이 채운다
+    // 아래 안전영역(홈 막대 자리)까지 약자 줄 바탕이 채운다. v90: 듀오 접힘은 아래 안전영역이 넓게 잡혀 약자 줄 아래가 많이 비므로 6px만 둔다
+    const rdInset = duoFold ? Math.min(Math.round(si.bottom), 6) : Math.max(Math.round(si.bottom), spread ? 6 : 0);
     const rdArea = RD_H + rdInset;
     const stripH = 0;
     const padBottom = spread ? eff.bottomSpread : 10;
@@ -345,7 +346,14 @@
     stage.style.height = g.pageH + 'px';
     stage.style.top = g.stageTop ? g.stageTop + 'px' : '';
     stage.dataset.o = g.H >= g.W ? 'portrait' : 'landscape';   // CSS가 돌리는 순간 낡은 무대를 바로 숨기는 데 쓴다
-    stage.style.marginLeft = g.shiftX ? g.shiftX + 'px' : '';   // 펼친 화면 가운데 맞춤
+    // 펼친 화면 가운데 맞춤. v90: 아이폰 앱 펼침(full)은 왼쪽 0에 붙인다 — 화면 폭이 홀수(듀오 951)면 가운데 맞춤이 0.5px 어긋나
+    // 책장을 넘길 때 쪽 가장자리에 얇은 회색 선이 비쳤다. 남는 1px 줄은 아래 #stage-fill(종이색 받침)이 채운다.
+    stage.style.marginLeft = g.shiftX ? g.shiftX + 'px' : g.full ? '0px' : '';
+    let fill = $('#stage-fill');
+    if (g.full) {
+      if (!fill) { fill = document.createElement('div'); fill.id = 'stage-fill'; fill.setAttribute('aria-hidden', 'true'); stage.parentNode.insertBefore(fill, stage); }
+      fill.style.top = g.stageTop + 'px'; fill.style.height = g.pageH + 'px'; fill.hidden = false;
+    } else if (fill) fill.hidden = true;
     root.setProperty('--shiftx', g.shiftX + 'px');
     // 머리줄(책 이름·메뉴)의 왼쪽 끝: 펼침은 책 왼쪽 가장자리 + 14, 한 쪽은 안전영역 + 14. (좌우가 같은 아이폰은 책 자체가 이미 안쪽이다)
     const headX = g.full ? g.padOut : NATIVE && !g.spread ? g.padX : (g.spread ? (g.sym ? 0 : g.si.left) + g.shiftX : g.si.left) + 14;
@@ -829,8 +837,14 @@
   }
 
   // ---------- 책 만들기 ----------
+  // v90: 처음 열 때만 남색 '불러오는 중' 화면을 보이고, 그 뒤(화면 돌리기·듀오 접기/펴기·설정 바꾸기)에는
+  // 종이색 바탕으로만 잠깐 가린다(로고·글자 없음). 어긋난 화면이 비치지 않게 하는 역할은 그대로다.
+  let firstShown = false;
   function showLoading(on) {
-    $('#loading').hidden = !on;
+    const el = $('#loading');
+    if (on) el.classList.toggle('quiet', firstShown);
+    else if (pg) firstShown = true;
+    el.hidden = !on;
   }
 
   // 이동한 절을 잠깐 강조한다. (책장이 자리 잡을 시간을 조금 준 뒤 표시)
