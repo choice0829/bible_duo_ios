@@ -1,0 +1,101 @@
+// 읽기 진도 시험 (v87): 장 끝 ○/● 체크(날짜) · 화면 아래 책 약자 줄(구약 39 / 신약 27) · 약자를 누르면 장 번호 칸 · 서로 연동 · 백업
+import {serve,launch,sleep,openDevice,DEVICES} from './devlib.mjs';
+serve(8947); const b=await launch(); let fails=0; const ok=(n,c,x='')=>{console.log((c?'ok  ':'FAIL')+' '+n+' '+x); if(!c) fails++;};
+const today=(()=>{const d=new Date(); const p=(x)=>(x<10?'0':'')+x; return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());})();
+const exo=Object.fromEntries(Array.from({length:40},(_,i)=>[String(i+1),'2026-11-01']));
+const mkSeed=(bk,ch,v,read)=>({fn:([bk,ch,v,read])=>{ window.webkit={messageHandlers:{bf:{postMessage:()=>{}}}}; if(!sessionStorage.getItem('s')){sessionStorage.setItem('s','1'); localStorage.clear(); localStorage.setItem('bf.pos',JSON.stringify({book:bk,chapter:ch,verse:v})); localStorage.setItem('bf.read',JSON.stringify(read));}}, arg:[bk,ch,v,read]});
+const readLS=(p)=>p.evaluate(()=>JSON.parse(localStorage.getItem('bf.read')||'{}'));
+const strip=(p)=>p.evaluate(()=>{const R=(e)=>e.getBoundingClientRect(); const st=document.querySelector('#rd-strip'); const bs=[...st.querySelectorAll('.rd-b')];
+  const q=R(st);
+  return {r:{left:q.left,top:q.top,right:q.right,bottom:q.bottom}, n:bs.length, abbr:bs.map(x=>x.textContent), cls:Object.fromEntries(bs.map(x=>[x.textContent,x.className.replace('rd-b ','')])), tops:[...new Set(bs.map(x=>Math.round(R(x).top)))], over:st.scrollWidth>st.clientWidth+1, W:innerWidth, H:innerHeight};});
+const visMarks=(p)=>p.evaluate(()=>[...document.querySelectorAll('.rd-mark')].map(m=>{const r=m.getBoundingClientRect(); return {ch:m.dataset.rc, bk:m.dataset.rb, x:r.right-18, y:r.top+r.height/2, l:r.left, t:r.top, b:r.bottom, on:m.querySelector('.rd-btn').classList.contains('on'), txt:m.textContent};}).filter(m=>m.b-m.t>4&&m.l>=0&&m.x<innerWidth&&m.t>=0&&m.b<=innerHeight));
+const pageIdx=(p)=>p.evaluate(()=>{const pages=[...document.querySelectorAll('#stage .page')]; return pages.findIndex(x=>{const r=x.getBoundingClientRect(); return r.width>10&&r.left>=-1&&r.left<innerWidth/2;});});
+
+// ---- 1. 듀오 펼침: 약자 줄 ----
+{ const {p,errs}=await openDevice(b,['Duo 펼침',951,669,{top:0,right:84,bottom:0,left:0}],{seed:mkSeed(0,2,20,{gen:{'1':'2026-11-20','2':'2026-11-21'},exo}),port:8947,query:'?native=1'}); await sleep(900);
+  const s=await strip(p);
+  ok('spread Genesis: 39 Old-Testament abbreviations in ONE row, 창 … 말', s.n===39 && s.abbr[0]==='창' && s.abbr[38]==='말' && s.abbr.includes('삼상') && s.tops.length===1 && !s.over, JSON.stringify({n:s.n,tops:s.tops,over:s.over}));
+  ok('strip sits in the bottom margin, inside the screen, under the book text', s.r.bottom<=s.H && s.r.top>=s.H-60 && s.r.left>=30 && s.r.right<=s.W-30, JSON.stringify(s.r));
+  const tb=await p.evaluate(()=>Math.max(...[...document.querySelectorAll('#stage .page p[data-k]')].map(x=>x.getBoundingClientRect()).filter(r=>r.width>10&&r.left>=0&&r.left<innerWidth).map(r=>r.bottom)));
+  ok('book text ends above the strip (no overlap)', tb<=s.r.top-4, 'text.bottom='+Math.round(tb)+' strip.top='+Math.round(s.r.top));
+  ok('states: 창 = reading(part)+current, 출 = done, 레 = none', /part/.test(s.cls['창'])&&/cur/.test(s.cls['창'])&&/done/.test(s.cls['출'])&&/none/.test(s.cls['레']), JSON.stringify([s.cls['창'],s.cls['출'],s.cls['레']]));
+  await p.screenshot({path:'read1-spread.png',captureBeyondViewport:false});
+  // 2. 장 끝 ○ (창 1장 끝이 보이는 쪽으로)
+  await p.evaluate(()=>{ const t=[...document.querySelectorAll('.rd-mark')].find(m=>m.dataset.rc==='3'); return !!t; });
+  let mk=(await visMarks(p));
+  for (let i=0;i<8 && !mk.some(m=>m.ch==='3');i++){ await p.keyboard.press('ArrowRight'); await sleep(1300); mk=await visMarks(p); }
+  const m3=mk.find(m=>m.ch==='3');
+  ok('chapter 3 end has an empty ○ on the line after its last verse', !!m3 && !m3.on && m3.bk==='gen', JSON.stringify(mk));
+  if (m3) {
+    const lastV=await p.evaluate(()=>{const ps=[...document.querySelectorAll('#stage .page p[data-k]')].filter(x=>{const r=x.getBoundingClientRect(); return Math.floor(+x.dataset.k/1000)===2&&r.width>10&&r.left>=0&&r.left<innerWidth;}); const r=ps[ps.length-1].getBoundingClientRect(); return {b:r.bottom, k:ps[ps.length-1].dataset.k};});
+    ok('the ○ line is just below the last verse of chapter 3 (3:24)', lastV.k==='2024' && m3.t>=lastV.b-2 && m3.t-lastV.b<20, JSON.stringify({lastV,markTop:m3.t}));
+    const before=await pageIdx(p);
+    await p.touchscreen.tap(m3.x,m3.y); await sleep(700);
+    const after=(await visMarks(p)).find(m=>m.ch==='3'), rd=await readLS(p);
+    ok('tapping ○ → ● with today\'s date, saved, page NOT turned', !!after && after.on && after.txt.includes(today.replace(/-/g,'.')+' 읽음') && rd.gen && rd.gen['3']===today && (await pageIdx(p))===before, JSON.stringify({after,rd:rd.gen,before,now:await pageIdx(p)}));
+    const s2=await strip(p);
+    ok('strip stays 창 = part after checking chapter 3 (3/50)', /part/.test(s2.cls['창']));
+    await p.touchscreen.tap(m3.x,m3.y); await sleep(700);
+    ok('tapping ● again clears it', !(await visMarks(p)).find(m=>m.ch==='3').on && !(await readLS(p)).gen['3']);
+  }
+  // 3. 약자 '창' → 장 번호 칸
+  await p.evaluate(()=>[...document.querySelectorAll('#rd-strip .rd-b')].find(x=>x.textContent==='창').click()); await sleep(500);
+  const g=await p.evaluate(()=>({title:document.querySelector('#sheet-title').textContent, cells:document.querySelectorAll('.rd-cell').length, on:[...document.querySelectorAll('.rd-cell.on')].map(x=>x.dataset.c), txt:document.querySelector('#sheet-body .note').textContent, small:document.querySelector('.rd-cell.on small')?.textContent}));
+  ok('tapping 창 opens 창세기 with 50 chapter cells, read ones marked with MM.DD', g.title==='창세기' && g.cells===50 && JSON.stringify(g.on)==='["1","2"]' && /2 \/ 50/.test(g.txt) && g.small==='11.20', JSON.stringify(g));
+  await p.screenshot({path:'read1-grid.png',captureBeyondViewport:false});
+  await p.evaluate(()=>document.querySelector('.rd-cell[data-c="3"]').click()); await sleep(300);
+  ok('tapping cell 3 marks chapter 3 read (today) and the text mark follows', (await readLS(p)).gen['3']===today && await p.evaluate(()=>[...document.querySelectorAll('.rd-mark[data-rb="gen"][data-rc="3"] .rd-btn')].every(x=>x.classList.contains('on'))));
+  await p.evaluate(()=>document.querySelector('#rd-all').click()); await sleep(300);
+  ok('모두 읽음 → all 50 chapters read, earlier dates kept, 창 becomes done', Object.keys((await readLS(p)).gen).length===50 && (await readLS(p)).gen['1']==='2026-11-20' && /done/.test((await strip(p)).cls['창']));
+  await p.evaluate(()=>document.querySelector('#rd-none').click()); await sleep(200);
+  ok('모두 지우기 needs a second tap', Object.keys((await readLS(p)).gen||{}).length===50);
+  await p.evaluate(()=>document.querySelector('#rd-none').click()); await sleep(300);
+  ok('second tap clears Genesis, 창 becomes none', !(await readLS(p)).gen && /none/.test((await strip(p)).cls['창']));
+  // 5. 백업
+  const bk=await p.evaluate(()=>{ localStorage.setItem('bf.read',JSON.stringify({gen:{'5':'2026-10-10'}})); return true; });
+  ok('no page errors (spread)', errs.length===0, JSON.stringify(errs)); await p.close(); }
+
+// ---- 신약: 약자 줄 27 ----
+{ const {p,errs}=await openDevice(b,['Duo 펼침',951,669,{top:0,right:84,bottom:0,left:0}],{seed:mkSeed(39,0,1,{mat:{'1':'2026-11-25'}}),port:8947,query:'?native=1'}); await sleep(900);
+  const s=await strip(p);
+  ok('spread Matthew: 27 New-Testament abbreviations 마 … 계, 마 = current+part', s.n===27 && s.abbr[0]==='마' && s.abbr[26]==='계' && /cur/.test(s.cls['마']) && /part/.test(s.cls['마']) && s.tops.length===1, JSON.stringify({n:s.n,first:s.abbr[0]}));
+  ok('no page errors (NT)', errs.length===0, JSON.stringify(errs)); await p.close(); }
+
+// ---- 듀오 접힘: 장 끝 ○ · 가로로 미는 약자 줄 ----
+{ const {p,errs}=await openDevice(b,['Duo 접힘',466,678,{top:0,right:0,bottom:0,left:0}],{seed:mkSeed(0,0,1,{}),port:8947,query:'?native=1'}); await sleep(900);
+  const s=await strip(p);
+  ok('folded: strip at the very bottom, full width, scrolls sideways', Math.round(s.r.bottom)===s.H && s.r.left===0 && Math.round(s.r.right)===s.W && s.over && s.tops.length===1, JSON.stringify({r:s.r,over:s.over}));
+  const railBot=await p.evaluate(()=>Math.max(...[...document.querySelectorAll('.menu-row > button')].map(x=>x.getBoundingClientRect().bottom)));
+  ok('folded: strip does not overlap the right menu rail', railBot<=s.r.top, 'rail.bottom='+Math.round(railBot)+' strip.top='+Math.round(s.r.top));
+  await p.evaluate(()=>{const c=[...document.querySelectorAll('#book .chap')].find(x=>{const r=x.getBoundingClientRect(); return r.left>-2&&r.left<innerWidth/2;}); c.scrollTop=c.scrollHeight;}); await sleep(500);
+  const mk=(await visMarks(p)).find(m=>m.ch==='1');
+  ok('folded: chapter 1 end shows ○ after the last verse, above the strip', !!mk && !mk.on && mk.b<=s.r.top, JSON.stringify(mk));
+  if (mk) { await p.touchscreen.tap(mk.x,mk.y); await sleep(500);
+    ok('folded: tap → ● with date, saved', (await visMarks(p)).find(m=>m.ch==='1').on && (await readLS(p)).gen['1']===today); }
+  await p.screenshot({path:'read1-folded.png',captureBeyondViewport:false});
+  ok('no page errors (folded)', errs.length===0, JSON.stringify(errs)); await p.close(); }
+
+// ---- 일반 아이폰(SE): 약자 줄이 본문을 가리지 않는다 ----
+{ const {p,errs}=await openDevice(b,DEVICES.find(d=>d[0]==='SE3 세로'),{seed:mkSeed(42,0,1,{}),port:8947,query:'?native=1'}); await sleep(900);
+  const s=await strip(p);
+  await p.evaluate(()=>{const c=[...document.querySelectorAll('#book .chap')].find(x=>{const r=x.getBoundingClientRect(); return r.left>-2&&r.left<innerWidth/2;}); c.scrollTop=c.scrollHeight;}); await sleep(400);
+  const nav=await p.evaluate(()=>{const c=[...document.querySelectorAll('#book .chap')].find(x=>{const r=x.getBoundingClientRect(); return r.left>-2&&r.left<innerWidth/2;}); return c.querySelector('.chnav').getBoundingClientRect().bottom;});
+  ok('SE (John): 27 NT abbreviations, current 요; scrolled to the end the chapter buttons stay above the strip', s.n===27 && /cur/.test(s.cls['요']) && nav<=s.r.top, 'chnav.bottom='+Math.round(nav)+' strip.top='+Math.round(s.r.top));
+  // 백업
+  await p.evaluate(()=>localStorage.setItem('bf.read',JSON.stringify({jhn:{'3':'2026-11-02'}})));
+  ok('no page errors (SE)', errs.length===0, JSON.stringify(errs)); await p.close(); }
+
+// ---- 백업에 읽기 진도가 들어가고, 불러오면 돌아온다 ----
+{ const {p,errs}=await openDevice(b,['Duo 접힘',466,678,{top:0,right:0,bottom:0,left:0}],{seed:mkSeed(0,0,1,{gen:{'7':'2026-09-09'}}),port:8947,query:'?native=1'}); await sleep(900);
+  await p.evaluate(()=>document.querySelector('#btn-settings').click()); await sleep(300);
+  await p.evaluate(()=>document.querySelector('#go-adv').click()); await sleep(300);
+  await p.evaluate(()=>document.querySelector('#go-bk').click()); await sleep(400);
+  const out=await p.evaluate(()=>document.querySelector('#bk-out').value);
+  ok('backup text contains read progress', JSON.parse(out).read.gen['7']==='2026-09-09');
+  const changed=JSON.parse(out); changed.read={exo:{'2':'2026-08-08','99':'2026-08-08','x':'bad'},zzz:{'1':'2026-08-08'}};
+  await p.evaluate((t)=>{const i=document.querySelector('#bk-in'); i.value=t;},JSON.stringify(changed));
+  await p.evaluate(()=>document.querySelector('#bk-apply').click()); await sleep(200); await p.evaluate(()=>document.querySelector('#bk-apply').click()); await sleep(1500);
+  const rd=await readLS(p);
+  ok('restore: read progress replaced, invalid chapters/books dropped', JSON.stringify(rd)==='{"exo":{"2":"2026-08-08"}}', JSON.stringify(rd));
+  ok('no page errors (backup)', errs.length===0, JSON.stringify(errs)); await p.close(); }
+console.log(fails?'FAILS '+fails:'ALL PASS'); await b.close(); process.exit(0);
