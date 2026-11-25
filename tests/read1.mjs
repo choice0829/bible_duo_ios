@@ -141,5 +141,11 @@ const pageIdx=(p)=>p.evaluate(()=>{const pages=[...document.querySelectorAll('#s
     return {st:[st.left,st.top,st.width,st.height], pages:[...document.querySelectorAll('#stage .page')].map(x=>x.getBoundingClientRect()).filter(q=>q.width>10&&q.left>=-1&&q.left<innerWidth).map(q=>q.left), fill:fr&&[fr.left,fr.top,fr.right,fr.height], fillBg:f&&getComputedStyle(f).backgroundColor, paper:getComputedStyle(document.querySelector('#rd-strip')).backgroundColor};});
   ok('v90 spread: stage at x=0 and page edges on whole pixels', r.st[0]===0 && r.pages.every(x=>Number.isInteger(x)), JSON.stringify(r));
   ok('v90 spread: paper filler behind the stage spans the full width', !!r.fill && r.fill[0]===0 && r.fill[2]===951 && r.fill[1]===r.st[1] && r.fill[3]===r.st[3] && r.fillBg===r.paper, JSON.stringify(r.fill)+' '+r.fillBg);
+  // v91·v92: 듀오 펼침 책장 위 끝 ~ 첫 줄 글자 여백 = 약 20~27px(v90 약 45px)
+  const gaps=[]; for (let k=0;k<4;k++){ gaps.push(...await p.evaluate(()=>{const st=document.querySelector('#stage').getBoundingClientRect(); const o=[];
+    for (const pe of document.querySelectorAll('#stage .page')) { const pr=pe.getBoundingClientRect(); if(pr.width<10||pr.left<-1||pr.left>=innerWidth) continue;
+      const rg=document.createRange(); let top=1e9; const w=document.createTreeWalker(pe,NodeFilter.SHOW_TEXT); let n; while((n=w.nextNode())){ if(!n.textContent.trim())continue; rg.selectNodeContents(n); for(const q of rg.getClientRects()) if(q.height>=2) top=Math.min(top,q.top); }
+      o.push(Math.round(top-st.top)); } return o;})); await p.touchscreen.tap(900,400); await sleep(1400); }
+  ok('v92 spread: top margin above the first line is 20–27px on every page', gaps.length>=6 && gaps.every(x=>x>=20&&x<=27), JSON.stringify(gaps));
   ok('no page errors (v90 spread)', errs.length===0, JSON.stringify(errs)); await p.close(); }
 console.log(fails?'FAILS '+fails:'ALL PASS'); await b.close(); process.exit(0);
