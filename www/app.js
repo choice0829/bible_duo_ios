@@ -4201,7 +4201,7 @@
       t.addEventListener('click', () => t.remove());
       document.body.appendChild(t);
     }
-    t.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);' + (top ? 'top:calc(env(safe-area-inset-top) + 60px);' : 'bottom:60px;') +
+    t.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);' + (top ? 'top:max(calc(env(safe-area-inset-top) + 60px), calc(var(--headh, 0px) + 10px));' : 'bottom:60px;')   /* v95: 위쪽 알림은 머리줄(메뉴 단추) 아래에 */ +
       'z-index:99;width:max-content;max-width:90%;background:#222;color:#fff;padding:11px 16px;border-radius:12px;font-size:14px;line-height:1.4;text-align:center';
     t.textContent = msg;
     clearTimeout(showToastLine.timer);

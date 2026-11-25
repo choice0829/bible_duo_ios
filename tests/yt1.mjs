@@ -50,8 +50,9 @@ const seed={fn:([n,s])=>{ window.__msgs=[]; window.webkit={messageHandlers:{bf:{
       const r=R(el), c=R(ch);
       return {text:el.textContent, hidden:el.hidden, fs:getComputedStyle(el).fontSize, chFs:getComputedStyle(ch).fontSize, color:getComputedStyle(el).color===getComputedStyle(ch).color,
         dy:Math.round(Math.abs(r.bottom-c.bottom)), after:r.left>=c.right-1, inBtn:!!el.closest('#btn-pick'), rightGap:Math.round(R(document.querySelector('#btn-pick')).right-r.right), pages:[...document.querySelectorAll('#stage .page')].map(R).filter(x=>x.width>10&&x.right>1&&x.left<innerWidth-1).length, leftTxtR:Math.round(Math.max(0,...[...document.querySelectorAll('#stage .page p[data-k]')].map(R).filter(x=>x.width>10&&x.left<innerWidth/2-20&&x.right>1).map(x=>x.right))), elR:Math.round(r.right), cut:el.scrollWidth>el.clientWidth+1, bookCut:bk.scrollWidth>bk.clientWidth+1,
-        hitIcon:icons.some(i=>r.left<i.right&&i.left<r.right&&r.top<i.bottom&&i.top<r.bottom)}; });
-    ok('spread: v82 "with" ends at the right edge of the LEFT page text (just left of the fold)', Math.abs(t.elR-t.leftTxtR)<=2 && t.rightGap<=1, JSON.stringify({elR:t.elR,leftTxtR:t.leftTxtR,gap:t.rightGap}));
+        innerW:innerWidth, hitIcon:icons.some(i=>r.left<i.right&&i.left<r.right&&r.top<i.bottom&&i.top<r.bottom)}; });
+    // v95: 듀오 펼침(앱)은 머리줄 좌우 교체 → 'with'는 머리줄 오른쪽 끝(상태 알약 왼쪽 = 화면 폭 − 오른쪽 안전영역 84 − 8 안쪽)에 붙는다
+    ok('spread: v95 "with" ends at the right end of the header (just left of the status pill), right-aligned', t.rightGap<=1 && t.elR<=t.innerW-84 && t.elR>=t.innerW-110 && t.elR>t.leftTxtR+300, JSON.stringify({elR:t.elR,leftTxtR:t.leftTxtR,gap:t.rightGap}));
     ok('spread: v80 "with 한사람교회" right after the chapter label, same size·color·line, not cut, not over the icons', t.text==='with 한사람교회' && !t.hidden && t.fs===t.chFs && t.color && t.dy<=1 && t.after && t.inBtn && !t.cut && !t.bookCut && !t.hitIcon, JSON.stringify(t)); }
   ok('spread: no page errors', errs.length===0, JSON.stringify(errs)); await p.close(); }
 
