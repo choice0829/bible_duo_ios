@@ -127,12 +127,15 @@ const pageIdx=(p)=>p.evaluate(()=>{const pages=[...document.querySelectorAll('#s
   ok('v90 folded: strip height = 30 + 6 (not 30 + the whole bottom safe area)', bh.h===36, JSON.stringify(bh));
   ok('v90 folded: strip still at the very bottom', Math.round(s.r.bottom)===s.H);
   // 펼치기 → 접기: 가리는 화면이 남색 로고 화면이 아니어야 한다
+  await p.evaluate(()=>{ window.__op=[]; const el0=document.querySelector('#loading'); const tick=()=>{ if(!el0.hidden) window.__op.push(+getComputedStyle(el0).opacity); requestAnimationFrame(tick); }; requestAnimationFrame(tick); });
   await p.evaluate(()=>{ window.__ld=[]; const el=document.querySelector('#loading'); new MutationObserver(()=>{ if(!el.hidden) window.__ld.push({quiet:el.classList.contains('quiet'), bg:getComputedStyle(el).backgroundColor, logo:getComputedStyle(el.querySelector('.ld-logo')).visibility}); }).observe(el,{attributes:true}); });
   await cdp.send('Emulation.setSafeAreaInsetsOverride',{insets:{top:0,left:0,bottom:0,right:84}}); await p.setViewport({width:951,height:669,deviceScaleFactor:2,isMobile:true,hasTouch:true}); await sleep(3500);
   await cdp.send('Emulation.setSafeAreaInsetsOverride',{insets:{top:0,left:0,bottom:34,right:0}}); await p.setViewport({width:466,height:678,deviceScaleFactor:2,isMobile:true,hasTouch:true}); await sleep(3500);
   const ld=await p.evaluate(()=>({seen:window.__ld, bodyBg:getComputedStyle(document.body).getPropertyValue('--bg').trim(), hidden:document.querySelector('#loading').hidden}));
   ok('v90: fold/unfold covers only with the paper colour (no navy logo loading screen)', ld.seen.length>0 && ld.seen.every(x=>x.quiet && x.logo==='hidden' && x.bg!=='rgb(30, 58, 95)'), JSON.stringify(ld.seen.slice(0,3)));
   ok('v90: cover removed after relayout', ld.hidden===true);
+  { const op=await p.evaluate(()=>window.__op);   // v98: 가림이 부드럽게 흐려지며 나타나고 사라진다(중간 투명도가 보임)
+    ok('v98: the paper cover fades (intermediate opacity seen while showing/hiding)', op.some(x=>x>0.05&&x<0.95) && op.some(x=>x>0.95), JSON.stringify({n:op.length, mid:op.filter(x=>x>0.05&&x<0.95).length})); }
   ok('no page errors (v90 folded)', errs.length===0, JSON.stringify(errs)); await p.close(); }
 
 // ---- v90: 듀오 펼침(폭 951, 홀수): 책장이 정수 위치(왼쪽 0)에 붙고, 남는 1px 줄은 종이색 받침이 채운다(넘길 때 회색 선 방지) ----
