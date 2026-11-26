@@ -155,4 +155,15 @@ const pageIdx=(p)=>p.evaluate(()=>{const pages=[...document.querySelectorAll('#s
       const img=getComputedStyle(document.body).backgroundImage, paper=getComputedStyle(document.querySelector('#rd-strip')).backgroundColor; st.style.visibility=''; return {hh, img, paper}; });
     ok('v101: background is navy only down to the header (--headh), paper below — no navy flash while the book is hidden during rotation/fold', bg.hh==='118px' && bg.img.includes('rgb(30, 58, 95) 118px') && bg.img.includes(bg.paper+' 118px'), JSON.stringify(bg)); }
   ok('no page errors (v90 spread)', errs.length===0, JSON.stringify(errs)); await p.close(); }
+// ---- v102: 듀오 접기·펴기 — 화면 크기가 바뀌는 첫 순간에 머리줄이 움직이기 시작하고 곧 끝난다 ----
+{ const {p,errs,cdp}=await openDevice(b,['Duo 펼침',951,669,{top:0,right:84,bottom:0,left:0}],{seed:mkSeed(0,0,1,{}),port:8947,query:'?native=1'}); await sleep(1200);
+  const arm=()=>p.evaluate(()=>{ window.__ev=[]; const t0=performance.now(); let last='', rz=-1; window.addEventListener('resize',()=>{ if(rz<0) rz=performance.now()-t0; window.__rz=rz; },{once:true});
+    const tick=()=>{ const m=document.querySelector('#btn-search').getBoundingClientRect(); const s=Math.round(m.left)+','+Math.round(m.top); if(s!==last){ window.__ev.push([performance.now()-t0, s]); last=s; } if(performance.now()-t0<2500) requestAnimationFrame(tick); }; requestAnimationFrame(tick); });
+  for (const [nm,w,h,si] of [['fold',466,678,{top:0,left:0,bottom:0,right:0}],['unfold',951,669,{top:0,left:0,bottom:0,right:84}]]) {
+    await arm(); await cdp.send('Emulation.setSafeAreaInsetsOverride',{insets:si}); await p.setViewport({width:w,height:h,deviceScaleFactor:2,isMobile:true,hasTouch:true}); await sleep(2600);
+    const r=await p.evaluate(()=>({rz:window.__rz, ev:window.__ev}));
+    const after=r.ev.filter(e=>e[0]>=r.rz), first=after[0], end=after[after.length-1];
+    ok('v102 '+nm+': header starts moving right at the size change (≤ 120ms) and settles within 700ms', !!first && first[0]-r.rz<=120 && end[0]-r.rz<=700, JSON.stringify({rz:Math.round(r.rz), first:first&&Math.round(first[0]-r.rz), end:end&&Math.round(end[0]-r.rz), n:after.length}));
+  }
+  ok('no page errors (v102)', errs.length===0, JSON.stringify(errs)); await p.close(); }
 console.log(fails?'FAILS '+fails:'ALL PASS'); await b.close(); process.exit(0);
