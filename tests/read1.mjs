@@ -150,5 +150,9 @@ const pageIdx=(p)=>p.evaluate(()=>{const pages=[...document.querySelectorAll('#s
       const rg=document.createRange(); let top=1e9; const w=document.createTreeWalker(pe,NodeFilter.SHOW_TEXT); let n; while((n=w.nextNode())){ if(!n.textContent.trim())continue; rg.selectNodeContents(n); for(const q of rg.getClientRects()) if(q.height>=2) top=Math.min(top,q.top); }
       o.push(Math.round(top-st.top)); } return o;})); await p.touchscreen.tap(900,400); await sleep(1400); }
   ok('v92 spread: top margin above the first line is 20–27px on every page', gaps.length>=6 && gaps.every(x=>x>=20&&x<=27), JSON.stringify(gaps));
+  // v101: 화면 전환 중 책을 잠깐 숨겨도 남색이 아닌 종이색이 보이도록, 바탕은 머리줄 높이까지만 남색
+  { const bg=await p.evaluate(()=>{ const st=document.querySelector('#stage'); st.style.visibility='hidden'; const hh=getComputedStyle(document.documentElement).getPropertyValue('--headh').trim();
+      const img=getComputedStyle(document.body).backgroundImage, paper=getComputedStyle(document.querySelector('#rd-strip')).backgroundColor; st.style.visibility=''; return {hh, img, paper}; });
+    ok('v101: background is navy only down to the header (--headh), paper below — no navy flash while the book is hidden during rotation/fold', bg.hh==='118px' && bg.img.includes('rgb(30, 58, 95) 118px') && bg.img.includes(bg.paper+' 118px'), JSON.stringify(bg)); }
   ok('no page errors (v90 spread)', errs.length===0, JSON.stringify(errs)); await p.close(); }
 console.log(fails?'FAILS '+fails:'ALL PASS'); await b.close(); process.exit(0);
