@@ -9,7 +9,9 @@ const info=(p)=>p.evaluate(()=>{ const pages=[...document.querySelectorAll('#sta
   return {std:std.length, first:std[0]?std[0].textContent:null, krvFirst:(document.querySelector('#stage p[data-k]')||{}).textContent, overflow:Math.max(0,...ov), loading:document.querySelector('#loading').hidden,
     settings:localStorage.getItem('bf.settings'), btn:!!(JSON.parse(localStorage.getItem('bf.settings')||'{}').std), pos:localStorage.getItem('bf.pos'), pgc:Object.keys((JSON.parse(localStorage.getItem('bf.pgc')||'{}').map)||{}).length}; });
 const openTr=async(p)=>{ await p.click('#btn-settings'); await sleep(500); await p.click('#go-tr'); await sleep(300); };
-const wait=async(p)=>{ await p.waitForFunction(()=>document.querySelector('#loading').hidden===true,{timeout:30000}); await sleep(900); };
+// v97: 번역을 켜고 끄면 0.25초 뒤에 다시 만들기가 시작되고(쪽 나누기 약 3초), 그동안 #loading(종이색 가림)이 보인다.
+// 예전 wait 는 가림이 뜨기 전에 '숨김'을 보고 바로 지나가, 다 만들기 전에 화면을 재서 std 0개로 실패했다 → 가림이 뜨기를 먼저 기다린다.
+const wait=async(p)=>{ await p.waitForFunction(()=>document.querySelector('#loading').hidden===false,{timeout:1500}).catch(()=>{}); await p.waitForFunction(()=>document.querySelector('#loading').hidden===true,{timeout:30000}); await sleep(900); };
 
 // 펼친 화면
 { const {p,errs}=await openDevice(b,LAND,{seed:seedFor({book:0,chapter:0,verse:1}),port:8893});
@@ -28,7 +30,12 @@ const wait=async(p)=>{ await p.waitForFunction(()=>document.querySelector('#load
   // 선택할 수 없는 번역을 눌러도 체크되지 않는다
   await p.evaluate(()=>document.querySelector('#tr-krv2').click()); await p.click('#sheet-body label.tr.off >> nth=1',{force:true}).catch(()=>{});
   ok('disabled translation stays unchecked after tap', await p.evaluate(()=>[...document.querySelectorAll('#sheet-body label.tr.off input')].every(i=>!i.checked)));
-  await p.evaluate(()=>document.querySelector('#tr-std').click()); await wait(p);
+  await p.evaluate(()=>document.querySelector('#tr-std').click());
+  // v97: 다시 만드는 동안에도 번역 선택 창이 가림(#loading) 위에 보인다
+  await p.waitForFunction(()=>document.querySelector('#loading').hidden===false,{timeout:1500}).catch(()=>{});
+  const cov=await p.evaluate(()=>{const s=document.querySelector('#sheet .sheet-card, #sheet > div')||document.querySelector('#sheet'); const r=document.querySelector('#tr-std').getBoundingClientRect(); const t=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2); return {loading:!document.querySelector('#loading').hidden, hitSheet:!!(t&&t.closest('#sheet'))};});
+  ok('v97: while rebuilding, the translation sheet stays above the cover', cov.loading && cov.hitSheet, JSON.stringify(cov));
+  await wait(p);
   const g=await p.evaluate(()=>({open:!document.querySelector('#sheet').hidden, vis:document.querySelector('#tr-info-std').offsetParent!==null, txt:document.querySelector('#tr-info-std').textContent, checked:document.querySelector('#tr-std').checked}));
   ok('check AI → sheet stays open, guide shown', g.open && g.vis && g.checked && /참고용 글/.test(g.txt) && /목회자·전문가의 검토/.test(g.txt) && /태초에 하나님이 하늘과 땅을 창조하셨다/.test(g.txt), JSON.stringify({open:g.open,vis:g.vis}));
   await p.screenshot({path:'tr-menu-on.png'});
