@@ -75,7 +75,7 @@ for (const name of HEAD_PICK) {
     const hh = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--headh')) || 0;
     const chap = [...document.querySelectorAll('#book .chap')].find((c) => { const q = c.getBoundingClientRect(); return q.left > -2 && q.left < innerWidth / 2; });
     const textR = chap ? Math.max(...[...chap.querySelectorAll('p[data-k]')].slice(0, 12).map((p) => p.getBoundingClientRect().right)) : 0;
-    return { bs, ti: { r: tb.right, b: tb.bottom }, tl: ti.left, tr: ti.right, textR, spread: document.body.classList.contains('is-spread'), headh: hh, W: innerWidth, H: innerHeight, hr: document.querySelector('.head-row').getBoundingClientRect().bottom };
+    return { bs, ti: { l: tb.left, r: tb.right, b: tb.bottom }, tl: ti.left, tr: ti.right, textR, spread: document.body.classList.contains('is-spread'), headh: hh, W: innerWidth, H: innerHeight, hr: document.querySelector('.head-row').getBoundingClientRect().bottom };
   });
   const rows = {}; r.bs.forEach((x) => { const k = Math.round(x.t / 6); (rows[k] = rows[k] || []).push(x); });
   const rowList = Object.keys(rows).map(Number).sort((a, c) => a - c).map((k) => rows[k].sort((a, c) => a.l - c.l));
@@ -85,7 +85,7 @@ for (const name of HEAD_PICK) {
   ok(name + ': 아이콘끼리 겹치지 않는다', !overlap);
   // 펼친 화면: 책 이름 오른쪽에 메뉴 / 한 쪽 화면(v80): 책 이름 아래에 메뉴 → 겹치지 않으면 된다
   const duoFold = name === 'Duo 접힘';   // v81: 듀오 접힘(앱)은 오른쪽 세로 레일
-  ok(name + ': 책 이름과 아이콘이 겹치지 않는다', r.spread ? r.ti.r <= Math.min(...r.bs.map((x) => x.l)) + 1 : duoFold ? r.bs.every((x) => x.t >= r.ti.b - 1 || x.l >= r.ti.r - 1) : r.ti.b <= Math.min(...r.bs.map((x) => x.t)) + 1, 'title=' + Math.round(r.ti.r) + ',' + Math.round(r.ti.b) + ' menu=' + Math.round(Math.min(...r.bs.map((x) => x.l))) + ',' + Math.round(Math.min(...r.bs.map((x) => x.t))));
+  ok(name + ': 책 이름과 아이콘이 겹치지 않는다', r.spread ? (r.ti.r <= Math.min(...r.bs.map((x) => x.l)) + 1 || r.ti.l >= Math.max(...r.bs.map((x) => x.r)) - 1) :   /* v95 듀오 펼침은 메뉴가 왼쪽 쪽 */ duoFold ? r.bs.every((x) => x.t >= r.ti.b - 1 || x.l >= r.ti.r - 1) : r.ti.b <= Math.min(...r.bs.map((x) => x.t)) + 1, 'title=' + Math.round(r.ti.r) + ',' + Math.round(r.ti.b) + ' menu=' + Math.round(Math.min(...r.bs.map((x) => x.l))) + ',' + Math.round(Math.min(...r.bs.map((x) => x.t))));
   if (r.spread) {
     ok(name + ': 펼친 화면은 한 줄', rowList.length === 1, 'rows=' + rowList.length);
   } else {

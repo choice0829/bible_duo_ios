@@ -10,9 +10,9 @@ const rect=(sel)=>`(()=>{const e=document.querySelector('${sel}'); if(!e) return
 {
   const {p,errs}=await openDevice(b,DUO,{seed,port:8950,query:'?native=1'}); await sleep(500);
   ok('header has 8 menu buttons in order: search, hl, notes, card, map, ask, acct, settings (v77)', await p.evaluate(()=>{const bs=[...document.querySelectorAll('.menu-row .mini-btn')].map(b=>b.id); return JSON.stringify(bs)===JSON.stringify(['btn-search','btn-hl','btn-notes','btn-card','btn-map','btn-ask','btn-acct','btn-settings'])}));
-  const hb=await p.evaluate(()=>{const r=document.querySelector('.menu-row').getBoundingClientRect(); const t=document.querySelector('#btn-pick').getBoundingClientRect(); return {menuL:r.left,menuR:r.right,titleR:t.right,W:innerWidth}});
+  const hb=await p.evaluate(()=>{const r=document.querySelector('.menu-row').getBoundingClientRect(); const t=document.querySelector('#btn-pick').getBoundingClientRect(); return {menuL:r.left,menuR:r.right,titleR:t.right,titleL:t.left,W:innerWidth}});
   console.log(' header', JSON.stringify(hb));
-  ok('menu row does not collide with title', hb.titleR < hb.menuL, JSON.stringify(hb));
+  ok('menu row does not collide with title', hb.titleR < hb.menuL || hb.titleL > hb.menuR, JSON.stringify(hb));
   await p.screenshot({path:DIR+'pc1-header.png'});
   await p.click('#btn-card'); await sleep(1200);
   ok('overlay opens', await p.evaluate(()=>!document.querySelector('#pc').hidden));

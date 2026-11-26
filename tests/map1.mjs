@@ -51,7 +51,7 @@ for (const [name,w,h,si,KB] of DEV) {
   const ttl=await p.evaluate(R('#btn-pick')); const minL=Math.min(...hdr.map(x=>x.l));
   // v80: 한 쪽 화면은 메뉴가 책 이름 아래 / v81 듀오 접힘은 오른쪽 레일 → 사각형이 실제로 겹치는지로 본다
   const ttlHit=hdr.some(x=>x.l<ttl.r-1&&ttl.l<x.r-1&&x.t<ttl.b-1&&ttl.t<x.b-1);
-  ok(name+': 책 이름과 메뉴가 겹치지 않는다', spread?ttl.r<=minL+1:!ttlHit, `title=${Math.round(ttl.l)}..${Math.round(ttl.r)}×${Math.round(ttl.t)}..${Math.round(ttl.b)} menu.l=${Math.round(minL)}`);
+  ok(name+': 책 이름과 메뉴가 겹치지 않는다', spread?(ttl.r<=minL+1||ttl.l>=Math.max(...hdr.map(x=>x.r))-1):!ttlHit, `title=${Math.round(ttl.l)}..${Math.round(ttl.r)}×${Math.round(ttl.t)}..${Math.round(ttl.b)} menu.l=${Math.round(minL)}`);
   await p.screenshot({path:`map1-${SN[name]}-header.png`,clip:{x:0,y:0,width:w,height:Math.min(h,170)}});
   // ---- 설정 안의 번역 선택 ----
   await settle(p);

@@ -157,6 +157,10 @@ html.native body:not(.duo-fold) .head-row .icon-btn.on svg { color: var(--brand-
 .title-btn .loc-church { flex: 0 100 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; margin-left: auto; }   /* v82: 책 이름 줄의 오른쪽 끝에 맞춤 */
 /* v82 펼친 화면: 책 이름 줄을 왼쪽 쪽 본문의 오른쪽 끝(가운데 접는 선 바로 왼쪽)까지 넓혀, 'with 교회'가 그 끝에 붙게 한다. 메뉴가 자리를 더 쓰면 줄어든다 */
 body.is-spread .title-btn { flex: 0 1 var(--title-w, auto); width: var(--title-w, auto); }
+/* v95 듀오 펼침(앱): 머리줄 좌우 교체 — 메뉴는 왼쪽 쪽(왼쪽 정렬), 로고·책 이름은 오른쪽 쪽 본문 왼쪽 끝부터, 'with 교회'는 상태 알약 바로 왼쪽(오른쪽 정렬) */
+body.head-swap .head-row { flex-direction: row-reverse; }
+body.head-swap .menu-row { margin-left: 0; }
+body.head-swap .brand { left: var(--brand-l, 0px); }
 .loc-church[hidden] { display: none; }
 .menu-row { display: flex; gap: 7px; flex: none; margin-left: auto; }   /* 펼친 화면: 메뉴는 한 줄로 오른쪽 끝 */
 /* v80: 한 쪽 화면(일반 아이폰 세로·듀오 접힘): 윗줄 = 책 이름(넓게), 그 아래 한 줄 = 메뉴 8개(양 끝 맞춤).
