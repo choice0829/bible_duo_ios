@@ -248,6 +248,13 @@ html.kb #sheet.tall .panel { height: 100%; }
 .head-actions .link-btn { text-align: right; }
 .act-btn { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 30px; margin: -4px 0; color: var(--accent); }
 .act-btn[hidden] { display: none; }
+/* v96 메뉴 테마 통일(아이폰 앱): 메인 화면처럼 남색 머리줄 + 세피아 글자, 강조색(단추·선택·제목 글자)은 남색.
+   본문(책장)의 절 번호 등은 그대로 두고, 메뉴 창·전체 화면 메뉴·하이라이트 도구 안에서만 --accent 를 바꾼다. */
+html.native #sheet, html.native #pc, html.native #mp, html.native #ann-bar { --accent: var(--brand); }
+html.native body.theme-night #sheet, html.native body.theme-night #pc, html.native body.theme-night #mp, html.native body.theme-night #ann-bar { --accent: #5A86C0; }   /* 야간: 어두운 바탕에서도 보이는 밝은 남색 */
+html.native .panel-head { background: var(--brand); color: var(--brand-ink); border-bottom: 0; }
+html.native .panel-head .link-btn, html.native .panel-head .act-btn { color: var(--brand-sub); }
+html.native .pc-bar strong, html.native .mp-bar strong { color: var(--accent); }
 .act-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 .credit { margin: 18px 0 0; text-align: center; font-size: 12px; letter-spacing: .04em; color: var(--std, var(--muted)); user-select: none; -webkit-user-select: none; }   /* v62: 설정 화면 맨 아래 제작자 표시 */
 #sheet-body { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px 16px 22px; touch-action: pan-y; }
