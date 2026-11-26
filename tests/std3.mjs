@@ -9,9 +9,11 @@ const info=(p)=>p.evaluate(()=>{ const pages=[...document.querySelectorAll('#sta
   return {std:std.length, first:std[0]?std[0].textContent:null, krvFirst:(document.querySelector('#stage p[data-k]')||{}).textContent, overflow:Math.max(0,...ov), loading:document.querySelector('#loading').hidden,
     settings:localStorage.getItem('bf.settings'), btn:!!(JSON.parse(localStorage.getItem('bf.settings')||'{}').std), pos:localStorage.getItem('bf.pos'), pgc:Object.keys((JSON.parse(localStorage.getItem('bf.pgc')||'{}').map)||{}).length}; });
 const openTr=async(p)=>{ await p.click('#btn-settings'); await sleep(500); await p.click('#go-tr'); await sleep(300); };
-// v97: 번역을 켜고 끄면 0.25초 뒤에 다시 만들기가 시작되고(쪽 나누기 약 3초), 그동안 #loading(종이색 가림)이 보인다.
-// 예전 wait 는 가림이 뜨기 전에 '숨김'을 보고 바로 지나가, 다 만들기 전에 화면을 재서 std 0개로 실패했다 → 가림이 뜨기를 먼저 기다린다.
-const wait=async(p)=>{ await p.waitForFunction(()=>document.querySelector('#loading').hidden===false,{timeout:1500}).catch(()=>{}); await p.waitForFunction(()=>document.querySelector('#loading').hidden===true,{timeout:30000}); await sleep(900); };
+// 처음 열기·새로 고침은 남색 첫 화면(#loading)이 다 만들 때까지 보이므로 그것이 사라지기를 기다린다.
+const wait=async(p)=>{ await p.waitForFunction(()=>document.querySelector('#loading').hidden===true,{timeout:30000}); await sleep(900); };
+// v101: 번역을 켜고 끄면 0.25초 뒤 다시 만들기가 시작되고 쪽 나누기에 약 3초 걸린다. v100부터 그동안 가림이 없어 #loading 으로는
+// 끝난 때를 알 수 없다(예전 wait 는 가림을 1.5초 기다리다 포기한 시간 덕에 우연히 통과) → 화면에 풀이 문단이 생기거나(켬) 없어질 때(끔)까지 기다린다.
+const waitStd=async(p,on)=>{ await p.waitForFunction((on)=>{ const n=document.querySelectorAll('#stage p.std').length; return on ? n>0 : n===0; },{timeout:30000},on); await sleep(900); };
 
 // 펼친 화면
 { const {p,errs}=await openDevice(b,LAND,{seed:seedFor({book:0,chapter:0,verse:1}),port:8893});
@@ -35,7 +37,7 @@ const wait=async(p)=>{ await p.waitForFunction(()=>document.querySelector('#load
   await p.waitForFunction(()=>document.querySelector('#loading').hidden===false,{timeout:1500}).catch(()=>{});
   const cov=await p.evaluate(()=>{const s=document.querySelector('#sheet .sheet-card, #sheet > div')||document.querySelector('#sheet'); const r=document.querySelector('#tr-std').getBoundingClientRect(); const t=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2); return {loading:!document.querySelector('#loading').hidden, hitSheet:!!(t&&t.closest('#sheet'))};});
   ok('v97/v100: while rebuilding, the translation sheet stays on top (v100: no cover at all after the first screen)', !cov.loading && cov.hitSheet, JSON.stringify(cov));
-  await wait(p);
+  await waitStd(p,true);
   const g=await p.evaluate(()=>({open:!document.querySelector('#sheet').hidden, vis:document.querySelector('#tr-info-std').offsetParent!==null, txt:document.querySelector('#tr-info-std').textContent, checked:document.querySelector('#tr-std').checked}));
   ok('check AI → sheet stays open, guide shown', g.open && g.vis && g.checked && /참고용 글/.test(g.txt) && /목회자·전문가의 검토/.test(g.txt) && /태초에 하나님이 하늘과 땅을 창조하셨다/.test(g.txt), JSON.stringify({open:g.open,vis:g.vis}));
   await p.screenshot({path:'tr-menu-on.png'});
@@ -57,7 +59,7 @@ const wait=async(p)=>{ await p.waitForFunction(()=>document.querySelector('#load
   ok('book without std: toast shown', /준비되지 않았습니다/.test(toast), toast);
   // 끄기
   await p.evaluate(()=>{ localStorage.setItem('bf.pos',JSON.stringify({book:0,chapter:0,verse:1})); }); await p.reload(); await wait(p);
-  await openTr(p); await sleep(400); await p.evaluate(()=>document.querySelector('#tr-std').click()); await wait(p);
+  await openTr(p); await sleep(400); await p.evaluate(()=>document.querySelector('#tr-std').click()); await waitStd(p,false);
   ok('uncheck AI → guide hidden', await p.evaluate(()=>document.querySelector('#tr-info-std').offsetParent===null));
   await p.click('#sheet-close'); await sleep(400);
   const back=await info(p); ok('spread: off again → std gone, same page text', back.std===0 && back.btn===false);
@@ -65,7 +67,7 @@ const wait=async(p)=>{ await p.waitForFunction(()=>document.querySelector('#load
 
 // 접은 화면(한 쪽 세로 스크롤)
 { const {p,errs}=await openDevice(b,FOLD,{seed:seedFor({book:42,chapter:2,verse:16}),port:8893});
-  await openTr(p); await sleep(500); await p.evaluate(()=>document.querySelector('#tr-std').click()); await wait(p); await p.screenshot({path:'tr-menu-fold.png'}); await p.click('#sheet-close'); await sleep(500);
+  await openTr(p); await sleep(500); await p.evaluate(()=>document.querySelector('#tr-std').click()); await waitStd(p,true); await p.screenshot({path:'tr-menu-fold.png'}); await p.click('#sheet-close'); await sleep(500);
   const r=await p.evaluate(()=>{ const pane=document.querySelectorAll('#book .chap')[2]; const std=pane.querySelectorAll('p.std'); const kids=[...pane.children].filter(e=>e.tagName==='P'); 
     const pairs=kids.every((e,i)=>e.dataset.k? (kids[i+1]&&kids[i+1].classList.contains('std')&&kids[i+1].dataset.s===e.dataset.k):true);
     return {std:std.length, verses:pane.querySelectorAll('p[data-k]').length, pairs, txt:std[15]&&std[15].textContent, pos:localStorage.getItem('bf.pos')}; });
