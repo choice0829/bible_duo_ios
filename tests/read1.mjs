@@ -166,4 +166,24 @@ const pageIdx=(p)=>p.evaluate(()=>{const pages=[...document.querySelectorAll('#s
     ok('v102 '+nm+': header starts moving right at the size change (≤ 120ms) and settles within 700ms', !!first && first[0]-r.rz<=120 && end[0]-r.rz<=700, JSON.stringify({rz:Math.round(r.rz), first:first&&Math.round(first[0]-r.rz), end:end&&Math.round(end[0]-r.rz), n:after.length}));
   }
   ok('no page errors (v102)', errs.length===0, JSON.stringify(errs)); await p.close(); }
+// ---- v103: 경첩 각도(window.bfHinge) — 펼친 화면에서 접기 시작하면 화면이 바뀌기 전에 머리줄이 접힘 자리로 간다 ----
+{ const {p,errs,cdp}=await openDevice(b,['Duo 펼침',951,669,{top:0,right:84,bottom:0,left:0}],{seed:mkSeed(0,0,1,{}),port:8947,query:'?native=1'}); await sleep(800);
+  const FOLD=async()=>{ await cdp.send('Emulation.setSafeAreaInsetsOverride',{insets:{top:0,left:0,bottom:0,right:0}}); await p.setViewport({width:466,height:678,deviceScaleFactor:2,isMobile:true,hasTouch:true}); };
+  const OPEN=async()=>{ await cdp.send('Emulation.setSafeAreaInsetsOverride',{insets:{top:0,left:0,bottom:0,right:84}}); await p.setViewport({width:951,height:669,deviceScaleFactor:2,isMobile:true,hasTouch:true}); };
+  const pos=()=>p.evaluate(()=>{const r=document.querySelector('#btn-search').getBoundingClientRect(), t=document.querySelector('#loc-book').getBoundingClientRect(); return {mx:Math.round(r.left),my:Math.round(r.top),tx:Math.round(t.left),ty:Math.round(t.top),pre:document.body.classList.contains('hinge-pre')};});
+  const close=async(list)=>{ for (const d of list) { await p.evaluate((d)=>window.bfHinge(d,'partiallyOpen'),d); await sleep(60); } };
+  await FOLD(); await sleep(2500); const f=await pos();   // 접힘 배치를 한 번 보아 기억(bf.headpos)
+  await OPEN(); await sleep(2500); const o=await pos();
+  await close([179,175,165]); await sleep(450);
+  ok('v103: slight closing (above 150°) does not move the header', JSON.stringify(await pos())===JSON.stringify(o));
+  await close([150,140]); await sleep(500); const pre=await pos();
+  ok('v103: closing below 150° → header already at the folded spot (right page = folded screen) before the screen switches', pre.pre && Math.abs(pre.mx-(f.mx+485))<=2 && Math.abs(pre.my-f.my)<=2 && Math.abs(pre.tx-(f.tx+485))<=2, JSON.stringify({pre,f}));
+  await FOLD(); await sleep(40); const at=await pos(); await sleep(2500); const fin=await pos();
+  ok('v103: at the switch the header is already in place (no second slide)', at.mx===fin.mx && at.my===fin.my && at.tx===fin.tx && !fin.pre, JSON.stringify({at,fin}));
+  await OPEN(); await sleep(2500); await close([160,145]); await sleep(450);
+  await p.evaluate(()=>window.bfHinge(180,'fullyOpen')); await sleep(700);
+  ok('v103: opening again (fully open) puts the header back', JSON.stringify(await pos())===JSON.stringify(o));
+  await close([160,145]); await sleep(1500);
+  ok('v103: stopping half-folded (tabletop) puts the header back after a moment', JSON.stringify(await pos())===JSON.stringify(o));
+  ok('no page errors (v103)', errs.length===0, JSON.stringify(errs)); await p.close(); }
 console.log(fails?'FAILS '+fails:'ALL PASS'); await b.close(); process.exit(0);

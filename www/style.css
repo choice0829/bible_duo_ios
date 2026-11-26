@@ -172,6 +172,9 @@ body.head-mid .title-btn .loc-church[hidden] { display: none; }
 body.head-anim #topbar { z-index: 29; }
 body.head-anim #topbar::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: var(--headh, 118px); background: var(--brand); }
 body.head-anim .menu-row > .icon-btn { transition: color .55s, background-color .55s; }
+/* v103 경첩으로 접힘 자리에 미리 갈 때: 아이콘은 접힘처럼 바탕 없이(종이색 위로 내려가므로 글자색도 접힘과 같게) */
+html.native body.hinge-pre .head-row .menu-row > .icon-btn { background: transparent; color: var(--fg); }
+html.native body.hinge-pre .head-row .menu-row > .icon-btn.on { background: color-mix(in srgb, var(--accent) 16%, transparent); }
 .loc-church[hidden] { display: none; }
 .menu-row { display: flex; gap: 7px; flex: none; margin-left: auto; }   /* 펼친 화면: 메뉴는 한 줄로 오른쪽 끝 */
 /* v80: 한 쪽 화면(일반 아이폰 세로·듀오 접힘): 윗줄 = 책 이름(넓게), 그 아래 한 줄 = 메뉴 8개(양 끝 맞춤).
