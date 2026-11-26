@@ -38,7 +38,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v101';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v102';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -316,7 +316,7 @@
   // 머리줄을 그릴 때마다 각 요소의 화면 위치를 기억해 두고(headRects), 접힘↔펼침으로 바뀌면 새 배치를 그린 직후
   // 각 요소를 '이전 자리'(접힌 화면 = 펼친 화면의 오른쪽 쪽이므로 화면 폭 차이만큼 옮긴 자리)로 되돌렸다가 제자리로 움직인다(FLIP).
   // 움직이는 동안(body.head-anim)만 머리줄을 화면 전환 가림(#loading.quiet, z 28) 위로 올리고 뒤에 남색 띠를 깐다.
-  const HEAD_ANIM_MS = 550;
+  const HEAD_ANIM_MS = 380;   // v102: 550 → 380(접기·펴기 직후 바로 끝나게)
   let headRects = null, headW = 0, headMode = '', headAnimTimer = 0;
   const headModeOf = (g) => g.duoFold ? 'fold' : (g.full && g.duo) ? 'mid' : 'other';
   function headEls() {
@@ -359,7 +359,9 @@
     let reduce = false;
     try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { /* 무시 */ }
     const headAnim = NATIVE && !!prevRects && !reduce && newMode !== headMode && (newMode === 'fold' || newMode === 'mid') && (headMode === 'fold' || headMode === 'mid');
-    headAnimClear();
+    // v102: 접기·펴기 첫 순간(onResize)에 머리줄을 먼저 움직이므로, 이어서 책을 다시 만들며 다시 부를 때(같은 배치)는 움직이던 것을 끊지 않는다
+    const keepAnim = !headAnim && newMode === headMode && document.body.classList.contains('head-anim');
+    if (!keepAnim) headAnimClear();
     if (headAnim) document.body.classList.add('head-anim');
     root.setProperty('--fs', settings.fontSize + 'px');
     const fstack = (FONTS[settings.font] || FONTS.myeongjo).stack;
@@ -432,6 +434,7 @@
     document.documentElement.classList.toggle('full', !!g.full);   // 앱 펼침: 책 카드 없이 한 색 바탕
     document.body.classList.toggle('is-compact', g.compact);
     fitTitle();
+    if (keepAnim) { headW = g.W; return; }   // 움직이는 중의 위치(transform)는 기억하지 않는다 — 끝자리는 움직임을 시작할 때 기억했다
     const nowRects = headSnap();
     if (headAnim) headAnimate(prevRects, nowRects, g.W - prevW);
     headRects = nowRects; headW = g.W; headMode = newMode;
@@ -1707,6 +1710,11 @@
       let g0 = null;
       try { g0 = geometry(); } catch (e) { /* 무시 */ }
       if (g0 && geoKey(g0) !== lastGeo) showLoading(true);   // 어긋난 화면이 잠깐이라도 보이지 않게 가린다
+      // v102 듀오 접기·펴기: 화면 크기가 바뀌는 첫 순간에 머리줄(메뉴·책 이름)부터 새 자리로 움직인다.
+      // 예전에는 크기가 안정되기를 기다리고(약 0.2초) 책을 다시 만든 뒤(펼침은 쪽 나누기까지 약 0.6초) 움직여 늦게 따라오는 것처럼 보였다.
+      if (g0 && NATIVE && geoKey(g0) !== lastGeo && headModeOf(g0) !== headMode && (headModeOf(g0) === 'fold' || headModeOf(g0) === 'mid')) {
+        try { applyLook(g0); } catch (e) { /* 무시: 다시 만들 때 제자리로 */ }
+      }
     }
     posFreezeUntil = Date.now() + 3500;
     verifyTimers.forEach(clearTimeout); verifyTimers = [];
