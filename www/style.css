@@ -158,9 +158,12 @@ html.native body:not(.duo-fold) .head-row .icon-btn.on svg { color: var(--brand-
 /* v82 펼친 화면: 책 이름 줄을 왼쪽 쪽 본문의 오른쪽 끝(가운데 접는 선 바로 왼쪽)까지 넓혀, 'with 교회'가 그 끝에 붙게 한다. 메뉴가 자리를 더 쓰면 줄어든다 */
 body.is-spread .title-btn { flex: 0 1 var(--title-w, auto); width: var(--title-w, auto); }
 /* v95 듀오 펼침(앱): 머리줄 좌우 교체 — 메뉴는 왼쪽 쪽(왼쪽 정렬), 로고·책 이름은 오른쪽 쪽 본문 왼쪽 끝부터, 'with 교회'는 상태 알약 바로 왼쪽(오른쪽 정렬) */
-body.head-swap .head-row { flex-direction: row-reverse; }
-body.head-swap .menu-row { margin-left: 0; }
-body.head-swap .brand { left: var(--brand-l, 0px); }
+/* v98 듀오 펼침(앱): 책 이름·장은 왼쪽 끝(폭 --title-w = 메뉴 왼쪽까지), 메뉴는 접는 선 가운데(--menu-l), 'with 교회'는 머리줄 오른쪽 끝.
+   메뉴·with 교회는 머리줄(.head-row) 기준 절대 위치 — 책 이름 길이에 따라 밀리지 않는다 */
+body.head-mid .head-row { height: var(--head-rowh, 73px); align-items: flex-end; }   /* 머리줄 높이 고정: 긴 책 이름이 작아져도 아래 끝(글자 바닥)은 그대로 */
+body.head-mid .menu-row { position: absolute; left: var(--menu-l, 0px); top: calc(20px + (var(--head-rowh, 73px) - 20px - 36px) / 2); margin: 0; }
+body.head-mid .title-btn .loc-church { position: absolute; right: 0; top: 20px; height: calc(var(--head-rowh, 73px) - 20px); display: flex; align-items: flex-end; padding-bottom: 9px; margin: 0; font-size: 17.6px; max-width: calc(100% - var(--menu-l, 0px) - 397px); }   /* 크기 = 기본 장 표시(44 × .4), 책 이름이 작아져도 그대로 */
+body.head-mid .title-btn .loc-church[hidden] { display: none; }
 .loc-church[hidden] { display: none; }
 .menu-row { display: flex; gap: 7px; flex: none; margin-left: auto; }   /* 펼친 화면: 메뉴는 한 줄로 오른쪽 끝 */
 /* v80: 한 쪽 화면(일반 아이폰 세로·듀오 접힘): 윗줄 = 책 이름(넓게), 그 아래 한 줄 = 메뉴 8개(양 끝 맞춤).

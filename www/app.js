@@ -38,7 +38,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v97';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v98';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -366,11 +366,14 @@
     // v82 펼친 화면: 책 이름 줄의 폭 = 왼쪽 쪽 본문의 오른쪽 끝(책 왼쪽 끝 + 쪽 폭 - 안쪽 여백)까지 → 'with 교회'가 가운데 접는 선 바로 왼쪽에 붙는다
     // v95 듀오 펼침(앱): 머리줄 좌우 교체 — 메뉴는 왼쪽 쪽, 로고·책 이름은 오른쪽 쪽 본문 왼쪽 끝에서 시작하고
     // 'with 교회'는 머리줄 오른쪽 끝(상태 알약 바로 왼쪽)에 붙는다
-    const swap = !!(g.full && g.duo);
-    document.body.classList.toggle('head-swap', swap);
-    const swapL = g.pageW + g.padIn - headX;   // 머리줄 왼쪽 끝에서 오른쪽 쪽 본문 시작까지
-    root.setProperty('--brand-l', swap ? swapL + 'px' : '0px');
-    root.setProperty('--title-w', swap ? Math.max(120, Math.round(g.W - g.headR - headX - swapL)) + 'px'
+    // v98 듀오 펼침(앱): 로고·책 이름·장은 왼쪽 끝, 메뉴 8개는 화면 가운데(두 쪽 사이 접는 선)에 한 줄, 'with 교회'는 머리줄 오른쪽 끝(상태 알약 왼쪽)
+    const mid = !!(g.full && g.duo);
+    document.body.classList.toggle('head-mid', mid);
+    const menuW = MENU_COUNT * 42 + (MENU_COUNT - 1) * 7;   // style.css: .icon-btn 42 · .menu-row gap 7
+    const menuL = Math.round(g.pageW - headX - menuW / 2);   // 머리줄 왼쪽 끝 기준, 메뉴 줄 가운데 = 접는 선
+    root.setProperty('--menu-l', mid ? menuL + 'px' : '0px');
+    root.setProperty('--brand-l', '0px');
+    root.setProperty('--title-w', mid ? Math.max(120, menuL - 18) + 'px'
       : g.spread ? Math.max(120, Math.round(g.shiftX + g.pageW - g.padIn - headX)) + 'px' : 'auto');
     stage.classList.toggle('spread', g.spread);
     document.body.classList.toggle('is-spread', g.spread);
