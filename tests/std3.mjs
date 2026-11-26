@@ -34,7 +34,7 @@ const wait=async(p)=>{ await p.waitForFunction(()=>document.querySelector('#load
   // v97: 다시 만드는 동안에도 번역 선택 창이 가림(#loading) 위에 보인다
   await p.waitForFunction(()=>document.querySelector('#loading').hidden===false,{timeout:1500}).catch(()=>{});
   const cov=await p.evaluate(()=>{const s=document.querySelector('#sheet .sheet-card, #sheet > div')||document.querySelector('#sheet'); const r=document.querySelector('#tr-std').getBoundingClientRect(); const t=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2); return {loading:!document.querySelector('#loading').hidden, hitSheet:!!(t&&t.closest('#sheet'))};});
-  ok('v97: while rebuilding, the translation sheet stays above the cover', cov.loading && cov.hitSheet, JSON.stringify(cov));
+  ok('v97/v100: while rebuilding, the translation sheet stays on top (v100: no cover at all after the first screen)', !cov.loading && cov.hitSheet, JSON.stringify(cov));
   await wait(p);
   const g=await p.evaluate(()=>({open:!document.querySelector('#sheet').hidden, vis:document.querySelector('#tr-info-std').offsetParent!==null, txt:document.querySelector('#tr-info-std').textContent, checked:document.querySelector('#tr-std').checked}));
   ok('check AI → sheet stays open, guide shown', g.open && g.vis && g.checked && /참고용 글/.test(g.txt) && /목회자·전문가의 검토/.test(g.txt) && /태초에 하나님이 하늘과 땅을 창조하셨다/.test(g.txt), JSON.stringify({open:g.open,vis:g.vis}));
