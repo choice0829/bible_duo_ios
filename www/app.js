@@ -263,7 +263,12 @@
     while (fs > 16 && over(b)) { fs -= 2; root.setProperty('--title-fs', fs + 'px'); }   // v70: 작은 폰(SE)에서 '데살로니가전·후서'가 잘리지 않도록 최소 16px
     // v80: 'with 교회이름'(장 표시 옆)까지 들어가도록 조금 더 줄인다(30px 아래로는 줄이지 않고, 그때는 교회 이름 끝을 줄임표로)
     const ch = $('#loc-church');
-    while (fs > 30 && ch && !ch.hidden && (over(ch) || over(b))) { fs -= 2; root.setProperty('--title-fs', fs + 'px'); }
+    const mid = document.body.classList.contains('head-mid');   // v99 듀오 펼침: with 교회는 머리줄 오른쪽 끝(책 이름 줄 밖)이라 책 이름을 더 줄이지 않는다
+    while (!mid && fs > 30 && ch && !ch.hidden && (over(ch) || over(b))) { fs -= 2; root.setProperty('--title-fs', fs + 'px'); }
+    if (mid) {   // with 교회를 장 표시와 같은 줄(아래 끝)에 둔다
+      const row = $('.head-row'), lc = $('#loc-ch');
+      if (row && lc) root.setProperty('--church-b', Math.max(0, row.getBoundingClientRect().bottom - lc.getBoundingClientRect().bottom).toFixed(1) + 'px');
+    }
   }
   let lastTitleFs = 44;
 

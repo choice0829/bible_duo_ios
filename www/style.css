@@ -162,7 +162,7 @@ body.is-spread .title-btn { flex: 0 1 var(--title-w, auto); width: var(--title-w
    메뉴·with 교회는 머리줄(.head-row) 기준 절대 위치 — 책 이름 길이에 따라 밀리지 않는다 */
 body.head-mid .head-row { height: var(--head-rowh, 73px); align-items: flex-end; }   /* 머리줄 높이 고정: 긴 책 이름이 작아져도 아래 끝(글자 바닥)은 그대로 */
 body.head-mid .menu-row { position: absolute; left: var(--menu-l, 0px); top: calc(20px + (var(--head-rowh, 73px) - 20px - 36px) / 2); margin: 0; }
-body.head-mid .title-btn .loc-church { position: absolute; right: 0; top: 20px; height: calc(var(--head-rowh, 73px) - 20px); display: flex; align-items: flex-end; padding-bottom: 9px; margin: 0; font-size: 17.6px; max-width: calc(100% - var(--menu-l, 0px) - 397px); }   /* 크기 = 기본 장 표시(44 × .4), 책 이름이 작아져도 그대로 */
+body.head-mid .title-btn .loc-church { position: absolute; right: 0; bottom: var(--church-b, 7px); margin: 0; font-size: 17.6px; max-width: calc(100% - var(--menu-l, 0px) - 397px); }   /* 아래 끝 = 장 표시('1장') 아래 끝(app.js fitTitle 이 재서 --church-b) */   /* 크기 = 기본 장 표시(44 × .4), 책 이름이 작아져도 그대로 */
 body.head-mid .title-btn .loc-church[hidden] { display: none; }
 /* v99 듀오 접기↔펴기: 머리줄이 미끄러지는 동안(app.js headAnimate)만 화면 전환 가림(#loading.quiet, z 28) 위로 올리고 뒤에 남색 띠를 깐다.
    메뉴 아이콘은 색(접힘: 본문 글자색 → 펼침: 세피아)도 같은 시간 동안 바뀐다 */
