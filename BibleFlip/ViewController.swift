@@ -18,6 +18,7 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
     private let places = LocationBridge()   // 모임 장소 지도: 현재 위치·주소 찾기
     private var mailId = 0                  // 문의하기: 지금 열려 있는 메일 작성 창의 요청 번호
     private let church = ChurchBridge()     // 교회 계정: 서버 요청 대행 · 로그인 정보 키체인 보관 (v75)
+    private let hinge = HingeBridge()       // iPhone Duo 경첩 각도 → 웹(접기 직전 머리줄 움직임, v103)
 
     // Mac 없이도 문제를 알 수 있도록: 웹에서 난 오류를 앱이 한 번 화면에 띄운다 (진단용)
     private static let diagScript = """
@@ -42,7 +43,7 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         config.setURLSchemeHandler(BundleSchemeHandler(), forURLScheme: "bibleflip")
         config.allowsInlineMediaPlayback = true
         // 지도 바탕(OpenStreetMap) 서버가 앱을 알아볼 수 있도록 앱 이름을 접속 정보(User-Agent)에 덧붙인다
-        config.applicationNameForUserAgent = "BibleFlip/102"
+        config.applicationNameForUserAgent = "BibleFlip/103"
         let controller = WKUserContentController()
         controller.add(WeakMessageHandler(self), name: "bf")
         controller.addUserScript(WKUserScript(source: ViewController.diagScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
@@ -78,6 +79,11 @@ final class ViewController: UIViewController, WKScriptMessageHandler, WKNavigati
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillHide(_:)),
                                                name: UIResponder.keyboardWillHideNotification, object: nil)
         places.onFix = { [weak self] r in self?.sendToWeb("bfLocation", r) }
+        hinge.onChange = { [weak self] deg, status in
+            let st = status.replacingOccurrences(of: "'", with: "")
+            self?.webView.evaluateJavaScript("window.bfHinge && window.bfHinge(\(deg), '\(st)')", completionHandler: nil)
+        }
+        hinge.attach(to: self)
         load()
     }
 

@@ -38,7 +38,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v102';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v103';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -353,14 +353,76 @@
     headAnimTimer = setTimeout(headAnimClear, HEAD_ANIM_MS + 120);
   }
 
+  // ---------- v103 iPhone Duo 경첩: 접기 시작하면 화면이 바뀌기 전에 머리줄을 접힘 자리로 ----------
+  // 앱(Swift HingeBridge)이 경첩 각도(평평 180°)를 window.bfHinge(각도, 상태)로 알려 준다. 펼친 화면(mid)에서 접는 쪽으로
+  // HINGE_PRE° 아래로 내려가면, 마지막으로 본 접힘 배치(bf.headpos 에 기억)를 펼친 화면의 오른쪽 쪽(접힌 화면 = 펼친 화면의 오른쪽)에
+  // 겹쳐 그 자리로 머리줄을 미리 움직인다. 화면이 실제로 바뀌면(onResize) 이미 제자리이므로 미끄러짐 없이 그대로 둔다.
+  // 다시 펴거나(HINGE_UNDO° 이상) 반쯤 접은 채 멈추면(HINGE_IDLE_MS) 원래 자리로 돌아간다. Apple 안내대로 배치 결정에는 쓰지 않는다(효과만).
+  const HINGE_PRE = 150, HINGE_UNDO = 168, HINGE_IDLE_MS = 900;
+  let hingePre = false, hingeLast = 180, hingeIdle = 0;
+  const headCache = (() => { try { return JSON.parse(localStorage.getItem('bf.headpos')) || {}; } catch (e) { return {}; } })();
+  function headCacheSave(mode, W, rects) {
+    if (mode !== 'fold' && mode !== 'mid') return;
+    headCache[mode] = { W, rects };
+    try { localStorage.setItem('bf.headpos', JSON.stringify(headCache)); } catch (e) { /* 무시 */ }
+  }
+  function hingePreMove() {
+    const t = headCache.fold;
+    if (!t || !t.rects || !headRects || headMode !== 'mid') return false;
+    const dx = headW - t.W;   // 접힌 화면 = 펼친 화면의 오른쪽 쪽
+    headAnimClear();
+    document.body.classList.add('head-anim', 'hinge-pre');
+    headEls().forEach(([k, el]) => {
+      const a = headRects[k], b = t.rects[k];
+      if (!a) return;
+      el.style.transformOrigin = '0 0';
+      if (!b) { el.style.transition = 'opacity 200ms ease'; el.style.opacity = '0'; return; }   // 접힘에 없는 것(장 표시 등)은 사라진다
+      const icon = k[0] === 'm';
+      const sx = icon ? b.w / a.w : 1, sy = icon ? b.h / a.h : 1;
+      el.style.transition = 'transform ' + HEAD_ANIM_MS + 'ms cubic-bezier(.22,.8,.24,1), color .3s, background-color .3s';
+      el.style.transform = 'translate(' + (b.x + dx - a.x).toFixed(1) + 'px,' + (b.y - a.y).toFixed(1) + 'px) scale(' + sx.toFixed(3) + ',' + sy.toFixed(3) + ')';
+    });
+    hingePre = true;
+    return true;
+  }
+  function hingeUndo() {
+    if (!hingePre) return;
+    hingePre = false;
+    clearTimeout(hingeIdle);
+    document.body.classList.remove('hinge-pre');
+    headEls().forEach(([, el]) => { el.style.transition = 'transform ' + HEAD_ANIM_MS + 'ms cubic-bezier(.22,.8,.24,1), opacity 200ms ease, color .3s, background-color .3s'; el.style.transform = ''; el.style.opacity = ''; });
+    clearTimeout(headAnimTimer);
+    headAnimTimer = setTimeout(headAnimClear, HEAD_ANIM_MS + 120);
+  }
+  window.bfHinge = (deg, status) => {
+    if (!NATIVE || typeof deg !== 'number') return;
+    const closing = deg < hingeLast - 0.5;
+    hingeLast = deg;
+    if (hingePre) {
+      if (deg >= HINGE_UNDO || /fully/i.test(String(status))) { hingeUndo(); return; }
+      clearTimeout(hingeIdle);   // 반쯤 접은 채 멈추면(탁자에 세워 읽기 등) 되돌린다
+      hingeIdle = setTimeout(hingeUndo, HINGE_IDLE_MS);
+      return;
+    }
+    if (closing && deg <= HINGE_PRE && headMode === 'mid' && hingePreMove()) {
+      clearTimeout(hingeIdle);
+      hingeIdle = setTimeout(hingeUndo, HINGE_IDLE_MS);
+    }
+  };
+
   function applyLook(g) {
     const root = document.documentElement.style;
     const newMode = headModeOf(g), prevRects = headRects, prevW = headW;
     let reduce = false;
     try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { /* 무시 */ }
-    const headAnim = NATIVE && !!prevRects && !reduce && newMode !== headMode && (newMode === 'fold' || newMode === 'mid') && (headMode === 'fold' || headMode === 'mid');
+    let headAnim = NATIVE && !!prevRects && !reduce && newMode !== headMode && (newMode === 'fold' || newMode === 'mid') && (headMode === 'fold' || headMode === 'mid');
     // v102: 접기·펴기 첫 순간(onResize)에 머리줄을 먼저 움직이므로, 이어서 책을 다시 만들며 다시 부를 때(같은 배치)는 움직이던 것을 끊지 않는다
-    const keepAnim = !headAnim && newMode === headMode && document.body.classList.contains('head-anim');
+    let keepAnim = !headAnim && newMode === headMode && document.body.classList.contains('head-anim');
+    if (hingePre) {   // v103: 경첩으로 이미 접힘 자리에 가 있다 → 미끄러짐 없이 새 배치로(접힘이 아니면 되돌림)
+      hingePre = false; clearTimeout(hingeIdle);
+      document.body.classList.remove('hinge-pre');
+      headAnim = false; keepAnim = false;
+    }
     if (!keepAnim) headAnimClear();
     if (headAnim) document.body.classList.add('head-anim');
     root.setProperty('--fs', settings.fontSize + 'px');
@@ -438,6 +500,7 @@
     const nowRects = headSnap();
     if (headAnim) headAnimate(prevRects, nowRects, g.W - prevW);
     headRects = nowRects; headW = g.W; headMode = newMode;
+    headCacheSave(newMode, g.W, nowRects);   // v103: 경첩 미리 움직임에 쓸 '그 배치의 머리줄 자리'
   }
 
   // ---------- 표시(하이라이트 · 동그라미 · 네모 · 물결 · 밑줄) ----------
