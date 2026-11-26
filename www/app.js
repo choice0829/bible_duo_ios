@@ -38,7 +38,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v98';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v99';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -307,8 +307,55 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden) nudgeSystemColor(); });
   window.addEventListener('pageshow', nudgeSystemColor);
   window.addEventListener('resize', nudgeSystemColor);
+  // v99 듀오 전용: 접기 ↔ 펴기 때 머리줄이 미끄러지며 바뀐다(펼침: 책 이름 → 왼쪽 끝, 메뉴 세로 줄 → 가운데 가로 줄 / 접힘: 반대).
+  // 머리줄을 그릴 때마다 각 요소의 화면 위치를 기억해 두고(headRects), 접힘↔펼침으로 바뀌면 새 배치를 그린 직후
+  // 각 요소를 '이전 자리'(접힌 화면 = 펼친 화면의 오른쪽 쪽이므로 화면 폭 차이만큼 옮긴 자리)로 되돌렸다가 제자리로 움직인다(FLIP).
+  // 움직이는 동안(body.head-anim)만 머리줄을 화면 전환 가림(#loading.quiet, z 28) 위로 올리고 뒤에 남색 띠를 깐다.
+  const HEAD_ANIM_MS = 550;
+  let headRects = null, headW = 0, headMode = '', headAnimTimer = 0;
+  const headModeOf = (g) => g.duoFold ? 'fold' : (g.full && g.duo) ? 'mid' : 'other';
+  function headEls() {
+    const list = [['brand', $('.brand')], ['book', $('#loc-book')], ['ch', $('#loc-ch')], ['church', $('#loc-church')]];
+    document.querySelectorAll('.menu-row > .icon-btn').forEach((el, i) => list.push(['m' + i, el]));
+    return list.filter(([, el]) => el && !el.hidden && el.getClientRects().length);
+  }
+  function headSnap() {
+    const r = {};
+    headEls().forEach(([k, el]) => { const b = el.getBoundingClientRect(); if (b.width > 0) r[k] = { x: b.left, y: b.top, w: b.width, h: b.height }; });
+    return r;
+  }
+  function headAnimClear() {
+    clearTimeout(headAnimTimer);
+    headEls().forEach(([, el]) => { el.style.transition = ''; el.style.transform = ''; el.style.transformOrigin = ''; el.style.opacity = ''; });
+    document.body.classList.remove('head-anim');
+  }
+  function headAnimate(prev, now, dx) {
+    const els = headEls();
+    els.forEach(([k, el]) => {
+      const a = prev[k], b = now[k];
+      if (!b) return;
+      if (!a) { el.style.transition = 'none'; el.style.opacity = '0'; return; }   // 이전 배치에 없던 것(접힘에서 숨긴 장 표시 등)은 움직임 끝 무렵 서서히 나타난다
+      const icon = k[0] === 'm';
+      const sx = icon ? a.w / b.w : 1, sy = icon ? a.h / b.h : 1;
+      el.style.transition = icon ? 'color .55s, background-color .55s' : 'none';   // 자리는 바로 되돌리고, 아이콘 색 바뀜은 이어서
+      el.style.transformOrigin = '0 0';
+      el.style.transform = 'translate(' + (a.x + dx - b.x).toFixed(1) + 'px,' + (a.y - b.y).toFixed(1) + 'px) scale(' + sx.toFixed(3) + ',' + sy.toFixed(3) + ')';
+    });
+    void document.body.offsetWidth;   // 되돌린 자리를 먼저 그린 뒤
+    els.forEach(([k, el]) => {
+      if (el.style.opacity === '0') { el.style.transition = 'opacity ' + Math.round(HEAD_ANIM_MS * .45) + 'ms ease ' + Math.round(HEAD_ANIM_MS * .55) + 'ms'; el.style.opacity = ''; return; }
+      if (el.style.transform) { el.style.transition = 'transform ' + HEAD_ANIM_MS + 'ms cubic-bezier(.22,.8,.24,1)' + (k[0] === 'm' ? ', color .55s, background-color .55s' : ''); el.style.transform = ''; } });
+    headAnimTimer = setTimeout(headAnimClear, HEAD_ANIM_MS + 120);
+  }
+
   function applyLook(g) {
     const root = document.documentElement.style;
+    const newMode = headModeOf(g), prevRects = headRects, prevW = headW;
+    let reduce = false;
+    try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { /* 무시 */ }
+    const headAnim = NATIVE && !!prevRects && !reduce && newMode !== headMode && (newMode === 'fold' || newMode === 'mid') && (headMode === 'fold' || headMode === 'mid');
+    headAnimClear();
+    if (headAnim) document.body.classList.add('head-anim');
     root.setProperty('--fs', settings.fontSize + 'px');
     const fstack = (FONTS[settings.font] || FONTS.myeongjo).stack;
     root.setProperty('--serif', fstack);
@@ -380,6 +427,9 @@
     document.documentElement.classList.toggle('full', !!g.full);   // 앱 펼침: 책 카드 없이 한 색 바탕
     document.body.classList.toggle('is-compact', g.compact);
     fitTitle();
+    const nowRects = headSnap();
+    if (headAnim) headAnimate(prevRects, nowRects, g.W - prevW);
+    headRects = nowRects; headW = g.W; headMode = newMode;
   }
 
   // ---------- 표시(하이라이트 · 동그라미 · 네모 · 물결 · 밑줄) ----------
@@ -855,11 +905,27 @@
   // v90: 처음 열 때만 남색 '불러오는 중' 화면을 보이고, 그 뒤(화면 돌리기·듀오 접기/펴기·설정 바꾸기)에는
   // 종이색 바탕으로만 잠깐 가린다(로고·글자 없음). 어긋난 화면이 비치지 않게 하는 역할은 그대로다.
   let firstShown = false;
+  // v98: 종이색 가림은 부드럽게 — 나타날 때 0.14초, 사라질 때 0.32초 동안 흐려진다(남색 첫 화면은 예전처럼 바로)
+  const FADE_OUT_MS = 320;
   function showLoading(on) {
     const el = $('#loading');
-    if (on) el.classList.toggle('quiet', firstShown);
-    else if (pg) firstShown = true;
-    el.hidden = !on;
+    clearTimeout(showLoading.t);
+    if (on) {
+      const quiet = firstShown;
+      el.classList.toggle('quiet', quiet);
+      el.classList.remove('fade-out');
+      if (el.hidden) {
+        el.hidden = false;
+        if (quiet) { el.classList.add('fade-in'); void el.offsetWidth; el.classList.remove('fade-in'); }   // 투명에서 시작해 나타난다
+      }
+      return;
+    }
+    if (pg) firstShown = true;
+    if (el.hidden) return;
+    if (el.classList.contains('quiet')) {
+      el.classList.add('fade-out');   // 새 배치가 가림 뒤에서 서서히 드러난다(이동안 누르기는 통과)
+      showLoading.t = setTimeout(() => { el.hidden = true; el.classList.remove('fade-out'); }, FADE_OUT_MS + 20);
+    } else el.hidden = true;
   }
 
   // 이동한 절을 잠깐 강조한다. (책장이 자리 잡을 시간을 조금 준 뒤 표시)
