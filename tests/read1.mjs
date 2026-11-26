@@ -132,10 +132,10 @@ const pageIdx=(p)=>p.evaluate(()=>{const pages=[...document.querySelectorAll('#s
   await cdp.send('Emulation.setSafeAreaInsetsOverride',{insets:{top:0,left:0,bottom:0,right:84}}); await p.setViewport({width:951,height:669,deviceScaleFactor:2,isMobile:true,hasTouch:true}); await sleep(3500);
   await cdp.send('Emulation.setSafeAreaInsetsOverride',{insets:{top:0,left:0,bottom:34,right:0}}); await p.setViewport({width:466,height:678,deviceScaleFactor:2,isMobile:true,hasTouch:true}); await sleep(3500);
   const ld=await p.evaluate(()=>({seen:window.__ld, bodyBg:getComputedStyle(document.body).getPropertyValue('--bg').trim(), hidden:document.querySelector('#loading').hidden}));
-  ok('v90: fold/unfold covers only with the paper colour (no navy logo loading screen)', ld.seen.length>0 && ld.seen.every(x=>x.quiet && x.logo==='hidden' && x.bg!=='rgb(30, 58, 95)'), JSON.stringify(ld.seen.slice(0,3)));
-  ok('v90: cover removed after relayout', ld.hidden===true);
-  { const op=await p.evaluate(()=>window.__op);   // v98: 가림이 부드럽게 흐려지며 나타나고 사라진다(중간 투명도가 보임)
-    ok('v98: the paper cover fades (intermediate opacity seen while showing/hiding)', op.some(x=>x>0.05&&x<0.95) && op.some(x=>x>0.95), JSON.stringify({n:op.length, mid:op.filter(x=>x>0.05&&x<0.95).length})); }
+  // v100: 사용자 요청 — 접기·펴기 때 가림을 아예 띄우지 않는다(남색 로고 화면도, 종이색 가림도 없음)
+  ok('v100: fold/unfold shows no cover at all', ld.seen.length===0 && ld.hidden===true, JSON.stringify({seen:ld.seen.slice(0,3), hidden:ld.hidden}));
+  { const op=await p.evaluate(()=>window.__op);
+    ok('v100: cover never visible during fold/unfold', op.length===0, JSON.stringify({n:op.length})); }
   ok('no page errors (v90 folded)', errs.length===0, JSON.stringify(errs)); await p.close(); }
 
 // ---- v90: 듀오 펼침(폭 951, 홀수): 책장이 정수 위치(왼쪽 0)에 붙고, 남는 1px 줄은 종이색 받침이 채운다(넘길 때 회색 선 방지) ----
