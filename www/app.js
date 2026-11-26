@@ -38,7 +38,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v97';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v98';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -852,11 +852,27 @@
   // v90: 처음 열 때만 남색 '불러오는 중' 화면을 보이고, 그 뒤(화면 돌리기·듀오 접기/펴기·설정 바꾸기)에는
   // 종이색 바탕으로만 잠깐 가린다(로고·글자 없음). 어긋난 화면이 비치지 않게 하는 역할은 그대로다.
   let firstShown = false;
+  // v98: 종이색 가림은 부드럽게 — 나타날 때 0.14초, 사라질 때 0.32초 동안 흐려진다(남색 첫 화면은 예전처럼 바로)
+  const FADE_OUT_MS = 320;
   function showLoading(on) {
     const el = $('#loading');
-    if (on) el.classList.toggle('quiet', firstShown);
-    else if (pg) firstShown = true;
-    el.hidden = !on;
+    clearTimeout(showLoading.t);
+    if (on) {
+      const quiet = firstShown;
+      el.classList.toggle('quiet', quiet);
+      el.classList.remove('fade-out');
+      if (el.hidden) {
+        el.hidden = false;
+        if (quiet) { el.classList.add('fade-in'); void el.offsetWidth; el.classList.remove('fade-in'); }   // 투명에서 시작해 나타난다
+      }
+      return;
+    }
+    if (pg) firstShown = true;
+    if (el.hidden) return;
+    if (el.classList.contains('quiet')) {
+      el.classList.add('fade-out');   // 새 배치가 가림 뒤에서 서서히 드러난다(이동안 누르기는 통과)
+      showLoading.t = setTimeout(() => { el.hidden = true; el.classList.remove('fade-out'); }, FADE_OUT_MS + 20);
+    } else el.hidden = true;
   }
 
   // 이동한 절을 잠깐 강조한다. (책장이 자리 잡을 시간을 조금 준 뒤 표시)

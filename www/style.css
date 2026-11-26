@@ -305,6 +305,10 @@ html.native .pc-bar strong, html.native .mp-bar strong { color: var(--accent); }
 /* v90: 화면을 돌리거나 듀오를 접고 펼 때는 '불러오는 중' 화면 대신 종이색 바탕으로만 잠깐 가린다 */
 #loading.quiet { background: var(--bg); z-index: 28; }   /* v97: 설정 창(#sheet, 30) 아래 — 번역 선택처럼 창을 연 채 본문을 다시 만들 때 창이 가려지지 않게 */
 #loading.quiet > * { visibility: hidden; }
+/* v98: 종이색 가림이 부드럽게 나타나고(0.14초) 사라진다(0.32초). 사라지는 동안은 누르기가 뒤의 본문으로 간다 */
+#loading.quiet { opacity: 1; transition: opacity .14s ease-out; }
+#loading.quiet.fade-in { opacity: 0; transition: none; }
+#loading.quiet.fade-out { opacity: 0; transition: opacity .32s ease-in-out; pointer-events: none; }
 /* v90: 아이폰 앱 펼침 — 책장 뒤의 종이색 받침(화면 왼쪽 끝 ~ 오른쪽 끝). 넘김 중 쪽 가장자리 틈으로 남색 바탕이 비치지 않게 한다 */
 #stage-fill { position: fixed; left: 0; right: 0; background: var(--bg); pointer-events: none; }
 #stage-fill[hidden] { display: none; }
