@@ -38,7 +38,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v103';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v104';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -317,7 +317,7 @@
   // 각 요소를 '이전 자리'(접힌 화면 = 펼친 화면의 오른쪽 쪽이므로 화면 폭 차이만큼 옮긴 자리)로 되돌렸다가 제자리로 움직인다(FLIP).
   // 움직이는 동안(body.head-anim)만 머리줄을 화면 전환 가림(#loading.quiet, z 28) 위로 올리고 뒤에 남색 띠를 깐다.
   const HEAD_ANIM_MS = 380;   // v102: 550 → 380(접기·펴기 직후 바로 끝나게)
-  let headRects = null, headW = 0, headMode = '', headAnimTimer = 0;
+  let headRects = null, headW = 0, headMode = '', headAnimTimer = 0, headAnimEndAt = 0, rebuildDefer = 0;
   const headModeOf = (g) => g.duoFold ? 'fold' : (g.full && g.duo) ? 'mid' : 'other';
   function headEls() {
     const list = [['brand', $('.brand')], ['book', $('#loc-book')], ['ch', $('#loc-ch')], ['church', $('#loc-church')]];
@@ -350,6 +350,7 @@
     els.forEach(([k, el]) => {
       if (el.style.opacity === '0') { el.style.transition = 'opacity ' + Math.round(HEAD_ANIM_MS * .45) + 'ms ease ' + Math.round(HEAD_ANIM_MS * .55) + 'ms'; el.style.opacity = ''; return; }
       if (el.style.transform) { el.style.transition = 'transform ' + HEAD_ANIM_MS + 'ms cubic-bezier(.22,.8,.24,1)' + (k[0] === 'm' ? ', color .55s, background-color .55s' : ''); el.style.transform = ''; } });
+    headAnimEndAt = Date.now() + HEAD_ANIM_MS;   // v104: 움직임이 끝나기 전에는 책을 다시 만들지 않는다(버벅임 방지)
     headAnimTimer = setTimeout(headAnimClear, HEAD_ANIM_MS + 120);
   }
 
@@ -358,8 +359,20 @@
   // HINGE_PRE° 아래로 내려가면, 마지막으로 본 접힘 배치(bf.headpos 에 기억)를 펼친 화면의 오른쪽 쪽(접힌 화면 = 펼친 화면의 오른쪽)에
   // 겹쳐 그 자리로 머리줄을 미리 움직인다. 화면이 실제로 바뀌면(onResize) 이미 제자리이므로 미끄러짐 없이 그대로 둔다.
   // 다시 펴거나(HINGE_UNDO° 이상) 반쯤 접은 채 멈추면(HINGE_IDLE_MS) 원래 자리로 돌아간다. Apple 안내대로 배치 결정에는 쓰지 않는다(효과만).
-  const HINGE_PRE = 150, HINGE_UNDO = 168, HINGE_IDLE_MS = 900;
-  let hingePre = false, hingeLast = 180, hingeIdle = 0;
+  // v104: 150°는 너무 일러 펼친 화면에 접힘 배치가 보였다 → 화면이 실제로 바뀐 각도를 배워(bf.hingeSwitch) 그보다 HINGE_LEAD° 앞에서 시작한다.
+  // 처음(배우기 전)에는 HINGE_PRE_DEFAULT°. 시작 각도는 HINGE_PRE_MIN~HINGE_PRE_MAX° 안으로 둔다.
+  const HINGE_PRE_DEFAULT = 115, HINGE_LEAD = 8, HINGE_PRE_MIN = 40, HINGE_PRE_MAX = 150, HINGE_UNDO = 168, HINGE_IDLE_MS = 900;
+  let hingePre = false, hingeLast = 180, hingeIdle = 0, hingeSeenAt = 0;
+  let hingeSwitch = (() => { try { const v = +localStorage.getItem('bf.hingeSwitch'); return v > 0 && v < 180 ? v : 0; } catch (e) { return 0; } })();
+  const hingePreAngle = () => hingeSwitch ? Math.max(HINGE_PRE_MIN, Math.min(HINGE_PRE_MAX, hingeSwitch + HINGE_LEAD)) : HINGE_PRE_DEFAULT;
+  // 펼침 → 접힘으로 화면이 실제로 바뀐 순간의 경첩 각도를 기억한다(최근 값 쪽으로 천천히 따라감)
+  function hingeSwitchSeen(newMode) {
+    if (newMode !== 'fold' || headMode !== 'mid' || !hingeSeenAt || Date.now() - hingeSeenAt > 1500) return;
+    const a = hingeLast;
+    if (!(a > 0 && a < 180)) return;
+    hingeSwitch = hingeSwitch ? Math.round(hingeSwitch * 0.6 + a * 0.4) : Math.round(a);
+    try { localStorage.setItem('bf.hingeSwitch', String(hingeSwitch)); } catch (e) { /* 무시 */ }
+  }
   const headCache = (() => { try { return JSON.parse(localStorage.getItem('bf.headpos')) || {}; } catch (e) { return {}; } })();
   function headCacheSave(mode, W, rects) {
     if (mode !== 'fold' && mode !== 'mid') return;
@@ -397,14 +410,14 @@
   window.bfHinge = (deg, status) => {
     if (!NATIVE || typeof deg !== 'number') return;
     const closing = deg < hingeLast - 0.5;
-    hingeLast = deg;
+    hingeLast = deg; hingeSeenAt = Date.now();
     if (hingePre) {
       if (deg >= HINGE_UNDO || /fully/i.test(String(status))) { hingeUndo(); return; }
       clearTimeout(hingeIdle);   // 반쯤 접은 채 멈추면(탁자에 세워 읽기 등) 되돌린다
       hingeIdle = setTimeout(hingeUndo, HINGE_IDLE_MS);
       return;
     }
-    if (closing && deg <= HINGE_PRE && headMode === 'mid' && hingePreMove()) {
+    if (closing && deg <= hingePreAngle() && headMode === 'mid' && hingePreMove()) {
       clearTimeout(hingeIdle);
       hingeIdle = setTimeout(hingeUndo, HINGE_IDLE_MS);
     }
@@ -1064,6 +1077,7 @@
 
     if (!g.spread) {   // 접힌 화면: 한 장(chapter)씩 위아래로 스크롤, 쪽 나누기 없음
       pg = { bookIndex: target.book, g, unitName: bible.books[target.book].id === 'psa' ? '편' : '장', scroll: true };
+      stage.classList.remove('stale');
       mountChapters(target);
       showLoading(false);
       if (highlight) highlightVerse(target);
@@ -1077,6 +1091,7 @@
 
     pg = Object.assign(u, { starts, g });
     const startUnit = unitOfPosition(target);
+    stage.classList.remove('stale');
     mount(pageOfUnit(startUnit));
     showLoading(false);
     if (highlight) highlightVerse(target);
@@ -1766,6 +1781,7 @@
 
   function onResize() {
     if (!bible) return;
+    clearTimeout(rebuildDefer);   // v104: 미뤄 둔 다시 만들기는 새 변화가 오면 취소(안정된 뒤 다시 정함)
     if (!settleStart) {   // 새 변화의 처음
       settleStart = Date.now();
       rotPos = Object.assign({}, pos);
@@ -1776,6 +1792,10 @@
       // v102 듀오 접기·펴기: 화면 크기가 바뀌는 첫 순간에 머리줄(메뉴·책 이름)부터 새 자리로 움직인다.
       // 예전에는 크기가 안정되기를 기다리고(약 0.2초) 책을 다시 만든 뒤(펼침은 쪽 나누기까지 약 0.6초) 움직여 늦게 따라오는 것처럼 보였다.
       if (g0 && NATIVE && geoKey(g0) !== lastGeo && headModeOf(g0) !== headMode && (headModeOf(g0) === 'fold' || headModeOf(g0) === 'mid')) {
+        // v104: 예전 배치의 책(접힘은 50장 전체)은 새 책을 다 만들 때까지 숨긴다. 숨기지 않으면 머리줄을 옮기는 순간
+        // 예전 책이 새 폭으로 다시 그려져(약 0.2초) 펼칠 때 머리줄 움직임이 버벅였다. 그 사이 본문 자리는 종이색 바탕(v101).
+        stage.classList.add('stale');
+        hingeSwitchSeen(headModeOf(g0));
         try { applyLook(g0); } catch (e) { /* 무시: 다시 만들 때 제자리로 */ }
       }
     }
@@ -1819,8 +1839,13 @@
       const target = rotPos || pos;
       settleStart = 0; rotPos = null;
       if (key !== lastGeo) {
-        rebuild(target);   // 다 만든 뒤 확인은 rebuild 끝에서 예약한다
+        // v104: 머리줄이 미끄러지는 중이면 끝난 뒤에 책을 만든다(쪽을 그리는 약 0.2초 동안 움직임이 멈칫하지 않게)
+        const wait = headAnimEndAt - Date.now();
+        clearTimeout(rebuildDefer);
+        if (wait > 0) rebuildDefer = setTimeout(() => rebuild(target), wait + 30);
+        else rebuild(target);   // 다 만든 뒤 확인은 rebuild 끝에서 예약한다
       } else {
+        stage.classList.remove('stale');
         if (!building) { posFreezeUntil = 0; showLoading(false); scheduleVerify(); }
       }
       return;

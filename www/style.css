@@ -98,6 +98,7 @@ html.full #stage:not(.scroll) { overflow: visible; clip-path: inset(calc(var(--f
    폭이 넓은 책이 좁은 세로 화면에 남아 있으면 아이폰이 '화면에 맞춰 축소'해 버려 가로로 돌아와도 작은 채로 남기 때문이다. */
 @media (orientation: portrait)  { #stage[data-o="landscape"] { display: none; } }
 @media (orientation: landscape) { #stage[data-o="portrait"]  { display: none; } }
+#stage.stale { display: none; }   /* v104: 듀오 접기·펴기 때 새 책을 다 만들 때까지 예전 책을 숨김(다시 그리느라 머리줄 움직임이 버벅이지 않게) */
 
 .page { background: var(--bg); overflow: hidden; overflow: clip; }   /* clip: 코드로도 스크롤되지 않는다 */
 /* 본문 상자: 좌우 여백(padx)을 padding으로 둔다. 글이 놓이는 폭은 예전과 같고(쪽 나누기 그대로),
