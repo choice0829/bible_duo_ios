@@ -174,16 +174,30 @@ const pageIdx=(p)=>p.evaluate(()=>{const pages=[...document.querySelectorAll('#s
   const close=async(list)=>{ for (const d of list) { await p.evaluate((d)=>window.bfHinge(d,'partiallyOpen'),d); await sleep(60); } };
   await FOLD(); await sleep(2500); const f=await pos();   // 접힘 배치를 한 번 보아 기억(bf.headpos)
   await OPEN(); await sleep(2500); const o=await pos();
-  await close([179,175,165]); await sleep(450);
-  ok('v103: slight closing (above 150°) does not move the header', JSON.stringify(await pos())===JSON.stringify(o));
-  await close([150,140]); await sleep(500); const pre=await pos();
-  ok('v103: closing below 150° → header already at the folded spot (right page = folded screen) before the screen switches', pre.pre && Math.abs(pre.mx-(f.mx+485))<=2 && Math.abs(pre.my-f.my)<=2 && Math.abs(pre.tx-(f.tx+485))<=2, JSON.stringify({pre,f}));
+  await close([179,170,150,130,120]); await sleep(450);
+  ok('v104: closing to 120° (still mostly open) does not move the header yet (default start 115°)', JSON.stringify(await pos())===JSON.stringify(o));
+  await close([110,100]); await sleep(500); const pre=await pos();
+  ok('v103/v104: closing below 115° → header already at the folded spot (right page = folded screen) before the screen switches', pre.pre && Math.abs(pre.mx-(f.mx+485))<=2 && Math.abs(pre.my-f.my)<=2 && Math.abs(pre.tx-(f.tx+485))<=2, JSON.stringify({pre,f}));
   await FOLD(); await sleep(40); const at=await pos(); await sleep(2500); const fin=await pos();
   ok('v103: at the switch the header is already in place (no second slide)', at.mx===fin.mx && at.my===fin.my && at.tx===fin.tx && !fin.pre, JSON.stringify({at,fin}));
-  await OPEN(); await sleep(2500); await close([160,145]); await sleep(450);
+  ok('v104: the hinge angle at the switch is learned (bf.hingeSwitch)', await p.evaluate(()=>localStorage.getItem('bf.hingeSwitch'))==='100', await p.evaluate(()=>localStorage.getItem('bf.hingeSwitch')));
+  await OPEN(); await sleep(2500); await p.evaluate(()=>window.bfHinge(180,'fullyOpen')); await sleep(200);
+  await close([150,130,112]); await sleep(450);
+  ok('v104: after learning (switch 100° → start 108°) 112° does not move yet', JSON.stringify(await pos())===JSON.stringify(o));
+  await close([106]); await sleep(500);
+  ok('v104: …and 106° does', (await pos()).pre);
   await p.evaluate(()=>window.bfHinge(180,'fullyOpen')); await sleep(700);
   ok('v103: opening again (fully open) puts the header back', JSON.stringify(await pos())===JSON.stringify(o));
-  await close([160,145]); await sleep(1500);
+  await close([150,120,104]); await sleep(1500);
   ok('v103: stopping half-folded (tabletop) puts the header back after a moment', JSON.stringify(await pos())===JSON.stringify(o));
+  // v105: 펼친 뒤 본문을 곧바로 만든다(크기 안정 대기·머리줄 움직임 끝을 기다리지 않음). 시작은 크기 변화 0.1초 안, 보이는 것은 0.45초 안(모의, 그리기 시간 포함)
+  { await FOLD(); await sleep(2500);
+    await p.evaluate(()=>{ window.__lt=[]; window.__t0=performance.now(); window.__rz=0; window.__shown=0; new PerformanceObserver(l=>{ for(const e of l.getEntries()) window.__lt.push([e.startTime-window.__t0, e.duration]); }).observe({type:'longtask'});
+      window.addEventListener('resize',()=>{ if(!window.__rz) window.__rz=performance.now()-window.__t0; });
+      const st=document.querySelector('#stage'); new MutationObserver(()=>{ if(!window.__shown && window.__rz && !st.classList.contains('stale') && st.querySelector('p[data-k]')) window.__shown=performance.now()-window.__t0; }).observe(st,{attributes:true,childList:true,subtree:true}); });
+    await OPEN(); await sleep(2500);
+    const r=await p.evaluate(()=>({rz:Math.round(window.__rz), shown:Math.round(window.__shown-window.__rz), build:window.__lt.map(x=>Math.round(x[0]-window.__rz)).filter(x=>x>0)}));
+    ok('v105 unfold: the book starts building within 0.1s of the size change and is shown within 0.45s (mock incl. drawing)', r.shown>0 && r.shown<=450 && r.build.length>0 && Math.min(...r.build)<=100, JSON.stringify(r));
+    ok('v104 unfold: the book is shown again after rebuilding', await p.evaluate(()=>!document.querySelector('#stage').classList.contains('stale') && document.querySelectorAll('#stage p[data-k]').length>0)); }
   ok('no page errors (v103)', errs.length===0, JSON.stringify(errs)); await p.close(); }
 console.log(fails?'FAILS '+fails:'ALL PASS'); await b.close(); process.exit(0);
