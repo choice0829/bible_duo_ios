@@ -194,7 +194,8 @@ const pageIdx=(p)=>p.evaluate(()=>{const pages=[...document.querySelectorAll('#s
 { const {p,errs,cdp}=await openDevice(b,['Duo 접힘',466,678,{top:0,right:0,bottom:0,left:0}],{seed:mkSeed(0,0,1,{}),port:8947,query:'?native=1'}); await sleep(800);
   await p.evaluate(()=>{ window.__ev=[]; const t0=performance.now(); let last=''; const tick=()=>{ const m=document.querySelector('#btn-settings').getBoundingClientRect(); const s=Math.round(m.left)+','+Math.round(m.top); if(s!==last){ window.__ev.push(s); last=s; } if(performance.now()-t0<1500) requestAnimationFrame(tick); }; requestAnimationFrame(tick); });
   await cdp.send('Emulation.setSafeAreaInsetsOverride',{insets:{top:0,left:0,bottom:0,right:84}}); await p.setViewport({width:678,height:466,deviceScaleFactor:2,isMobile:true,hasTouch:true}); await sleep(2500);
-  await p.evaluate(()=>{const c=document.querySelector('#loc-church'); c.textContent='with 한사람교회'; c.hidden=false;}); await sleep(300);
+  // 모의 교회 이름: 늦게 끝난 다시 그리기가 숨길 수 있어 두 번 넣고 잰다
+  for (let i=0;i<2;i++){ await p.evaluate(()=>{const c=document.querySelector('#loc-church'); c.textContent='with 한사람교회'; c.hidden=false;}); await sleep(600); }
   const r=await p.evaluate(()=>{ const R=(e)=>{const q=e.getBoundingClientRect(); return {l:q.left,t:q.top,r:q.right,b:q.bottom};}; const bs=[...document.querySelectorAll('.menu-row > button')].map(R);
     return {land:document.body.classList.contains('head-land'), cols:new Set(bs.map(x=>Math.round(x.l))).size, rows:new Set(bs.map(x=>Math.round(x.t))).size, ml:Math.min(...bs.map(x=>x.l)), mr:Math.max(...bs.map(x=>x.r)), mb:Math.max(...bs.map(x=>x.b)),
       book:R(document.querySelector('#loc-ch')), church:R(document.querySelector('#loc-church')), headh:parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--headh')), cut:document.querySelector('#loc-church').scrollWidth>document.querySelector('#loc-church').clientWidth+1, ev:window.__ev.length}; });
