@@ -38,7 +38,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v106';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v107';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -163,11 +163,11 @@
   const DUO_FOLD_RESERVE = DUO_FOLD_RAIL_RIGHT + DUO_FOLD_BTN_W + 10;   // 본문·책 이름이 오른쪽에 비워 두는 폭(레일 + 간격)
   // v85: 머리줄 맨 위에 로고 줄(작은 로고 + '선한성경')을 둔다. 책 이름·메뉴는 그 아래(style.css .head-row 의 padding-top = BRAND_H)
   const BRAND_H = 20;
-  function headBox(spread, compact, duoFold) {
+  function headBox(spread, compact, duoFold, duoTall) {
     const titleFs = compact ? 30 : 44, titleH = Math.ceil(titleFs * 1.2);
     const menuH = compact ? MENU_H_COMPACT : MENU_H;
     if (spread) return { titleFs, titleH, menuH, menuOff: 0, rowH: BRAND_H + Math.max(titleH, menuH) };
-    if (duoFold) return { titleFs, titleH, menuH, menuOff: 0, rowH: BRAND_H + titleH };   // 메뉴는 오른쪽 레일(머리줄 높이에 안 들어감)
+    if (duoFold || duoTall) return { titleFs, titleH, menuH, menuOff: 0, rowH: BRAND_H + titleH };   // 메뉴는 오른쪽 레일(접힘) · 책 이름 줄 안의 2줄 4개(v107 세로)
     const menuOff = BRAND_H + titleH + STACK_GAP;
     return { titleFs, titleH, menuH, menuOff, rowH: menuOff + menuH };
   }
@@ -186,6 +186,8 @@
     const duo = spread && si.left < 8 && (si.right >= 60 || (W >= 800 && W <= 940 && H >= 540 && H <= 640));
     // 듀오 접힘(앱): 한 쪽 화면 · 위 안전영역 0 · 화면 약 466×678 (일반 아이폰은 세로에서 위 안전영역이 20px 이상)
     const duoFold = NATIVE && !spread && si.top < 8 && W >= 420 && W <= 520 && H >= 600 && H <= 760;
+    // v107 듀오를 펼쳐 세로로 든 화면(안쪽 화면 세로, 약 669×951): 한 쪽 화면이지만 머리줄은 듀오처럼 한 줄(책 이름 | 메뉴 2줄 4개 | with 교회)
+    const duoTall = NATIVE && !spread && !duoFold && W >= 600 && W <= 760 && H >= 860 && H <= 1000;
     const sym = si.left >= 8 && Math.abs(si.left - si.right) <= 8;
     const auto = {
       topSpread: compact ? TOP_COMPACT.topSpread : TOP_DEFAULT.topSpread,
@@ -213,13 +215,13 @@
     // 윗부분: 머리줄(책 이름·버튼)과 상태 아이콘 자리. 아랫부분 여백은 최소로 줄여 이쪽으로 옮겼다.
     // 머리줄(책 이름·메뉴)이 실제로 차지하는 높이를 계산해, 본문이 언제나 그 아래에서 시작하게 한다.
     // (상태 표시줄 자리가 큰 기기의 세로 화면에서 메뉴 단추가 본문 첫 줄을 덮던 문제)
-    const hb = headBox(spread, compact, duoFold);
+    const hb = headBox(spread, compact, duoFold, duoTall);
     const topSetting = spread ? eff.topSpread : eff.topSingle;
     // 아이폰 앱(듀오): 글자가 오른쪽 열 쪽까지 들어와 상태 알약(약 x 877~930, y 22~114)과 겹치면, 본문과 책장 넘김 영역의 윗면을 알약 아래로 내린다.
     const cardRight = shiftX + pageW * 2;
     const intoPill = NATIVE && spread && !sym && si.right >= 60 && cardRight > W - si.right + NATIVE_PILL_LEFT;
     // v94 듀오 접힘: 머리줄(남색) 높이·위치를 듀오 펼침과 같게(책 이름 위 29px, 남색 아래 끝 118px)
-    const padTop = duoFold ? Math.max(Math.ceil(si.top + HEAD_TOP_GAP + hb.rowH + NATIVE_HEAD_STAGE_GAP), NATIVE_PILL_BOTTOM) : Math.max(
+    const padTop = (duoFold || duoTall) ? Math.max(Math.ceil(si.top + HEAD_TOP_GAP + hb.rowH + NATIVE_HEAD_STAGE_GAP), NATIVE_PILL_BOTTOM) : Math.max(
       si.top + 56,
       Math.ceil(si.top + HEAD_TOP_GAP + hb.rowH + HEAD_BODY_GAP),
       // v85: 로고 줄만큼 머리줄이 높아져, 낮은 펼침 화면(가로 아이폰·iPad)에서 머리줄이 책 윗면에 걸리지 않도록 책(무대)을 그 아래에서 시작시킨다
@@ -245,7 +247,7 @@
     const bookRight = spread ? shiftX + pageW * 2 : W;
     const headR = duoFold ? DUO_FOLD_RESERVE : Math.max(Math.round(W - bookRight + padOut), Math.round(si.right) + (spread ? 8 : 14), 14);
     return {
-      W, H, spread, compact, duo, duoFold, sym, pageW, pageH, bookW: spread ? pageW * 2 : pageW,
+      W, H, spread, compact, duo, duoFold, duoTall, sym, pageW, pageH, bookW: spread ? pageW * 2 : pageW,
       padX: full ? padOut : padX, padR, padOut, padIn, full, tabEdge: full ? Math.max(padOut - 10, 0) : shiftX,
       padTop, padBottom, stripH, rdArea, rdInset, si, shiftX, eff, stageTop, txtTop, headR, intoPill, duoTight,
       textW: pageW - padOut - padIn, textH: pageH - txtTop - padBottom,
@@ -265,9 +267,9 @@
     while (fs > 16 && over(b)) { fs -= 2; root.setProperty('--title-fs', fs + 'px'); }   // v70: 작은 폰(SE)에서 '데살로니가전·후서'가 잘리지 않도록 최소 16px
     // v80: 'with 교회이름'(장 표시 옆)까지 들어가도록 조금 더 줄인다(30px 아래로는 줄이지 않고, 그때는 교회 이름 끝을 줄임표로)
     const ch = $('#loc-church');
-    const mid = document.body.classList.contains('head-mid');   // v99 듀오 펼침: with 교회는 머리줄 오른쪽 끝(책 이름 줄 밖)이라 책 이름을 더 줄이지 않는다
+    const mid = document.body.classList.contains('head-mid') || document.body.classList.contains('head-tall');   // v99 듀오 펼침: with 교회는 머리줄 오른쪽 끝(책 이름 줄 밖)이라 책 이름을 더 줄이지 않는다
     while (!mid && fs > 30 && ch && !ch.hidden && (over(ch) || over(b))) { fs -= 2; root.setProperty('--title-fs', fs + 'px'); }
-    if (mid) {   // with 교회를 장 표시와 같은 줄(아래 끝)에 둔다
+    if (mid && !document.body.classList.contains('head-tall')) {   // with 교회를 장 표시와 같은 줄(아래 끝)에 둔다
       const row = $('.head-row'), lc = $('#loc-ch');
       if (row && lc) root.setProperty('--church-b', Math.max(0, row.getBoundingClientRect().bottom - lc.getBoundingClientRect().bottom).toFixed(1) + 'px');
     }
@@ -322,8 +324,8 @@
   let headRects = null, headW = 0, headMode = '', headAnimTimer = 0, headAnimEndAt = 0, rebuildDefer = 0, earlyRebuildT = 0;
   const EARLY_REBUILD_MS = 30;    // v105: 듀오 접기·펴기 후 본문을 만들기 시작하는 시각(머리줄 움직임이 첫 화면에 그려진 직후)
   // v106: 'land' = 듀오 접은 화면을 가로로 돌린 상태(폭 800 미만의 듀오 펼침 배치) — 메뉴를 2줄 4개로
-  const headModeOf = (g) => g.duoFold ? 'fold' : (g.full && g.duo) ? (g.W < DUO_LAND_MAX_W ? 'land' : 'mid') : 'other';
-  const DUO_MODES = ['fold', 'mid', 'land'];
+  const headModeOf = (g) => g.duoFold ? 'fold' : g.duoTall ? 'tall' : (g.full && g.duo) ? (g.W < DUO_LAND_MAX_W ? 'land' : 'mid') : 'other';
+  const DUO_MODES = ['fold', 'mid', 'land', 'tall'];
   function headEls() {
     const list = [['brand', $('.brand')], ['book', $('#loc-book')], ['ch', $('#loc-ch')], ['church', $('#loc-church')]];
     document.querySelectorAll('.menu-row > .icon-btn').forEach((el, i) => list.push(['m' + i, el]));
@@ -475,13 +477,13 @@
     root.setProperty('--rd-h', RD_H + 'px');
     root.setProperty('--rd-padx', (g.spread ? 0 : g.padX) + 'px');
     // 상단: 접힘 = 책 이름 위, 메뉴 아래(본문 바로 위) / 펼침 = 한 줄(책 이름 왼쪽, 메뉴 오른쪽)
-    const hb = headBox(g.spread, g.compact, g.duoFold), titleFs = hb.titleFs, rowH = hb.rowH;
+    const hb = headBox(g.spread, g.compact, g.duoFold, g.duoTall), titleFs = hb.titleFs, rowH = hb.rowH;
     root.setProperty('--menu-off', hb.menuOff + 'px');   // 한 쪽 화면: 머리줄 맨 위에서 메뉴 줄까지
     root.setProperty('--head-rowh', rowH + 'px');
     lastTitleFs = titleFs;
     root.setProperty('--title-fs', titleFs + 'px');
     root.setProperty('--menu-cols', MENU_COLS);
-    root.setProperty('--head-top', Math.max(g.si.top + HEAD_TOP_GAP, (g.spread ? g.stageTop - (NATIVE ? NATIVE_HEAD_STAGE_GAP : HEAD_STAGE_GAP) : g.duoFold ? g.padTop - NATIVE_HEAD_STAGE_GAP : g.padTop - 12) - rowH) + 'px');
+    root.setProperty('--head-top', Math.max(g.si.top + HEAD_TOP_GAP, (g.spread ? g.stageTop - (NATIVE ? NATIVE_HEAD_STAGE_GAP : HEAD_STAGE_GAP) : (g.duoFold || g.duoTall) ? g.padTop - NATIVE_HEAD_STAGE_GAP : g.padTop - 12) - rowH) + 'px');
     applyDesk();
     stage.style.width = g.bookW + 'px';
     stage.style.height = g.pageH + 'px';
@@ -504,17 +506,19 @@
     // 'with 교회'는 머리줄 오른쪽 끝(상태 알약 바로 왼쪽)에 붙는다
     // v98 듀오 펼침(앱): 로고·책 이름·장은 왼쪽 끝, 메뉴 8개는 화면 가운데(두 쪽 사이 접는 선)에 한 줄, 'with 교회'는 머리줄 오른쪽 끝(상태 알약 왼쪽)
     const mid = !!(g.full && g.duo);
-    const land = mid && headModeOf(g) === 'land';
+    const tall = !!g.duoTall;
+    const land = (mid && headModeOf(g) === 'land') || tall;   // 2줄 4개 메뉴(가로로 돌린 접힘 · v107 펼쳐 세로)
     document.body.classList.toggle('head-mid', mid);
     document.body.classList.toggle('head-land', land);
+    document.body.classList.toggle('head-tall', tall);
     // v106 'land'(접은 화면 가로): 메뉴 2줄 4개를 책 이름과 with 교회 사이(머리줄 가운데)에
     const menuW = land ? 4 * LAND_BTN_W + 3 * LAND_GAP_X : MENU_COUNT * 42 + (MENU_COUNT - 1) * 7;   // style.css: .icon-btn 42 · .menu-row gap 7
-    const rowW = g.W - g.headR - headX;
+    const rowW = (tall ? g.W - g.padX : g.W - g.headR) - headX;
     const menuL = land ? Math.round((rowW - menuW) / 2) : Math.round(g.pageW - headX - menuW / 2);   // 머리줄 왼쪽 끝 기준, 메뉴 줄 가운데 = 접는 선
-    root.setProperty('--menu-l', mid ? menuL + 'px' : '0px');
+    root.setProperty('--menu-l', (mid || tall) ? menuL + 'px' : '0px');
     root.setProperty('--menu-span', (menuW + 12) + 'px');
     root.setProperty('--brand-l', '0px');
-    root.setProperty('--title-w', mid ? Math.max(120, menuL - 18) + 'px'
+    root.setProperty('--title-w', (mid || tall) ? Math.max(120, menuL - 18) + 'px'
       : g.spread ? Math.max(120, Math.round(g.shiftX + g.pageW - g.padIn - headX)) + 'px' : 'auto');
     stage.classList.toggle('spread', g.spread);
     document.body.classList.toggle('is-spread', g.spread);
@@ -524,7 +528,7 @@
     if (keepAnim) { headW = g.W; return; }   // 움직이는 중의 위치(transform)는 기억하지 않는다 — 끝자리는 움직임을 시작할 때 기억했다
     const nowRects = headSnap();
     // 접기·펴기(fold↔mid)는 접힌 화면 = 펼친 화면의 오른쪽 쪽이라 폭 차이만큼 옮겨 시작, 화면 돌리기(land 가 낀 전환)는 예전 화면 자리 그대로에서 시작
-    if (headAnim) headAnimate(prevRects, nowRects, (newMode === 'land' || prevMode === 'land') ? 0 : g.W - prevW);
+    if (headAnim) headAnimate(prevRects, nowRects, ((newMode === 'fold' && prevMode === 'mid') || (newMode === 'mid' && prevMode === 'fold')) ? g.W - prevW : 0);
     headRects = nowRects; headW = g.W; headMode = newMode;
     headCacheSave(newMode, g.W, nowRects);   // v103: 경첩 미리 움직임에 쓸 '그 배치의 머리줄 자리'
   }
