@@ -38,7 +38,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v105';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v106';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -151,6 +151,8 @@
   //   메뉴 8개를 그 알약 바로 아래부터 오른쪽 가장자리를 따라 세로 한 줄(레일)로 놓고, 본문·책 이름은 그 폭만큼 오른쪽을 비운다.
   //   값은 사용자가 보낸 실기기 캡처(접은 화면, 폭 466)에서 잰 것: 알약 가로 약 395~441px, 아래 끝 약 160px.
   const MENU_COUNT = 8, MENU_COLS = 8, MENU_ROWS = 1;
+  const DUO_LAND_MAX_W = 800;                         // v106: 이 폭보다 좁은 듀오 가로 화면(접은 화면을 가로로) = 'land'
+  const LAND_BTN_W = 40, LAND_BTN_H = 30, LAND_GAP_X = 6, LAND_GAP_Y = 4;   // v106: 'land' 메뉴 2줄 4개 칸 (style.css 와 같게)
   const STACK_GAP = 6;                              // 책 이름 줄과 메뉴 줄 사이
   const DUO_FOLD_RAIL_TOP = 166;                    // 레일이 올라올 수 있는 맨 위(알약 아래 끝 약 160 + 6)
   const DUO_FOLD_BTN_W = 52, DUO_FOLD_BTN_H = 44, DUO_FOLD_BTN_GAP = 12;   // v86: 단추 폭 = 상태 알약 폭(실기기 캡처에서 약 52px), 바탕 투명, 간격 넓힘
@@ -319,7 +321,9 @@
   const HEAD_ANIM_MS = 380;   // v102: 550 → 380(접기·펴기 직후 바로 끝나게)
   let headRects = null, headW = 0, headMode = '', headAnimTimer = 0, headAnimEndAt = 0, rebuildDefer = 0, earlyRebuildT = 0;
   const EARLY_REBUILD_MS = 30;    // v105: 듀오 접기·펴기 후 본문을 만들기 시작하는 시각(머리줄 움직임이 첫 화면에 그려진 직후)
-  const headModeOf = (g) => g.duoFold ? 'fold' : (g.full && g.duo) ? 'mid' : 'other';
+  // v106: 'land' = 듀오 접은 화면을 가로로 돌린 상태(폭 800 미만의 듀오 펼침 배치) — 메뉴를 2줄 4개로
+  const headModeOf = (g) => g.duoFold ? 'fold' : (g.full && g.duo) ? (g.W < DUO_LAND_MAX_W ? 'land' : 'mid') : 'other';
+  const DUO_MODES = ['fold', 'mid', 'land'];
   function headEls() {
     const list = [['brand', $('.brand')], ['book', $('#loc-book')], ['ch', $('#loc-ch')], ['church', $('#loc-church')]];
     document.querySelectorAll('.menu-row > .icon-btn').forEach((el, i) => list.push(['m' + i, el]));
@@ -362,6 +366,8 @@
   // 다시 펴거나(HINGE_UNDO° 이상) 반쯤 접은 채 멈추면(HINGE_IDLE_MS) 원래 자리로 돌아간다. Apple 안내대로 배치 결정에는 쓰지 않는다(효과만).
   // v104: 150°는 너무 일러 펼친 화면에 접힘 배치가 보였다 → 화면이 실제로 바뀐 각도를 배워(bf.hingeSwitch) 그보다 HINGE_LEAD° 앞에서 시작한다.
   // 처음(배우기 전)에는 HINGE_PRE_DEFAULT°. 시작 각도는 HINGE_PRE_MIN~HINGE_PRE_MAX° 안으로 둔다.
+  // v106: 사용자 요청으로 미리 움직임은 끔(펼친 화면에서 접힘 구성이 전혀 보이지 않게 — 다 접혀 화면이 바뀐 뒤에 움직인다). 되살리려면 true
+  const HINGE_PREMOVE = false;
   const HINGE_PRE_DEFAULT = 115, HINGE_LEAD = 8, HINGE_PRE_MIN = 40, HINGE_PRE_MAX = 150, HINGE_UNDO = 168, HINGE_IDLE_MS = 900;
   let hingePre = false, hingeLast = 180, hingeIdle = 0, hingeSeenAt = 0;
   let hingeSwitch = (() => { try { const v = +localStorage.getItem('bf.hingeSwitch'); return v > 0 && v < 180 ? v : 0; } catch (e) { return 0; } })();
@@ -418,7 +424,7 @@
       hingeIdle = setTimeout(hingeUndo, HINGE_IDLE_MS);
       return;
     }
-    if (closing && deg <= hingePreAngle() && headMode === 'mid' && hingePreMove()) {
+    if (HINGE_PREMOVE && closing && deg <= hingePreAngle() && headMode === 'mid' && hingePreMove()) {
       clearTimeout(hingeIdle);
       hingeIdle = setTimeout(hingeUndo, HINGE_IDLE_MS);
     }
@@ -426,10 +432,10 @@
 
   function applyLook(g) {
     const root = document.documentElement.style;
-    const newMode = headModeOf(g), prevRects = headRects, prevW = headW;
+    const newMode = headModeOf(g), prevRects = headRects, prevW = headW, prevMode = headMode;
     let reduce = false;
     try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { /* 무시 */ }
-    let headAnim = NATIVE && !!prevRects && !reduce && newMode !== headMode && (newMode === 'fold' || newMode === 'mid') && (headMode === 'fold' || headMode === 'mid');
+    let headAnim = NATIVE && !!prevRects && !reduce && newMode !== headMode && DUO_MODES.includes(newMode) && DUO_MODES.includes(headMode);
     // v102: 접기·펴기 첫 순간(onResize)에 머리줄을 먼저 움직이므로, 이어서 책을 다시 만들며 다시 부를 때(같은 배치)는 움직이던 것을 끊지 않는다
     let keepAnim = !headAnim && newMode === headMode && document.body.classList.contains('head-anim');
     if (hingePre) {   // v103: 경첩으로 이미 접힘 자리에 가 있다 → 미끄러짐 없이 새 배치로(접힘이 아니면 되돌림)
@@ -498,10 +504,15 @@
     // 'with 교회'는 머리줄 오른쪽 끝(상태 알약 바로 왼쪽)에 붙는다
     // v98 듀오 펼침(앱): 로고·책 이름·장은 왼쪽 끝, 메뉴 8개는 화면 가운데(두 쪽 사이 접는 선)에 한 줄, 'with 교회'는 머리줄 오른쪽 끝(상태 알약 왼쪽)
     const mid = !!(g.full && g.duo);
+    const land = mid && headModeOf(g) === 'land';
     document.body.classList.toggle('head-mid', mid);
-    const menuW = MENU_COUNT * 42 + (MENU_COUNT - 1) * 7;   // style.css: .icon-btn 42 · .menu-row gap 7
-    const menuL = Math.round(g.pageW - headX - menuW / 2);   // 머리줄 왼쪽 끝 기준, 메뉴 줄 가운데 = 접는 선
+    document.body.classList.toggle('head-land', land);
+    // v106 'land'(접은 화면 가로): 메뉴 2줄 4개를 책 이름과 with 교회 사이(머리줄 가운데)에
+    const menuW = land ? 4 * LAND_BTN_W + 3 * LAND_GAP_X : MENU_COUNT * 42 + (MENU_COUNT - 1) * 7;   // style.css: .icon-btn 42 · .menu-row gap 7
+    const rowW = g.W - g.headR - headX;
+    const menuL = land ? Math.round((rowW - menuW) / 2) : Math.round(g.pageW - headX - menuW / 2);   // 머리줄 왼쪽 끝 기준, 메뉴 줄 가운데 = 접는 선
     root.setProperty('--menu-l', mid ? menuL + 'px' : '0px');
+    root.setProperty('--menu-span', (menuW + 12) + 'px');
     root.setProperty('--brand-l', '0px');
     root.setProperty('--title-w', mid ? Math.max(120, menuL - 18) + 'px'
       : g.spread ? Math.max(120, Math.round(g.shiftX + g.pageW - g.padIn - headX)) + 'px' : 'auto');
@@ -512,7 +523,8 @@
     fitTitle();
     if (keepAnim) { headW = g.W; return; }   // 움직이는 중의 위치(transform)는 기억하지 않는다 — 끝자리는 움직임을 시작할 때 기억했다
     const nowRects = headSnap();
-    if (headAnim) headAnimate(prevRects, nowRects, g.W - prevW);
+    // 접기·펴기(fold↔mid)는 접힌 화면 = 펼친 화면의 오른쪽 쪽이라 폭 차이만큼 옮겨 시작, 화면 돌리기(land 가 낀 전환)는 예전 화면 자리 그대로에서 시작
+    if (headAnim) headAnimate(prevRects, nowRects, (newMode === 'land' || prevMode === 'land') ? 0 : g.W - prevW);
     headRects = nowRects; headW = g.W; headMode = newMode;
     headCacheSave(newMode, g.W, nowRects);   // v103: 경첩 미리 움직임에 쓸 '그 배치의 머리줄 자리'
   }
@@ -1792,7 +1804,7 @@
       if (g0 && geoKey(g0) !== lastGeo) showLoading(true);   // 어긋난 화면이 잠깐이라도 보이지 않게 가린다
       // v102 듀오 접기·펴기: 화면 크기가 바뀌는 첫 순간에 머리줄(메뉴·책 이름)부터 새 자리로 움직인다.
       // 예전에는 크기가 안정되기를 기다리고(약 0.2초) 책을 다시 만든 뒤(펼침은 쪽 나누기까지 약 0.6초) 움직여 늦게 따라오는 것처럼 보였다.
-      if (g0 && NATIVE && geoKey(g0) !== lastGeo && headModeOf(g0) !== headMode && (headModeOf(g0) === 'fold' || headModeOf(g0) === 'mid')) {
+      if (g0 && NATIVE && geoKey(g0) !== lastGeo && headModeOf(g0) !== headMode && DUO_MODES.includes(headModeOf(g0))) {
         // v104: 예전 배치의 책(접힘은 50장 전체)은 새 책을 다 만들 때까지 숨긴다. 숨기지 않으면 머리줄을 옮기는 순간
         // 예전 책이 새 폭으로 다시 그려져(약 0.2초) 펼칠 때 머리줄 움직임이 버벅였다. 그 사이 본문 자리는 종이색 바탕(v101).
         stage.classList.add('stale');

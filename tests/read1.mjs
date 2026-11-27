@@ -174,22 +174,12 @@ const pageIdx=(p)=>p.evaluate(()=>{const pages=[...document.querySelectorAll('#s
   const close=async(list)=>{ for (const d of list) { await p.evaluate((d)=>window.bfHinge(d,'partiallyOpen'),d); await sleep(60); } };
   await FOLD(); await sleep(2500); const f=await pos();   // 접힘 배치를 한 번 보아 기억(bf.headpos)
   await OPEN(); await sleep(2500); const o=await pos();
-  await close([179,170,150,130,120]); await sleep(450);
-  ok('v104: closing to 120° (still mostly open) does not move the header yet (default start 115°)', JSON.stringify(await pos())===JSON.stringify(o));
-  await close([110,100]); await sleep(500); const pre=await pos();
-  ok('v103/v104: closing below 115° → header already at the folded spot (right page = folded screen) before the screen switches', pre.pre && Math.abs(pre.mx-(f.mx+485))<=2 && Math.abs(pre.my-f.my)<=2 && Math.abs(pre.tx-(f.tx+485))<=2, JSON.stringify({pre,f}));
-  await FOLD(); await sleep(40); const at=await pos(); await sleep(2500); const fin=await pos();
-  ok('v103: at the switch the header is already in place (no second slide)', at.mx===fin.mx && at.my===fin.my && at.tx===fin.tx && !fin.pre, JSON.stringify({at,fin}));
-  ok('v104: the hinge angle at the switch is learned (bf.hingeSwitch)', await p.evaluate(()=>localStorage.getItem('bf.hingeSwitch'))==='100', await p.evaluate(()=>localStorage.getItem('bf.hingeSwitch')));
-  await OPEN(); await sleep(2500); await p.evaluate(()=>window.bfHinge(180,'fullyOpen')); await sleep(200);
-  await close([150,130,112]); await sleep(450);
-  ok('v104: after learning (switch 100° → start 108°) 112° does not move yet', JSON.stringify(await pos())===JSON.stringify(o));
-  await close([106]); await sleep(500);
-  ok('v104: …and 106° does', (await pos()).pre);
-  await p.evaluate(()=>window.bfHinge(180,'fullyOpen')); await sleep(700);
-  ok('v103: opening again (fully open) puts the header back', JSON.stringify(await pos())===JSON.stringify(o));
-  await close([150,120,104]); await sleep(1500);
-  ok('v103: stopping half-folded (tabletop) puts the header back after a moment', JSON.stringify(await pos())===JSON.stringify(o));
+  // v106: 사용자 요청으로 경첩 미리 움직임을 끔 — 접는 중(펼친 화면)에는 접힘 구성이 전혀 보이지 않고, 다 접혀 화면이 바뀐 뒤에 움직인다
+  await close([179,150,120,100,80,50,30]); await sleep(600);
+  ok('v106: closing (any angle) never moves the header on the open screen', JSON.stringify(await pos())===JSON.stringify(o), JSON.stringify(await pos()));
+  await FOLD(); await sleep(60); const at=await pos(); await sleep(2500); const fin=await pos();
+  ok('v106: after the screen switches to the folded display, the header slides into place', (at.mx!==fin.mx || at.my!==fin.my) && fin.mx===f.mx && fin.my===f.my, JSON.stringify({at,fin}));
+  await OPEN(); await sleep(2500);
   // v105: 펼친 뒤 본문을 곧바로 만든다(크기 안정 대기·머리줄 움직임 끝을 기다리지 않음). 시작은 크기 변화 0.1초 안, 보이는 것은 0.45초 안(모의, 그리기 시간 포함)
   { await FOLD(); await sleep(2500);
     await p.evaluate(()=>{ window.__lt=[]; window.__t0=performance.now(); window.__rz=0; window.__shown=0; new PerformanceObserver(l=>{ for(const e of l.getEntries()) window.__lt.push([e.startTime-window.__t0, e.duration]); }).observe({type:'longtask'});
@@ -200,4 +190,16 @@ const pageIdx=(p)=>p.evaluate(()=>{const pages=[...document.querySelectorAll('#s
     ok('v105 unfold: the book starts building within 0.1s of the size change and is shown within 0.45s (mock incl. drawing)', r.shown>0 && r.shown<=450 && r.build.length>0 && Math.min(...r.build)<=100, JSON.stringify(r));
     ok('v104 unfold: the book is shown again after rebuilding', await p.evaluate(()=>!document.querySelector('#stage').classList.contains('stale') && document.querySelectorAll('#stage p[data-k]').length>0)); }
   ok('no page errors (v103)', errs.length===0, JSON.stringify(errs)); await p.close(); }
+// ---- v106: 듀오 접은 화면을 가로로(678×466) — 메뉴 2줄 4개가 책 이름과 with 교회 사이, 돌릴 때 미끄러지며 바뀜 ----
+{ const {p,errs,cdp}=await openDevice(b,['Duo 접힘',466,678,{top:0,right:0,bottom:0,left:0}],{seed:mkSeed(0,0,1,{}),port:8947,query:'?native=1'}); await sleep(800);
+  await p.evaluate(()=>{ window.__ev=[]; const t0=performance.now(); let last=''; const tick=()=>{ const m=document.querySelector('#btn-settings').getBoundingClientRect(); const s=Math.round(m.left)+','+Math.round(m.top); if(s!==last){ window.__ev.push(s); last=s; } if(performance.now()-t0<1500) requestAnimationFrame(tick); }; requestAnimationFrame(tick); });
+  await cdp.send('Emulation.setSafeAreaInsetsOverride',{insets:{top:0,left:0,bottom:0,right:84}}); await p.setViewport({width:678,height:466,deviceScaleFactor:2,isMobile:true,hasTouch:true}); await sleep(2500);
+  await p.evaluate(()=>{const c=document.querySelector('#loc-church'); c.textContent='with 한사람교회'; c.hidden=false;}); await sleep(300);
+  const r=await p.evaluate(()=>{ const R=(e)=>{const q=e.getBoundingClientRect(); return {l:q.left,t:q.top,r:q.right,b:q.bottom};}; const bs=[...document.querySelectorAll('.menu-row > button')].map(R);
+    return {land:document.body.classList.contains('head-land'), cols:new Set(bs.map(x=>Math.round(x.l))).size, rows:new Set(bs.map(x=>Math.round(x.t))).size, ml:Math.min(...bs.map(x=>x.l)), mr:Math.max(...bs.map(x=>x.r)), mb:Math.max(...bs.map(x=>x.b)),
+      book:R(document.querySelector('#loc-ch')), church:R(document.querySelector('#loc-church')), headh:parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--headh')), cut:document.querySelector('#loc-church').scrollWidth>document.querySelector('#loc-church').clientWidth+1, ev:window.__ev.length}; });
+  ok('v106 land: menus are 2 rows × 4 columns', r.land && r.cols===4 && r.rows===2, JSON.stringify({cols:r.cols,rows:r.rows}));
+  ok('v106 land: book name | menu grid | with church, left to right, no overlap, inside the navy header', r.book.r<=r.ml-4 && r.mr<=r.church.l-4 && r.mb<=r.headh-2 && !r.cut, JSON.stringify(r));
+  ok('v106 land: rotating slides the menus (intermediate positions seen)', r.ev>=5, 'positions='+r.ev);
+  ok('no page errors (v106 land)', errs.length===0, JSON.stringify(errs)); await p.close(); }
 console.log(fails?'FAILS '+fails:'ALL PASS'); await b.close(); process.exit(0);
