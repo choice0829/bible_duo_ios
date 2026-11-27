@@ -203,4 +203,18 @@ const pageIdx=(p)=>p.evaluate(()=>{const pages=[...document.querySelectorAll('#s
   ok('v106 land: book name | menu grid | with church, left to right, no overlap, inside the navy header', r.book.r<=r.ml-4 && r.mr<=r.church.l-4 && r.mb<=r.headh-2 && !r.cut, JSON.stringify(r));
   ok('v106 land: rotating slides the menus (intermediate positions seen)', r.ev>=5, 'positions='+r.ev);
   ok('no page errors (v106 land)', errs.length===0, JSON.stringify(errs)); await p.close(); }
+// ---- v107: 듀오를 펼쳐 세로로(669×951) — 책 이름 | 메뉴 2줄 4개 | with 교회 한 줄, 펼침(가로)↔세로로 돌릴 때 미끄러짐 ----
+{ const {p,errs,cdp}=await openDevice(b,['Duo 펼침',951,669,{top:0,right:84,bottom:0,left:0}],{seed:mkSeed(0,0,1,{}),port:8947,query:'?native=1'}); await sleep(800);
+  // 미끄러짐은 화면 합성 단계(transform 전환)라 책을 만드는 동안 frame 콜백으로는 못 잰다 → 전환이 걸렸는지(transition 에 transform)를 본다
+  await p.evaluate(()=>{ window.__slid=false; const el=document.querySelector('#btn-settings'); new MutationObserver(()=>{ if(/transform/.test(el.style.transition)) window.__slid=true; }).observe(el,{attributes:true,attributeFilter:['style']}); });
+  await cdp.send('Emulation.setSafeAreaInsetsOverride',{insets:{top:24,left:0,bottom:20,right:0}}); await p.setViewport({width:669,height:951,deviceScaleFactor:2,isMobile:true,hasTouch:true}); await sleep(2500);
+  for (let i=0;i<2;i++){ await p.evaluate(()=>{const c=document.querySelector('#loc-church'); c.textContent='with 한사람교회'; c.hidden=false;}); await sleep(600); }
+  const r=await p.evaluate(()=>{ const R=(e)=>{const q=e.getBoundingClientRect(); return {l:q.left,t:q.top,r:q.right,b:q.bottom};}; const bs=[...document.querySelectorAll('.menu-row > button')].map(R);
+    return {tall:document.body.classList.contains('head-tall'), cols:new Set(bs.map(x=>Math.round(x.l))).size, rows:new Set(bs.map(x=>Math.round(x.t))).size, ml:Math.min(...bs.map(x=>x.l)), mr:Math.max(...bs.map(x=>x.r)), mt:Math.min(...bs.map(x=>x.t)), mb:Math.max(...bs.map(x=>x.b)),
+      book:R(document.querySelector('#loc-book')), church:R(document.querySelector('#loc-church')), headh:parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--headh')), bookTop:document.querySelector('#book').getBoundingClientRect().top, cut:document.querySelector('#loc-church').scrollWidth>document.querySelector('#loc-church').clientWidth+1, slid:window.__slid}; });
+  ok('v107 tall: menus are 2 rows × 4 columns', r.tall && r.cols===4 && r.rows===2, JSON.stringify({cols:r.cols,rows:r.rows}));
+  ok('v107 tall: book name | menu grid | with church in one row, no overlap, inside the navy header', r.book.r<=r.ml-4 && r.mr<=r.church.l-4 && r.mb<=r.headh-2 && r.mt>=0 && !r.cut, JSON.stringify(r));
+  ok('v107 tall: no separate menu row — the text starts right under the header (≤ 130px)', r.bookTop<=130, 'bookTop='+Math.round(r.bookTop));
+  ok('v107 tall: rotating from the wide open screen slides the menus (transform transition started)', r.slid===true, 'slid='+r.slid);
+  ok('no page errors (v107 tall)', errs.length===0, JSON.stringify(errs)); await p.close(); }
 console.log(fails?'FAILS '+fails:'ALL PASS'); await b.close(); process.exit(0);

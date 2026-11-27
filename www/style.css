@@ -172,6 +172,15 @@ body.head-mid .title-btn .loc-church[hidden] { display: none; }
 body.head-land .menu-row { display: grid; grid-template-columns: repeat(4, 40px); grid-auto-rows: 30px; column-gap: 6px; row-gap: 4px; top: calc((var(--head-rowh, 73px) - 64px) / 2); }
 body.head-land .menu-row > .icon-btn { width: 40px; height: 30px; min-width: 0; }
 body.head-land .menu-row > .icon-btn svg { width: 20px; height: 20px; }
+/* v107 듀오를 펼쳐 세로로 든 화면(head-tall): 한 쪽 화면이지만 책 이름 | 메뉴 2줄 4개 | with 교회 를 한 줄에 (메뉴 줄을 따로 두지 않음) */
+body.head-tall .head-row { display: flex; height: var(--head-rowh, 73px); align-items: flex-end; }
+body.head-tall .title-btn { flex: 0 1 var(--title-w, auto); width: var(--title-w, auto); position: static; }
+html body.head-tall .menu-row { position: absolute; left: var(--menu-l, 0px); right: auto; top: calc((var(--head-rowh, 73px) - 64px) / 2); margin: 0;
+  display: grid; grid-template-columns: repeat(4, 40px); grid-auto-rows: 30px; column-gap: 6px; row-gap: 4px; justify-content: start; }
+html body.head-tall .menu-row > .icon-btn { flex: none; width: 40px; height: 30px; min-width: 0; }
+html body.head-tall .menu-row > .icon-btn svg { width: 20px; height: 20px; }
+body.head-tall .title-btn .loc-church { position: absolute; right: 0; bottom: 7px; margin: 0; font-size: 17.6px; max-width: calc(100% - var(--menu-l, 0px) - var(--menu-span, 190px)); }
+body.head-tall .title-btn .loc-church[hidden] { display: none; }
 /* v99 듀오 접기↔펴기: 머리줄이 미끄러지는 동안(app.js headAnimate)만 화면 전환 가림(#loading.quiet, z 28) 위로 올리고 뒤에 남색 띠를 깐다.
    메뉴 아이콘은 색(접힘: 본문 글자색 → 펼침: 세피아)도 같은 시간 동안 바뀐다 */
 body.head-anim #topbar { z-index: 29; }
