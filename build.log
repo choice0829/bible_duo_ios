@@ -1,0 +1,411 @@
+Command line invocation:
+    /Applications/Xcode_27.1.app/Contents/Developer/usr/bin/xcodebuild -project BibleFlip.xcodeproj -scheme BibleFlip -configuration Release -destination generic/platform=iOS -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= CURRENT_PROJECT_VERSION=75 build
+
+Build settings from command line:
+    CODE_SIGN_IDENTITY = 
+    CODE_SIGNING_ALLOWED = NO
+    CODE_SIGNING_REQUIRED = NO
+    CURRENT_PROJECT_VERSION = 75
+
+2026-11-27 04:09:30.985 xcodebuild[1974:9367] [MT] IDERunDestination: Supported platforms for the buildables in the current scheme is empty.
+note: Using codesigning identity override: 
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (1 target)
+    Target 'BibleFlip' in project 'BibleFlip' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ExecuteExternalTool /Applications/Xcode_27.1.app/Contents/Developer/usr/bin/actool --print-asset-tag-combinations --output-format xml1 /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip/Assets.xcassets
+
+ExecuteExternalTool /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode_27.1.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.1.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode_27.1.app/Contents/Developer/usr/bin/actool --version --output-format xml1
+
+ExecuteExternalTool /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
+
+ExecuteExternalTool /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+
+Build description signature: 9c5fe67d07ceebedbff0ba71fced2c79
+Build description path: /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/XCBuildData/9c5fe67d07ceebedbff0ba71fced2c79.xcbuilddata
+CreateBuildDirectory /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip.xcodeproj
+    builtin-create-build-directory /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules
+
+CreateBuildDirectory /Users/runner/work/bible_duo_ios/bible_duo_ios/build/ModuleCache.noindex
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip.xcodeproj
+    builtin-create-build-directory /Users/runner/work/bible_duo_ios/bible_duo_ios/build/ModuleCache.noindex
+
+CreateBuildDirectory /Users/runner/work/bible_duo_ios/bible_duo_ios/build/CompilationCache.noindex
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip.xcodeproj
+    builtin-create-build-directory /Users/runner/work/bible_duo_ios/bible_duo_ios/build/CompilationCache.noindex
+
+CreateBuildDirectory /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip.xcodeproj
+    builtin-create-build-directory /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products
+
+CreateBuildDirectory /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip.xcodeproj
+    builtin-create-build-directory /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex
+
+ClangStatCache /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode_27.1.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.1.sdk /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKStatCaches.noindex/iphoneos27.1-24A94232-e829b21a6f8c9b70876ba0858053c0442866d66f27be705873c55a4609c58824.sdkstatcache
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip.xcodeproj
+    /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode_27.1.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.1.sdk -o /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKStatCaches.noindex/iphoneos27.1-24A94232-e829b21a6f8c9b70876ba0858053c0442866d66f27be705873c55a4609c58824.sdkstatcache
+
+CreateBuildDirectory /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip.xcodeproj
+    builtin-create-build-directory /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos
+
+WriteAuxiliaryFile /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip-540ec39d2ffadc1303fbf5205df46bd6-VFS-iphoneos/all-product-headers.yaml
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip.xcodeproj
+    write-file /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip-540ec39d2ffadc1303fbf5205df46bd6-VFS-iphoneos/all-product-headers.yaml
+
+CreateBuildDirectory /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip.xcodeproj
+    builtin-create-build-directory /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+
+CreateBuildDirectory /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/PrecompiledHeaders
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip.xcodeproj
+    builtin-create-build-directory /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/PrecompiledHeaders
+
+CreateBuildDirectory /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/ExplicitPrecompiledModules
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip.xcodeproj
+    builtin-create-build-directory /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/ExplicitPrecompiledModules
+
+CreateBuildDirectory /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/EagerLinkingTBDs/Release-iphoneos
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip.xcodeproj
+    builtin-create-build-directory /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/EagerLinkingTBDs/Release-iphoneos
+
+WriteAuxiliaryFile /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip_const_extract_protocols.json (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    write-file /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip_const_extract_protocols.json
+
+WriteAuxiliaryFile /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.SwiftFileList (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    write-file /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.SwiftFileList
+
+WriteAuxiliaryFile /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.SwiftConstValuesFileList (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    write-file /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.LinkFileList (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    write-file /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.LinkFileList
+
+WriteAuxiliaryFile /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip-OutputFileMap.json (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    write-file /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip-OutputFileMap.json
+
+WriteAuxiliaryFile /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip.hmap (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    write-file /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip.hmap
+
+WriteAuxiliaryFile /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip.DependencyStaticMetadataFileList (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    write-file /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip.DependencyMetadataFileList (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    write-file /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip.DependencyMetadataFileList
+
+WriteAuxiliaryFile /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-project-headers.hmap (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    write-file /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-project-headers.hmap
+
+WriteAuxiliaryFile /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-own-target-headers.hmap (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    write-file /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-own-target-headers.hmap
+
+WriteAuxiliaryFile /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-generated-files.hmap (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    write-file /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-generated-files.hmap
+
+WriteAuxiliaryFile /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-all-target-headers.hmap (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    write-file /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-all-target-headers.hmap
+
+WriteAuxiliaryFile /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-all-non-framework-target-headers.hmap (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    write-file /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-all-non-framework-target-headers.hmap
+
+MkDir /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    /bin/mkdir -p /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app
+
+MkDir /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/assetcatalog_output/unthinned (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    /bin/mkdir -p /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/assetcatalog_output/unthinned
+
+MkDir /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/assetcatalog_output/thinned (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    /bin/mkdir -p /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/assetcatalog_output/thinned
+
+GenerateAssetSymbols /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip/Assets.xcassets (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    /Applications/Xcode_27.1.app/Contents/Developer/usr/bin/actool /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip/Assets.xcassets --compile /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app --output-format human-readable-text --notices --warnings --export-dependency-info /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/assetcatalog_dependencies --output-partial-info-plist /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/assetcatalog_generated_info.plist --app-icon AppIcon --compress-pngs --enable-on-demand-resources YES --development-region en --target-device iphone --minimum-deployment-target 17.0 --platform iphoneos --bundle-identifier com.choice0829.bibleflip --generate-swift-asset-symbol-extensions NO --generate-swift-asset-symbols /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/DerivedSources/GeneratedAssetSymbols.swift --generate-objc-asset-symbols /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/DerivedSources/GeneratedAssetSymbols.h --generate-asset-symbol-index /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/DerivedSources/GeneratedAssetSymbols-Index.plist
+/* com.apple.actool.compilation-results */
+/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/DerivedSources/GeneratedAssetSymbols-Index.plist
+/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/DerivedSources/GeneratedAssetSymbols.h
+/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/DerivedSources/GeneratedAssetSymbols.swift
+
+
+CpResource /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app/www /Users/runner/work/bible_duo_ios/bible_duo_ios/www (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks /Users/runner/work/bible_duo_ios/bible_duo_ios/www /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app
+
+CompileAssetCatalogVariant thinned /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip/Assets.xcassets (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    /Applications/Xcode_27.1.app/Contents/Developer/usr/bin/actool /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip/Assets.xcassets --compile /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/assetcatalog_output/thinned --output-format human-readable-text --notices --warnings --export-dependency-info /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/assetcatalog_dependencies_thinned --output-partial-info-plist /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/assetcatalog_generated_info.plist_thinned --app-icon AppIcon --compress-pngs --enable-on-demand-resources YES --development-region en --target-device iphone --minimum-deployment-target 17.0 --platform iphoneos
+/* com.apple.actool.compilation-results */
+/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/assetcatalog_generated_info.plist_thinned
+/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/assetcatalog_output/thinned/AppIcon60x60@2x.png
+/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/assetcatalog_output/thinned/AppIcon76x76@2x~ipad.png
+/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/assetcatalog_output/thinned/Assets.car
+
+
+LinkAssetCatalog /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip/Assets.xcassets (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    builtin-linkAssetCatalog --thinned /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/assetcatalog_output/thinned --thinned-dependencies /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/assetcatalog_dependencies_thinned --thinned-info-plist-content /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/assetcatalog_generated_info.plist_thinned --unthinned /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/assetcatalog_output/unthinned --unthinned-dependencies /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/assetcatalog_dependencies_unthinned --unthinned-info-plist-content /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/assetcatalog_generated_info.plist_unthinned --output /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app --plist-output /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/assetcatalog_generated_info.plist
+note: Emplaced /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app/Assets.car (in target 'BibleFlip' from project 'BibleFlip')
+note: Emplaced /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app/AppIcon76x76@2x~ipad.png (in target 'BibleFlip' from project 'BibleFlip')
+note: Emplaced /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app/AppIcon60x60@2x.png (in target 'BibleFlip' from project 'BibleFlip')
+
+ProcessInfoPlistFile /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app/Info.plist /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip/Info.plist (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    builtin-infoPlistUtility /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip/Info.plist -producttype com.apple.product-type.application -genpkginfo /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app/PkgInfo -expandbuildsettings -format binary -platform iphoneos -additionalcontentfile /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/assetcatalog_generated_info.plist -requiredArchitecture arm64 -o /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app/Info.plist
+
+SwiftDriver BibleFlip normal arm64 com.apple.xcode.tools.swift.compiler (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    builtin-SwiftDriver -- /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name BibleFlip -O -whole-module-optimization @/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.SwiftFileList -enable-bare-slash-regex -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode_27.1.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.1.sdk -target arm64-apple-ios17.0 -g -module-cache-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/ModuleCache.noindex -Xfrontend -serialize-debugging-options -swift-version 5 -I /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos -F /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos -c -num-threads 3 -Xcc -ivfsstatcache -Xcc /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKStatCaches.noindex/iphoneos27.1-24A94232-e829b21a6f8c9b70876ba0858053c0442866d66f27be705873c55a4609c58824.sdkstatcache -output-file-map /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/ModuleCache.noindex -sdk-module-cache-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file /Users/runner/work/bible_duo_ios/bible_duo_ios/build/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -emit-const-values -const-gather-protocols-list /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip_const_extract_protocols.json -Xcc -iquote -Xcc /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-generated-files.hmap -Xcc -I/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-own-target-headers.hmap -Xcc -I/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-all-target-headers.hmap -Xcc -iquote -Xcc /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-project-headers.hmap -Xcc -I/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/include -Xcc -I/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/DerivedSources-normal/arm64 -Xcc -I/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/DerivedSources/arm64 -Xcc -I/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/DerivedSources -emit-objc-header -emit-objc-header-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip-Swift.h -working-directory /Users/runner/work/bible_duo_ios/bible_duo_ios -no-emit-module-separately-wmo
+
+SwiftDriver\ Compilation BibleFlip normal arm64 com.apple.xcode.tools.swift.compiler (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    builtin-Swift-Compilation -- /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name BibleFlip -O -whole-module-optimization @/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.SwiftFileList -enable-bare-slash-regex -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode_27.1.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.1.sdk -target arm64-apple-ios17.0 -g -module-cache-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/ModuleCache.noindex -Xfrontend -serialize-debugging-options -swift-version 5 -I /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos -F /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos -c -num-threads 3 -Xcc -ivfsstatcache -Xcc /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKStatCaches.noindex/iphoneos27.1-24A94232-e829b21a6f8c9b70876ba0858053c0442866d66f27be705873c55a4609c58824.sdkstatcache -output-file-map /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/ModuleCache.noindex -sdk-module-cache-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file /Users/runner/work/bible_duo_ios/bible_duo_ios/build/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -emit-const-values -const-gather-protocols-list /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip_const_extract_protocols.json -Xcc -iquote -Xcc /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-generated-files.hmap -Xcc -I/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-own-target-headers.hmap -Xcc -I/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-all-target-headers.hmap -Xcc -iquote -Xcc /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-project-headers.hmap -Xcc -I/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/include -Xcc -I/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/DerivedSources-normal/arm64 -Xcc -I/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/DerivedSources/arm64 -Xcc -I/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/DerivedSources -emit-objc-header -emit-objc-header-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip-Swift.h -working-directory /Users/runner/work/bible_duo_ios/bible_duo_ios -no-emit-module-separately-wmo
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_Builtin_stdbool-3RHRMT3H4QMT87LV8S8NMUJ1O.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_Builtin_float-4HHZCHV3K3MVZWA93ZQM6EDED.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/ptrauth-D9K2P2119R4PIT7BC9EHRG30O.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_Builtin_stdarg-7F4V9TQ9R2YW9OBOPIW7Q2SV8.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/ptrcheck-F4ERSUJCXVSWHBUCLEWVYHPDF.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_SwiftConcurrencyShims-E7FUZFMRYSLKQT5WI2WU4T4E2.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_Builtin_stddef-DV9VK5S09RGPM6RHNA30B53R2.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/SwiftShims-C1W8L5C8F3UND99XTIQM18OO3.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/DeveloperToolsSupport-EDXUZT9BG3D0QUAIQ2MQWOOJX.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_AvailabilityInternal-CTPVMEYQAUY8Z59MUXTCQYG8J.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_DarwinFoundation1-907WZSL3NBBLC3CK2B4QQGVAM.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_Builtin_limits-AY92SCDRUCNXK9XF65JY1AW00.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_DarwinFoundation2-CU0HP7QNKTGBOENZ41JRCQUHY.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_Builtin_stdint-AUFGPGP5IK4VI3LA26E787IF1.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/sys_types-19TUNK6WKRGW2M63EYCGXBAT2.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/string_h-4JA3BFM1A16TRHO85XF3YISGA.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_Builtin_tgmath-1ZI6ZKVK6H142KQY8I55ZLGTL.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_Builtin_stdatomic-11B5Z34UGKI8EA2Y87T9ZH98R.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_DarwinFoundation3-DIPQPGH76JBE8UC1DGCYT3KKN.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_Builtin_intrinsics-8V066SXTSTGYGM4441W4RXQDS.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_Builtin_inttypes-EJC84TWBGN80V6BTPKP63M3BI.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/Darwin-DTZ34C5CTH081T74V51QQ5EJJ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/simd-2GL94SLWD0OMCLZY7W7E0EH2J.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/MachO-8VCFQJ81WKLQ1QEDLHW2E77B2.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/ObjectiveC-8DLKUSMK5DWO8JGX6CUDSLZZU.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/os_object-5RP0M7O2849ERN4D0BD3J99TG.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/os_workgroup-989Q5TF9H6NCQKSYYNOBAXXO7.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/Dispatch-1MJ7XUUI5355OMCY7E9J4PMW2.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/Spatial-9WR8RUL3AC9582DVC4Q9QP09T.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/dnssd-1WTWXBPGXL65R0BMM1QI0TPP3.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreFoundation-72JK762FULC85YCMSLMCRT32H.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/XPC-CL11HU6D9EFW7J6UPEM6JMP1F.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/os-AH7E4Y61HFGR3YI2OCW47PDIJ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreGraphics-BGZEEP8BA9ZVREZKAC9U6IKID.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/Security-5K1SGZDM0WQXBG4B62QWXVEX0.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreAudioTypes-C71RXJNM9N61U9U6QK3M16W9E.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CFNetwork-6IN1OCB3Y4EBYIWH7WBN35HTJ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreText-D2CP3YGIMAF8TVM6680I1728N.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/ImageIO-BQ3O6L35J8JCJRMZ0Q38QCYUO.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreAudio-9AC7WGE8IZPEO2SKZUFSZEGAU.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/Foundation-1NFWJWO0IMW5FT3EC3LXV1EOL.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/Accessibility-3NU0Q7POMA99DBCN38C7H8O9T.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreData-C29VKX2CKWNWTGJW4254T8CIL.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/DataDetection-ECXOU9GFUYG8XJ8HF492LJDP4.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/UserNotifications-1CV4QAKBLTG8YA6KKSGJ3UW1T.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/Contacts-4LHIIU2IDWVSIT0VFTENSKTMC.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/UniformTypeIdentifiers-2JRFW14BMND0PNXO42APSWKAN.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/OSLog-2THG7RQ44LAB5TXIMR5BRSB1S.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/UIUtilities-5WVN4FP8TYTW288ND8SDBR5MX.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/IOSurface-DI7LZJ6Z1VRUUY9678Y6EZ7OL.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/Symbols-52XQYV4AB43ZB92Q96T3MD0AZ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/FileProvider-B77MYE1SSH2TUTO2C2H4FMXGG.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreTransferable-BRWR4AVXFIKDOGAYM6GNPCIT4.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/Metal-RJB1TTMYRK5JWYRXK5QX0XAS.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/OpenGLES-81C72BSW7I11C9Z6YRKMQMN60.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/Network-6QT6YR1SACEGI20VE5J688SAX.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_LocationEssentials-9TKI66OL4B9HFZQS63KTD8WP1.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreVideo-6K1LMRWSR0Y0XP8OBI302WUK2.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreLocation-398SKMVKIBQXCBLHXKZN4UQL.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreImage-83VXYS68ZJ2LYH7WUSOQG0RH8.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreMedia-9FJMETVW3NPEZ37UIJVNSZ2VX.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/QuartzCore-BSKHYHAJE57K4YP3U8JR9QWDB.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreMotion-7Q3LVF5L0YRS5SEMC3K5DRGZ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/SwiftUICore-5E51I9QWKDNV4YK3SDLBBMURM.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/UIKit-AYBSD1HSFEJ9JMVCKCTABPKJ5.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/WebKit-7J5S1QSOOHXCO7KUWWODLAD2U.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/SwiftUI-333X3R7NT7E9J65I22HNEDQOS.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/MessageUI-BU97S67CSSU2EW84NKVTTJYYL.pcm
+
+SwiftCompile normal arm64 Compiling\ AppDelegate.swift,\ BundleSchemeHandler.swift,\ ChurchBridge.swift,\ HingeBridge.swift,\ LocationBridge.swift,\ SceneDelegate.swift,\ ViewController.swift,\ GeneratedAssetSymbols.swift /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip/AppDelegate.swift /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip/BundleSchemeHandler.swift /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip/ChurchBridge.swift /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip/HingeBridge.swift /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip/LocationBridge.swift /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip/SceneDelegate.swift /Users/runner/work/bible_duo_ios/bible_duo_ios/BibleFlip/ViewController.swift /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/DerivedSources/GeneratedAssetSymbols.swift /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/CoreGraphics.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/ImageIO.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/Dispatch.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/Distributed.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/SwiftUI.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/SwiftOnoneSupport.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/_DarwinFoundation2.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/CoreLocation.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/_DarwinFoundation3.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/os.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/ObjectiveC.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/System.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/Swift.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/CoreData.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/Darwin.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/UniformTypeIdentifiers.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/Foundation.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/UIKit.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/Symbols.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/Spatial.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/CoreText.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/CoreTransferable.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/CoreMotion.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/OSLog.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/CoreFoundation.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/Observation.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/Contacts.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/_StringProcessing.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/CoreAudio.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/XPC.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/CoreImage.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/MessageUI.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/_Builtin_float.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/Network.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/Accessibility.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/WebKit.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/CoreMedia.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/DeveloperToolsSupport.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/QuartzCore.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/DataDetection.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/simd.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/Metal.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/_DarwinFoundation1.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/FileProvider.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/CoreVideo.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/Combine.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/_Concurrency.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/27.1/SwiftUICore.swiftmodule/arm64e-apple-ios.swiftmodule /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/dnssd-1WTWXBPGXL65R0BMM1QI0TPP3.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_AvailabilityInternal-CTPVMEYQAUY8Z59MUXTCQYG8J.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/DataDetection-ECXOU9GFUYG8XJ8HF492LJDP4.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/os_object-5RP0M7O2849ERN4D0BD3J99TG.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/simd-2GL94SLWD0OMCLZY7W7E0EH2J.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/XPC-CL11HU6D9EFW7J6UPEM6JMP1F.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/Dispatch-1MJ7XUUI5355OMCY7E9J4PMW2.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/Darwin-DTZ34C5CTH081T74V51QQ5EJJ.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/DeveloperToolsSupport-EDXUZT9BG3D0QUAIQ2MQWOOJX.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreText-D2CP3YGIMAF8TVM6680I1728N.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/FileProvider-B77MYE1SSH2TUTO2C2H4FMXGG.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_Builtin_stdint-AUFGPGP5IK4VI3LA26E787IF1.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreTransferable-BRWR4AVXFIKDOGAYM6GNPCIT4.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/SwiftShims-C1W8L5C8F3UND99XTIQM18OO3.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/string_h-4JA3BFM1A16TRHO85XF3YISGA.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/os_workgroup-989Q5TF9H6NCQKSYYNOBAXXO7.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/UniformTypeIdentifiers-2JRFW14BMND0PNXO42APSWKAN.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreMotion-7Q3LVF5L0YRS5SEMC3K5DRGZ.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/ObjectiveC-8DLKUSMK5DWO8JGX6CUDSLZZU.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreAudioTypes-C71RXJNM9N61U9U6QK3M16W9E.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CFNetwork-6IN1OCB3Y4EBYIWH7WBN35HTJ.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/os-AH7E4Y61HFGR3YI2OCW47PDIJ.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_LocationEssentials-9TKI66OL4B9HFZQS63KTD8WP1.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreLocation-398SKMVKIBQXCBLHXKZN4UQL.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/ImageIO-BQ3O6L35J8JCJRMZ0Q38QCYUO.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/Foundation-1NFWJWO0IMW5FT3EC3LXV1EOL.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/Network-6QT6YR1SACEGI20VE5J688SAX.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreAudio-9AC7WGE8IZPEO2SKZUFSZEGAU.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/WebKit-7J5S1QSOOHXCO7KUWWODLAD2U.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_Builtin_float-4HHZCHV3K3MVZWA93ZQM6EDED.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/OSLog-2THG7RQ44LAB5TXIMR5BRSB1S.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_DarwinFoundation2-CU0HP7QNKTGBOENZ41JRCQUHY.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/SwiftUICore-5E51I9QWKDNV4YK3SDLBBMURM.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_Builtin_stdarg-7F4V9TQ9R2YW9OBOPIW7Q2SV8.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreVideo-6K1LMRWSR0Y0XP8OBI302WUK2.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_SwiftConcurrencyShims-E7FUZFMRYSLKQT5WI2WU4T4E2.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/SwiftUI-333X3R7NT7E9J65I22HNEDQOS.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/IOSurface-DI7LZJ6Z1VRUUY9678Y6EZ7OL.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreMedia-9FJMETVW3NPEZ37UIJVNSZ2VX.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/Symbols-52XQYV4AB43ZB92Q96T3MD0AZ.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_Builtin_inttypes-EJC84TWBGN80V6BTPKP63M3BI.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_Builtin_stdbool-3RHRMT3H4QMT87LV8S8NMUJ1O.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/Metal-RJB1TTMYRK5JWYRXK5QX0XAS.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_Builtin_limits-AY92SCDRUCNXK9XF65JY1AW00.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/Accessibility-3NU0Q7POMA99DBCN38C7H8O9T.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/MachO-8VCFQJ81WKLQ1QEDLHW2E77B2.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/sys_types-19TUNK6WKRGW2M63EYCGXBAT2.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/UIUtilities-5WVN4FP8TYTW288ND8SDBR5MX.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/Spatial-9WR8RUL3AC9582DVC4Q9QP09T.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_Builtin_stdatomic-11B5Z34UGKI8EA2Y87T9ZH98R.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreData-C29VKX2CKWNWTGJW4254T8CIL.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreFoundation-72JK762FULC85YCMSLMCRT32H.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/Contacts-4LHIIU2IDWVSIT0VFTENSKTMC.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/UIKit-AYBSD1HSFEJ9JMVCKCTABPKJ5.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_DarwinFoundation3-DIPQPGH76JBE8UC1DGCYT3KKN.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/OpenGLES-81C72BSW7I11C9Z6YRKMQMN60.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/ptrauth-D9K2P2119R4PIT7BC9EHRG30O.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/Security-5K1SGZDM0WQXBG4B62QWXVEX0.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_Builtin_intrinsics-8V066SXTSTGYGM4441W4RXQDS.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_Builtin_stddef-DV9VK5S09RGPM6RHNA30B53R2.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/MessageUI-BU97S67CSSU2EW84NKVTTJYYL.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/UserNotifications-1CV4QAKBLTG8YA6KKSGJ3UW1T.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_DarwinFoundation1-907WZSL3NBBLC3CK2B4QQGVAM.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreImage-83VXYS68ZJ2LYH7WUSOQG0RH8.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/CoreGraphics-BGZEEP8BA9ZVREZKAC9U6IKID.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/ptrcheck-F4ERSUJCXVSWHBUCLEWVYHPDF.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/QuartzCore-BSKHYHAJE57K4YP3U8JR9QWDB.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules/_Builtin_tgmath-1ZI6ZKVK6H142KQY8I55ZLGTL.pcm /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip-dependencies-1.json (in target 'BibleFlip' from project 'BibleFlip')
+
+SwiftCompile normal arm64 (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling AppDelegate.swift, BundleSchemeHandler.swift, ChurchBridge.swift, HingeBridge.swift, LocationBridge.swift, SceneDelegate.swift, ViewController.swift, GeneratedAssetSymbols.swift (in target 'BibleFlip' from project 'BibleFlip')
+
+SwiftDriver\ Compilation\ Requirements BibleFlip normal arm64 com.apple.xcode.tools.swift.compiler (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    builtin-Swift-Compilation-Requirements -- /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name BibleFlip -O -whole-module-optimization @/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.SwiftFileList -enable-bare-slash-regex -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode_27.1.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.1.sdk -target arm64-apple-ios17.0 -g -module-cache-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/ModuleCache.noindex -Xfrontend -serialize-debugging-options -swift-version 5 -I /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos -F /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos -c -num-threads 3 -Xcc -ivfsstatcache -Xcc /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKStatCaches.noindex/iphoneos27.1-24A94232-e829b21a6f8c9b70876ba0858053c0442866d66f27be705873c55a4609c58824.sdkstatcache -output-file-map /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/ModuleCache.noindex -sdk-module-cache-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file /Users/runner/work/bible_duo_ios/bible_duo_ios/build/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -emit-const-values -const-gather-protocols-list /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip_const_extract_protocols.json -Xcc -iquote -Xcc /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-generated-files.hmap -Xcc -I/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-own-target-headers.hmap -Xcc -I/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-all-target-headers.hmap -Xcc -iquote -Xcc /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip-project-headers.hmap -Xcc -I/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/include -Xcc -I/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/DerivedSources-normal/arm64 -Xcc -I/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/DerivedSources/arm64 -Xcc -I/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/DerivedSources -emit-objc-header -emit-objc-header-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip-Swift.h -working-directory /Users/runner/work/bible_duo_ios/bible_duo_ios -no-emit-module-separately-wmo
+
+SwiftMergeGeneratedHeaders /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/DerivedSources/BibleFlip-Swift.h /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip-Swift.h (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    builtin-swiftHeaderTool -arch arm64 /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip-Swift.h -o /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/DerivedSources/BibleFlip-Swift.h
+
+Copy /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.swiftmodule/arm64-apple-ios.swiftmodule /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.swiftmodule (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.swiftmodule /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.swiftmodule/arm64-apple-ios.swiftmodule
+
+Copy /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.swiftmodule/arm64-apple-ios.swiftdoc /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.swiftdoc (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.swiftdoc /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.swiftmodule/arm64-apple-ios.swiftdoc
+
+Copy /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.swiftmodule/arm64-apple-ios.abi.json /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.abi.json (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.abi.json /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.swiftmodule/arm64-apple-ios.abi.json
+
+Copy /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.swiftsourceinfo (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.swiftsourceinfo /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo
+
+Ld /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app/BibleFlip normal (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios17.0 -isysroot /Applications/Xcode_27.1.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.1.sdk -Os -Xlinker -no_warn_duplicate_libraries -L/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/EagerLinkingTBDs/Release-iphoneos -L/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos -F/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/EagerLinkingTBDs/Release-iphoneos -F/Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos -filelist /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.LinkFileList -Xlinker -rpath -Xlinker /usr/lib/swift -Xlinker -rpath -Xlinker @executable_path/Frameworks -Xlinker -dead_strip -Xlinker -object_path_lto -Xlinker /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip_lto.o -Xlinker -dependency_info -Xlinker /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip_dependency_info.dat -fobjc-link-runtime -L/Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos -L/usr/lib/swift -Xlinker -add_ast_path -Xlinker /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.swiftmodule -o /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app/BibleFlip
+
+GenerateDSYMFile /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app.dSYM /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app/BibleFlip (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    export PATH\=/Applications/Xcode_27.1.app/Contents/SharedFrameworks/SwiftBuild.framework/Versions/A/PlugIns/SWBBuildService.bundle/Contents/PlugIns/SWBUniversalPlatformPlugin.bundle/Contents/Frameworks/SWBUniversalPlatform.framework/Resources:/var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v27.1.266.1.iZAMSO/Metal.xctoolchain/usr/bin:/var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v27.1.266.1.iZAMSO/Metal.xctoolchain/usr/local/bin:/var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v27.1.266.1.iZAMSO/Metal.xctoolchain/usr/libexec:/Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin:/Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/local/bin:/Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/libexec:/Applications/Xcode_27.1.app/Contents/Developer/Platforms/iPhoneOS.platform/usr/bin:/Applications/Xcode_27.1.app/Contents/Developer/Platforms/iPhoneOS.platform/usr/local/bin:/Applications/Xcode_27.1.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin:/Applications/Xcode_27.1.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/local/bin:/Applications/Xcode_27.1.app/Contents/Developer/usr/bin:/Applications/Xcode_27.1.app/Contents/Developer/usr/local/bin:/opt/homebrew/opt/rustup/bin:/opt/homebrew/lib/ruby/gems/3.4.0/bin:/opt/homebrew/opt/ruby@3.4/bin:/Users/runner/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/Users/runner/.cargo/bin:/usr/local/opt/curl/bin:/usr/local/bin:/usr/local/sbin:/Users/runner/bin:/Users/runner/.yarn/bin:/Users/runner/Library/Android/sdk/tools:/Users/runner/Library/Android/sdk/platform-tools:/Library/Frameworks/Python.framework/Versions/Current/bin:/Library/Frameworks/Mono.framework/Versions/Current/Commands:/usr/bin:/bin:/usr/sbin:/sbin:/Users/runner/.dotnet/tools
+    /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/dsymutil /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app/BibleFlip -o /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app.dSYM
+
+ExtractAppIntentsMetadata (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v27.1.266.1.iZAMSO/Metal.xctoolchain --module-name BibleFlip --sdk-root /Applications/Xcode_27.1.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS27.1.sdk --xcode-version 27A9275 --platform-family iOS --deployment-target 17.0 --bundle-identifier com.choice0829.bibleflip --output /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app --target-triple arm64-apple-ios17.0 --binary-file /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app/BibleFlip --dependency-file /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip_dependency_info.dat --stringsdata-file /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.SwiftFileList --metadata-file-list /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip.DependencyMetadataFileList --static-metadata-file-list /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip.DependencyStaticMetadataFileList --swift-const-vals-list /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/Objects-normal/arm64/BibleFlip.SwiftConstValuesFileList --compile-time-extraction --deployment-aware-processing --no-app-shortcuts-localization
+2026-11-27 04:09:52.502 appintentsmetadataprocessor[2466:11295] Starting appintentsmetadataprocessor export
+2026-11-27 04:09:52.516 appintentsmetadataprocessor[2466:11295] warning: Metadata extraction skipped, no AppIntents.framework dependency found
+
+CopySwiftLibs /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    builtin-swiftStdLibTool --copy --verbose --scan-executable /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app/BibleFlip --scan-folder /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app/Frameworks --scan-folder /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app/PlugIns --scan-folder /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app/SystemExtensions --scan-folder /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app/Extensions --platform iphoneos --toolchain /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v27.1.266.1.iZAMSO/Metal.xctoolchain --toolchain /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app/Frameworks --strip-bitcode --strip-bitcode-tool /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os --back-deploy-swift-span
+Ignoring --strip-bitcode because --sign was not passed
+
+AppIntentsSSUTraining (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    /Applications/Xcode_27.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsnltrainingprocessor --infoplist-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app/Info.plist --temp-dir-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/ssu --bundle-id com.choice0829.bibleflip --product-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app --extracted-metadata-path /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app/Metadata.appintents --metadata-file-list /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/BibleFlip.build/Release-iphoneos/BibleFlip.build/BibleFlip.DependencyMetadataFileList --source-file /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app/Info.plist --archive-ssu-assets
+2026-11-27 04:09:52.563 appintentsnltrainingprocessor[2467:11298] Parsing options for appintentsnltrainingprocessor
+2026-11-27 04:09:52.563 appintentsnltrainingprocessor[2467:11298] Starting AppIntents SSU YAML Generation
+2026-11-27 04:09:52.567 appintentsnltrainingprocessor[2467:11298] No AppShortcuts found - Skipping.
+
+RegisterExecutionPolicyException /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    builtin-RegisterExecutionPolicyException /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app
+
+Validate /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    builtin-validationUtility /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app -shallow-bundle -infoplist-subpath Info.plist
+
+Touch /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app (in target 'BibleFlip' from project 'BibleFlip')
+    cd /Users/runner/work/bible_duo_ios/bible_duo_ios
+    /usr/bin/touch -c /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Products/Release-iphoneos/BibleFlip.app
+
+PruneExplicitPrecompiledModules /Users/runner/work/bible_duo_ios/bible_duo_ios/build/SDKExplicitPrecompiledModules
+
+PruneExplicitPrecompiledModules /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+
+PruneExplicitPrecompiledModules /Users/runner/work/bible_duo_ios/bible_duo_ios/build/Build/Intermediates.noindex/ExplicitPrecompiledModules
+
+** BUILD SUCCEEDED **
+
