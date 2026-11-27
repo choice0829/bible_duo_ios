@@ -190,12 +190,14 @@ const pageIdx=(p)=>p.evaluate(()=>{const pages=[...document.querySelectorAll('#s
   ok('v103: opening again (fully open) puts the header back', JSON.stringify(await pos())===JSON.stringify(o));
   await close([150,120,104]); await sleep(1500);
   ok('v103: stopping half-folded (tabletop) puts the header back after a moment', JSON.stringify(await pos())===JSON.stringify(o));
-  // v104: 펼칠 때 머리줄이 미끄러지는 동안 책 다시 만들기(긴 작업)가 끼어들지 않는다
+  // v105: 펼친 뒤 본문을 곧바로 만든다(크기 안정 대기·머리줄 움직임 끝을 기다리지 않음). 시작은 크기 변화 0.1초 안, 보이는 것은 0.45초 안(모의, 그리기 시간 포함)
   { await FOLD(); await sleep(2500);
-    await p.evaluate(()=>{ window.__lt=[]; window.__t0=performance.now(); new PerformanceObserver(l=>{ for(const e of l.getEntries()) window.__lt.push([e.startTime-window.__t0, e.duration]); }).observe({type:'longtask'}); window.__rz=0; window.addEventListener('resize',()=>{ if(!window.__rz) window.__rz=performance.now()-window.__t0; }); });
+    await p.evaluate(()=>{ window.__lt=[]; window.__t0=performance.now(); window.__rz=0; window.__shown=0; new PerformanceObserver(l=>{ for(const e of l.getEntries()) window.__lt.push([e.startTime-window.__t0, e.duration]); }).observe({type:'longtask'});
+      window.addEventListener('resize',()=>{ if(!window.__rz) window.__rz=performance.now()-window.__t0; });
+      const st=document.querySelector('#stage'); new MutationObserver(()=>{ if(!window.__shown && window.__rz && !st.classList.contains('stale') && st.querySelector('p[data-k]')) window.__shown=performance.now()-window.__t0; }).observe(st,{attributes:true,childList:true,subtree:true}); });
     await OPEN(); await sleep(2500);
-    const r=await p.evaluate(()=>({rz:window.__rz, lt:window.__lt.map(x=>[Math.round(x[0]),Math.round(x[1])])}));
-    ok('v104 unfold: no long task (>50ms) while the header slides (first 380ms after the size change)', !r.lt.some(([t])=>t>r.rz+20&&t<r.rz+380), JSON.stringify(r));
+    const r=await p.evaluate(()=>({rz:Math.round(window.__rz), shown:Math.round(window.__shown-window.__rz), build:window.__lt.map(x=>Math.round(x[0]-window.__rz)).filter(x=>x>0)}));
+    ok('v105 unfold: the book starts building within 0.1s of the size change and is shown within 0.45s (mock incl. drawing)', r.shown>0 && r.shown<=450 && r.build.length>0 && Math.min(...r.build)<=100, JSON.stringify(r));
     ok('v104 unfold: the book is shown again after rebuilding', await p.evaluate(()=>!document.querySelector('#stage').classList.contains('stale') && document.querySelectorAll('#stage p[data-k]').length>0)); }
   ok('no page errors (v103)', errs.length===0, JSON.stringify(errs)); await p.close(); }
 console.log(fails?'FAILS '+fails:'ALL PASS'); await b.close(); process.exit(0);

@@ -38,7 +38,7 @@
   const SIDE_PAD = 8;   // 본문 좌우 여백(px). 더 줄이려면 숫자를 낮추세요
   const FONT_MIN = 14, FONT_MAX = 30;
   const NATIVE = location.protocol === 'bibleflip:' || /[?&]native=1/.test(location.search);   // 아이폰 앱(껍데기) 안에서 열린 경우 (index.html 맨 위 스크립트도 같은 기준으로 html.native를 단다)
-  const APP_VER = 'v104';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
+  const APP_VER = 'v105';   // sw.js의 CACHE 숫자와 함께 올린다. (v68부터 화면에는 표시하지 않는다. 설치된 앱의 버전은 IPA 안의 app.js·Info.plist 로 확인한다.)
   const THEMES = { paper: '종이', sepia: '세피아', night: '야간' };
   const SYS_SERIF = '"AppleMyungjo","Noto Serif KR","Noto Serif CJK KR","Apple SD Gothic Neo",serif';
   const SYS_SANS = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",-apple-system,sans-serif';
@@ -317,7 +317,8 @@
   // 각 요소를 '이전 자리'(접힌 화면 = 펼친 화면의 오른쪽 쪽이므로 화면 폭 차이만큼 옮긴 자리)로 되돌렸다가 제자리로 움직인다(FLIP).
   // 움직이는 동안(body.head-anim)만 머리줄을 화면 전환 가림(#loading.quiet, z 28) 위로 올리고 뒤에 남색 띠를 깐다.
   const HEAD_ANIM_MS = 380;   // v102: 550 → 380(접기·펴기 직후 바로 끝나게)
-  let headRects = null, headW = 0, headMode = '', headAnimTimer = 0, headAnimEndAt = 0, rebuildDefer = 0;
+  let headRects = null, headW = 0, headMode = '', headAnimTimer = 0, headAnimEndAt = 0, rebuildDefer = 0, earlyRebuildT = 0;
+  const EARLY_REBUILD_MS = 30;    // v105: 듀오 접기·펴기 후 본문을 만들기 시작하는 시각(머리줄 움직임이 첫 화면에 그려진 직후)
   const headModeOf = (g) => g.duoFold ? 'fold' : (g.full && g.duo) ? 'mid' : 'other';
   function headEls() {
     const list = [['brand', $('.brand')], ['book', $('#loc-book')], ['ch', $('#loc-ch')], ['church', $('#loc-church')]];
@@ -1797,6 +1798,11 @@
         stage.classList.add('stale');
         hingeSwitchSeen(headModeOf(g0));
         try { applyLook(g0); } catch (e) { /* 무시: 다시 만들 때 제자리로 */ }
+        // v105: 본문은 곧바로(머리줄 움직임이 한 번 그려진 직후) 만든다(크기 안정 대기·머리줄 움직임 끝을 기다리지 않음). 머리줄은 transform 움직임이라
+        // 책을 만드는 동안에도 화면 합성 단계에서 계속 미끄러진다. 그 뒤 크기·안전영역이 더 바뀌면 안정된 뒤 다시 만든다(settleTick).
+        clearTimeout(earlyRebuildT);
+        const tgt = rotPos;
+        earlyRebuildT = setTimeout(() => { if (!building) rebuild(tgt || pos); }, EARLY_REBUILD_MS);
       }
     }
     posFreezeUntil = Date.now() + 3500;
@@ -1839,11 +1845,8 @@
       const target = rotPos || pos;
       settleStart = 0; rotPos = null;
       if (key !== lastGeo) {
-        // v104: 머리줄이 미끄러지는 중이면 끝난 뒤에 책을 만든다(쪽을 그리는 약 0.2초 동안 움직임이 멈칫하지 않게)
-        const wait = headAnimEndAt - Date.now();
         clearTimeout(rebuildDefer);
-        if (wait > 0) rebuildDefer = setTimeout(() => rebuild(target), wait + 30);
-        else rebuild(target);   // 다 만든 뒤 확인은 rebuild 끝에서 예약한다
+        rebuild(target);   // 다 만든 뒤 확인은 rebuild 끝에서 예약한다 (v105: v104의 '머리줄 움직임 끝까지 미루기'는 없앰 — 본문이 늦게 나와서)
       } else {
         stage.classList.remove('stale');
         if (!building) { posFreezeUntil = 0; showLoading(false); scheduleVerify(); }
